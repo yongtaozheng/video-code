@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>泡泡屏保</title>
+    <style>
+      body {
+        height: 100%;
+        overflow: hidden;
+        background: url("./bg.jpg");
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+      }
+      .bubble {
+        position: absolute;
+        border-radius: 50%;
+      }
+      .bubble::before {
+        content: "";
+        position: absolute;
+        top: 12%;
+        left: 20%;
+        width: 15%; /* 高光宽度 */
+        height: 6%; /* 高光高度 */
+        border-radius: 30%; /* 矩形圆角 */
+        background: linear-gradient(
+          135deg,
+          rgba(255, 255, 255, 0.9) 40%,
+          rgba(255, 255, 255, 0.3) 80%,
+          rgba(255, 255, 255, 0) 95%
+        );
+        transform: rotate(332deg); /* 倾斜角度 */
+        opacity: 0.8;
+      }
+      .bubble-shadow1 {
+        box-shadow:
+          inset 0 0 10px rgba(250, 188, 123, 1),
+          0 0 5px rgba(250, 188, 123, 0.8);
+      }
+      .bubble-shadow2 {
+        box-shadow:
+          inset 0 0 10px rgba(21, 165, 237, 1),
+          0 0 5px rgba(21, 165, 237, 0.8);
+      }
+      .bubble-shadow3 {
+        box-shadow:
+          inset 0 0 10px rgba(123, 24, 125, 1),
+          0 0 5px rgba(123, 24, 125, 0.8);
+      }
+      .bubble-shadow4 {
+        box-shadow:
+          inset 0 0 10px rgba(146, 241, 2, 1),
+          0 0 5px rgba(146, 241, 2, 0.8);
+      }
+      .bubble-shadow5 {
+        box-shadow:
+          inset 0 0 10px rgba(245, 58, 58, 1),
+          0 0 5px rgba(245, 58, 58, 0.8);
+      }
+
+      @keyframes blink {
+        0% {
+          opacity: 0.8;
+        }
+
+        100% {
+          opacity: 1;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <script>
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      const list = [
+        {
+          r: 200,
+          left: 0,
+          top: 0,
+          leftStep: 1,
+          topStep: 2,
+          flag: true,
+        },
+        {
+          r: 120,
+          left: 0,
+          top: 0,
+          leftStep: 2.5,
+          topStep: 2.5,
+          flag: true,
+        },
+        {
+          r: 200,
+          left: 400,
+          top: 0,
+          leftStep: 3,
+          topStep: 2,
+          flag: true,
+        },
+        {
+          r: 160,
+          left: 0,
+          top: 400,
+          leftStep: 2,
+          topStep: 1,
+          flag: true,
+        },
+        {
+          r: 160,
+          left: 0,
+          top: 550,
+          leftStep: 3,
+          topStep: 3,
+          flag: true,
+        },
+        {
+          r: 150,
+          left: 600,
+          top: 0,
+          leftStep: 2,
+          topStep: 1.5,
+          flag: true,
+        },
+        {
+          r: 150,
+          left: 0,
+          top: 650,
+          leftStep: 1.5,
+          topStep: 2,
+          flag: true,
+        },
+        {
+          r: 180,
+          left: width - 180,
+          top: 0,
+          leftStep: -1.5,
+          topStep: 2,
+          flag: true,
+        },
+        {
+          r: 180,
+          left: 500,
+          top: height - 180,
+          leftStep: 1.5,
+          topStep: -2,
+          flag: true,
+        },
+      ];
+
+      function getRandom(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+      }
+
+      function initBubble() {
+        list.forEach((item, index) => {
+          const bubble = document.createElement("div");
+          const num = getRandom(1, 5);
+          bubble.id = "bubble-" + index;
+          bubble.classList.add("bubble");
+          bubble.classList.add("bubble-shadow" + num);
+          bubble.style.width = item.r + "px";
+          bubble.style.height = item.r + "px";
+          bubble.style.left = item.left + "px";
+          bubble.style.top = item.top + "px";
+          document.body.appendChild(bubble);
+        });
+      }
+
+      function isColliding(bubble1, bubble2) {
+        const dx =
+          bubble1.left + bubble1.r / 2 - (bubble2.left + bubble2.r / 2);
+        const dy = bubble1.top + bubble1.r / 2 - (bubble2.top + bubble2.r / 2);
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        return distance <= (bubble1.r + bubble2.r) / 2;
+      }
+
+      function elasticCollision(bubble1, bubble2) {
+        const m1 = bubble1.r * bubble1.r * Math.PI;
+        const m2 = bubble2.r * bubble2.r* Math.PI;
+        const v1x = bubble1.leftStep;
+        const v1y = bubble1.topStep;
+        const v2x = bubble2.leftStep;
+        const v2y = bubble2.topStep;
+        const x1 = bubble1.left + bubble1.r / 2;
+        const y1 = bubble1.top + bubble1.r / 2;
+        const x2 = bubble2.left + bubble2.r / 2;
+        const y2 = bubble2.top + bubble2.r / 2;
+
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const d = Math.sqrt(dx * dx + dy * dy);
+
+        const nx = dx / d;
+        const ny = dy / d;
+
+        const v1n = v1x * nx + v1y * ny;
+        const v1t = v1x * -ny + v1y * nx;
+        const v2n = v2x * nx + v2y * ny;
+        const v2t = v2x * -ny + v2y * nx;
+
+        const v1nFinal = (v1n * (m1 - m2) + 2 * m2 * v2n) / (m1 + m2);
+        const v2nFinal = (v2n * (m2 - m1) + 2 * m1 * v1n) / (m1 + m2);
+
+        const v1xFinal = v1nFinal * nx - v1t * ny;
+        const v1yFinal = v1nFinal * ny + v1t * nx;
+        const v2xFinal = v2nFinal * nx - v2t * ny;
+        const v2yFinal = v2nFinal * ny + v2t * nx;
+
+        if (!bubble1.flag) {
+          bubble1.leftStep = v1xFinal;
+          bubble1.topStep = v1yFinal;
+        }
+        if (!bubble2.flag) {
+          bubble2.leftStep = v2xFinal;
+          bubble2.topStep = v2yFinal;
+        }
+      }
+
+      function animate() {
+        list.forEach((item, index) => {
+          const bubble = document.getElementById("bubble-" + index);
+          item.left += item.leftStep;
+          item.top += item.topStep;
+          bubble.style.left = item.left + "px";
+          bubble.style.top = item.top + "px";
+          item.left = Math.max(
+            0,
+            Math.min(item.left, window.innerWidth - item.r)
+          );
+          item.top = Math.max(
+            0,
+            Math.min(item.top, window.innerHeight - item.r)
+          );
+          if (item.left >= window.innerWidth - item.r || item.left <= 0) {
+            item.leftStep *= -1;
+          }
+          if (item.top >= window.innerHeight - item.r || item.top <= 0) {
+            item.topStep *= -1;
+          }
+        });
+
+        // 检查小球是否相撞
+        const map = {};
+        for (let i = 0; i < list.length; i++) {
+          map[i] = new Set();
+        }
+        for (let i = 0; i < list.length; i++) {
+          let flag = false;
+          for (let j = i + 1; j < list.length; j++) {
+            if (isColliding(list[i], list[j])) {
+              map[j].add(i);
+              flag = true;
+              elasticCollision(list[i], list[j]);
+            }
+          }
+          if (!flag && map[i].size == 0) {
+            list[i].flag = false;
+          }
+        }
+
+        requestAnimationFrame(animate);
+      }
+
+      initBubble();
+      requestAnimationFrame(animate);
+    </script>
+  </body>
+</html>
