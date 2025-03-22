@@ -1,4 +1,4 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -36,126 +36,52 @@
         opacity: 0.8;
       }
       .bubble-shadow1 {
-        box-shadow:
-          inset 0 0 10px rgba(250, 188, 123, 1),
+        box-shadow: inset 0 0 10px rgba(250, 188, 123, 1),
           0 0 5px rgba(250, 188, 123, 0.8);
       }
       .bubble-shadow2 {
-        box-shadow:
-          inset 0 0 10px rgba(21, 165, 237, 1),
+        box-shadow: inset 0 0 10px rgba(21, 165, 237, 1),
           0 0 5px rgba(21, 165, 237, 0.8);
       }
       .bubble-shadow3 {
-        box-shadow:
-          inset 0 0 10px rgba(123, 24, 125, 1),
+        box-shadow: inset 0 0 10px rgba(123, 24, 125, 1),
           0 0 5px rgba(123, 24, 125, 0.8);
       }
       .bubble-shadow4 {
-        box-shadow:
-          inset 0 0 10px rgba(146, 241, 2, 1),
+        box-shadow: inset 0 0 10px rgba(146, 241, 2, 1),
           0 0 5px rgba(146, 241, 2, 0.8);
       }
       .bubble-shadow5 {
-        box-shadow:
-          inset 0 0 10px rgba(245, 58, 58, 1),
+        box-shadow: inset 0 0 10px rgba(245, 58, 58, 1),
           0 0 5px rgba(245, 58, 58, 0.8);
-      }
-
-      @keyframes blink {
-        0% {
-          opacity: 0.8;
-        }
-
-        100% {
-          opacity: 1;
-        }
       }
     </style>
   </head>
 
   <body>
     <script>
-      const width = window.innerWidth;
-      const height = window.innerHeight;
-      const list = [
-        {
-          r: 200,
-          left: 0,
-          top: 0,
-          leftStep: 1,
-          topStep: 2,
-          flag: true,
-        },
-        {
-          r: 120,
-          left: 0,
-          top: 0,
-          leftStep: 2.5,
-          topStep: 2.5,
-          flag: true,
-        },
-        {
-          r: 200,
-          left: 400,
-          top: 0,
-          leftStep: 3,
-          topStep: 2,
-          flag: true,
-        },
-        {
-          r: 160,
-          left: 0,
-          top: 400,
-          leftStep: 2,
-          topStep: 1,
-          flag: true,
-        },
-        {
-          r: 160,
-          left: 0,
-          top: 550,
-          leftStep: 3,
-          topStep: 3,
-          flag: true,
-        },
-        {
-          r: 150,
-          left: 600,
-          top: 0,
-          leftStep: 2,
-          topStep: 1.5,
-          flag: true,
-        },
-        {
-          r: 150,
-          left: 0,
-          top: 650,
-          leftStep: 1.5,
-          topStep: 2,
-          flag: true,
-        },
-        {
-          r: 180,
-          left: width - 180,
-          top: 0,
-          leftStep: -1.5,
-          topStep: 2,
-          flag: true,
-        },
-        {
-          r: 180,
-          left: 500,
-          top: height - 180,
-          leftStep: 1.5,
-          topStep: -2,
-          flag: true,
-        },
-      ];
-
-      function getRandom(min, max) {
+      function getRandom(min, max, isInt = true) {
+        if (!isInt) {
+          return Math.random() * (max - min) + min;
+        }
         return Math.floor(Math.random() * (max - min + 1)) + min;
       }
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      const bubbleNum = 8;
 
+      const list = [];
+      for (let i = 0; i < bubbleNum; i++) {
+        const r = getRandom(100, 150);
+        list.push({
+          r,
+          left: getRandom(0, width - r),
+          top: getRandom(0, height - r),
+          leftStep: getRandom(-2, 4, false),
+          topStep: getRandom(-2, 4, false),
+          flag: true,
+        });
+      }
       function initBubble() {
         list.forEach((item, index) => {
           const bubble = document.createElement("div");
@@ -181,7 +107,7 @@
 
       function elasticCollision(bubble1, bubble2) {
         const m1 = bubble1.r * bubble1.r * Math.PI;
-        const m2 = bubble2.r * bubble2.r* Math.PI;
+        const m2 = bubble2.r * bubble2.r * Math.PI;
         const v1x = bubble1.leftStep;
         const v1y = bubble1.topStep;
         const v2x = bubble2.leftStep;
