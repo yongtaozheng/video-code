@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>3D骰子模拟器</title>
+    <style>
+      /* 3D容器设置 */
+      .container {
+        perspective: 800px;
+        margin: 100px auto;
+        width: 200px;
+      }
+
+      /* 骰子本体 */
+      .dice {
+        position: relative;
+        width: 200px;
+        height: 200px;
+        transform-style: preserve-3d;
+        transition: transform 2s cubic-bezier(0.25, 0.1, 0.25, 1);
+      }
+
+      /* 骰子面通用样式 */
+      .face {
+        position: absolute;
+        width: 180px;
+        height: 180px;
+        background: #fff;
+        border: 2px solid #333;
+        border-radius: 10px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      }
+      .row {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+      }
+
+      /* 点数布局 */
+      .dot {
+        width: 30px;
+        height: 30px;
+        background: #333;
+        border-radius: 50%;
+        margin: 10px;
+      }
+      .hide-dot {
+        visibility: hidden;
+      }
+
+      /* 各面3D变换 */
+      .front {
+        transform: translateZ(90px);
+      }
+      .back {
+        transform: rotateY(180deg) translateZ(90px);
+      }
+      .top {
+        transform: rotateX(90deg) translateZ(90px);
+      }
+      .bottom {
+        transform: rotateX(-90deg) translateZ(90px);
+      }
+      .left {
+        transform: rotateY(-90deg) translateZ(90px);
+      }
+      .right {
+        transform: rotateY(90deg) translateZ(90px);
+      }
+
+      /* 控制按钮 */
+      .controls {
+        text-align: center;
+        margin-top: 30px;
+      }
+      button {
+        padding: 12px 25px;
+        background: #2196f3;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: transform 0.2s;
+      }
+      button:hover {
+        background: #1976d2;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="dice" id="dice">
+        <div class="face front" data-value="1">
+          <div class="dot" style="background-color: red"></div>
+        </div>
+        <div class="face back" data-value="6">
+          <div class="row" style="margin-right: 15px">
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+          </div>
+          <div class="row">
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+          </div>
+        </div>
+        <div class="face top" data-value="5">
+          <div class="row">
+            <div class="dot"></div>
+            <div class="dot hide-dot"></div>
+            <div class="dot"></div>
+          </div>
+          <div class="row">
+            <div class="dot"></div>
+          </div>
+          <div class="row">
+            <div class="dot"></div>
+            <div class="dot hide-dot"></div>
+            <div class="dot"></div>
+          </div>
+        </div>
+        <div class="face bottom" data-value="2">
+          <div class="row">
+            <div class="dot"></div>
+            <div class="dot hide-dot"></div>
+            <div class="dot"></div>
+          </div>
+        </div>
+        <div class="face left" data-value="4">
+          <div class="row">
+            <div class="dot hide-dot"></div>
+          </div>
+          <div class="row">
+            <div class="dot" style="background-color: red"></div>
+            <div class="dot hide-dot"></div>
+            <div class="dot" style="background-color: red"></div>
+          </div>
+          <div class="row">
+            <div class="dot hide-dot"></div>
+          </div>
+          <div class="row">
+            <div class="dot" style="background-color: red"></div>
+            <div class="dot hide-dot"></div>
+            <div class="dot" style="background-color: red"></div>
+          </div>
+          <div class="row">
+            <div class="dot hide-dot"></div>
+          </div>
+        </div>
+        <div class="face right" data-value="3">
+          <div class="row">
+            <div class="dot hide-dot"></div>
+            <div class="dot hide-dot"></div>
+            <div class="dot"></div>
+          </div>
+          <div class="row">
+            <div class="dot hide-dot"></div>
+            <div class="dot"></div>
+            <div class="dot hide-dot"></div>
+          </div>
+          <div class="row">
+            <div class="dot"></div>
+            <div class="dot hide-dot"></div>
+            <div class="dot hide-dot"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="controls">
+      <button onclick="rollDice()" id="rollBtn">摇骰子</button>
+      <p id="result"></p>
+    </div>
+
+    <script>
+      function getRandom(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+      }
+      const rotateMap = {
+        1: {
+          rotateX: "0deg",
+          rotateY: "0deg",
+        },
+        2: {
+          rotateX: "90deg",
+          rotateY: "0deg",
+        },
+        3: {
+          rotateX: "180deg",
+          rotateY: "90deg",
+        },
+        4: {
+          rotateX: "0deg",
+          rotateY: "90deg",
+        },
+        5: {
+          rotateX: "270deg",
+          rotateY: "0deg",
+        },
+        6: {
+          rotateX: "0deg",
+          rotateY: "180deg",
+        },
+      };
+      function rollDice() {
+        const dice = document.getElementById("dice");
+        const result = document.getElementById("result");
+        const rollBtn = document.getElementById("rollBtn");
+        const randomValue = getRandom(1, 6);
+        // dice.style.transform = rotateMap[randomValue];
+        const obj = rotateMap[randomValue];
+        let transform = "",
+          transform2 = "";
+        for (const key in obj) {
+          transform += `${key}(${obj[key]}) `;
+          transform2 += `${key}(${parseInt(obj[key]) + 360 * 2}deg) `;
+        }
+        dice.style.transition = "transform 2s cubic-bezier(0.25, 0.1, 0.25, 1)";
+        dice.style.transform = transform2;
+        rollBtn.disabled = true;
+        rollBtn.style.background = "#ccc";
+        result.textContent = `正在摇骰子...`;
+
+        setTimeout(() => {
+          dice.style.transition = "none";
+          dice.style.transform = transform;
+          rollBtn.disabled = false;
+          rollBtn.style.background = "#2196f3";
+          result.textContent = `点数：${randomValue}`;
+        }, 2100);
+      }
+    </script>
+  </body>
+</html>
