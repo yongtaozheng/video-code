@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background: url("bg.jpg") fixed center;
+      }
+      body::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.4);
+      }
+
+      .rain {
+        position: absolute;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 2;
+      }
+
+      .rain.back-row {
+        display: block;
+        z-index: 1;
+        bottom: 60px;
+        opacity: 0.5;
+      }
+
+      .drop {
+        position: absolute;
+        bottom: 100%;
+        width: 15px;
+        height: 120px;
+        pointer-events: none;
+        animation: drop 0.5s linear infinite;
+      }
+
+      @keyframes drop {
+        0% {
+          transform: translateY(0vh);
+        }
+        75% {
+          transform: translateY(90vh);
+        }
+        100% {
+          transform: translateY(90vh);
+        }
+      }
+
+      .rain-streak {
+        width: 1px;
+        height: 60%;
+        margin-left: 7px;
+        background: linear-gradient(
+          to bottom,
+          rgba(255, 255, 255, 0),
+          rgba(255, 255, 255, 0.35)
+        );
+        animation: rain-streak 0.5s linear infinite;
+      }
+
+      @keyframes rain-streak {
+        0% {
+          opacity: 1;
+        }
+        65% {
+          opacity: 1;
+        }
+        75% {
+          opacity: 0;
+        }
+        100% {
+          opacity: 0;
+        }
+      }
+
+      .ripple {
+        display: block;
+        width: 15px;
+        height: 10px;
+        border-top: 2px dotted rgba(255, 255, 255, 0.5);
+        border-radius: 50%;
+        opacity: 1;
+        transform: scale(0);
+        animation: ripple 0.5s linear infinite;
+      }
+
+      @keyframes ripple {
+        0% {
+          opacity: 1;
+          transform: scale(0);
+        }
+        80% {
+          opacity: 1;
+          transform: scale(0);
+        }
+        90% {
+          opacity: 0.5;
+          transform: scale(1);
+        }
+        100% {
+          opacity: 0;
+          transform: scale(1.5);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="rain front-row"></div>
+    <div class="rain back-row"></div>
+    <script>
+      function getRandomInt(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+      }
+      function makeItRain() {
+        const rainElements = document.querySelectorAll(".rain");
+        rainElements.forEach((rain) => {
+          rain.textContent = "";
+        });
+
+        let increment = 0;
+        const createDrop = (side, increment, spacing, delaySeed) => {
+          return `<div class="drop" style="${side}: ${increment}%; bottom: ${
+            spacing + spacing - 1 + 100
+          }%; animation-delay: 0.${delaySeed}s; animation-duration: 0.5${delaySeed}s;">
+                    <div class="rain-streak" style="animation-delay: 0.${delaySeed}s; animation-duration: 0.5${delaySeed}s;"></div>
+                    <div class="ripple" style="animation-delay: 0.${delaySeed}s; animation-duration: 0.5${delaySeed}s;"></div>
+                </div>`;
+        };
+
+        let drops = "",
+          backDrops = "";
+
+        while (increment < 100) {
+          const delaySeed = getRandomInt(1, 100);
+          const spacing = getRandomInt(2, 5);
+          increment += spacing;
+          drops += createDrop("left", increment, spacing, delaySeed);
+          backDrops += createDrop("right", increment, spacing, delaySeed);
+        }
+
+        const frontRow = document.querySelector(".rain.front-row");
+        frontRow.insertAdjacentHTML("beforeend", drops);
+
+        const backRow = document.querySelector(".rain.back-row");
+        backRow.insertAdjacentHTML("beforeend", backDrops);
+      }
+
+      makeItRain();
+    </script>
+  </body>
+</html>
