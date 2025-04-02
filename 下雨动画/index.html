@@ -132,7 +132,7 @@
         let increment = 0;
         const createDrop = (side, increment, spacing, delaySeed) => {
           return `<div class="drop" style="${side}: ${increment}%; bottom: ${
-            spacing * 2 + 99
+            spacing + 99
           }%; animation-delay: 0.${delaySeed}s; animation-duration: 0.5${delaySeed}s;">
                     <div class="rain-streak" style="animation-delay: 0.${delaySeed}s; animation-duration: 0.5${delaySeed}s;"></div>
                     <div class="ripple" style="animation-delay: 0.${delaySeed}s; animation-duration: 0.5${delaySeed}s;"></div>
