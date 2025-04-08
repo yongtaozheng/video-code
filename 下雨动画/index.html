@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Document</title>
+    <title>雨天动画</title>
     <style>
       html,
       body {
@@ -123,7 +123,7 @@
       function getRandomInt(min, max) {
         return Math.floor(Math.random() * (max - min + 1)) + min;
       }
-      function makeItRain() {
+      function rain() {
         const rainElements = document.querySelectorAll(".rain");
         rainElements.forEach((rain) => {
           rain.textContent = "";
@@ -157,7 +157,7 @@
         backRow.insertAdjacentHTML("beforeend", backDrops);
       }
 
-      makeItRain();
+      rain();
     </script>
   </body>
 </html>
