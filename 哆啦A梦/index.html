@@ -1,4 +1,4 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
@@ -64,54 +64,7 @@
         );
         ctx.closePath();
       }
-      //圆角矩形
-      function drawRoundedRect(x, y, w, h, radius) {
-        ctx.beginPath();
-        ctx.moveTo(x + radius, y);
-        ctx.arcTo(x + w, y, x + w, y + h, radius); // 右上角
-        ctx.arcTo(x + w, y + h, x, y + h, radius); // 右下角
-        ctx.arcTo(x, y + h, x, y, radius); // 左下角
-        ctx.arcTo(x, y, x + w, y, radius); // 左上角
-        ctx.closePath();
-        ctx.fill();
-      }
-      //弧线
-      function drawArc(
-        startX,
-        startY,
-        endX,
-        endY,
-        arcRadians,
-        strokeStyle = "black",
-        lineWidth = 1,
-        isClockwise = false
-      ) {
-        const dx = endX - startX;
-        const dy = endY - startY;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        const radius = distance / (2 * Math.sin(arcRadians / 2));
 
-        const midX = (startX + endX) / 2;
-        const midY = (startY + endY) / 2;
-
-        const angleToMid = Math.atan2(dy, dx);
-        // 根据绘制方向调整圆心位置
-        let angleToCenter =
-          angleToMid + (isClockwise ? -Math.PI / 2 : Math.PI / 2);
-
-        const centerX = midX + radius * Math.cos(angleToCenter);
-        const centerY = midY + radius * Math.sin(angleToCenter);
-
-        // 计算起始角度和结束角度
-        const startAngle = Math.atan2(startY - centerY, startX - centerX);
-        let endAngle = startAngle + (isClockwise ? -arcRadians : arcRadians);
-        // 绘制弧线
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, radius, startAngle, endAngle, isClockwise);
-        ctx.strokeStyle = strokeStyle;
-        ctx.lineWidth = lineWidth;
-        ctx.stroke();
-      }
       //桶状
       function drawBarrelShape(
         startX,
@@ -165,45 +118,24 @@
         ctx.fill();
         ctx.stroke();
       }
-      //倾斜矩形
-      function drawSkewedShape(
-        startX,
-        startY,
-        width,
-        height,
-        curveRadius,
-        skewAngle,
-        isClockwise = false,
-        fillColor = "#0096FF",
-        strokeColor = "black",
-        lineWidth = 1
-      ) {
-        const angleDirection = isClockwise ? -skewAngle : skewAngle;
+
+      //圆角矩阵
+      function drawRoundedRect(x, y, w, h, radius, rotationAngle = 0) {
+        ctx.save(); // 保存当前绘图状态
+        ctx.translate(x, y); // 移动到指定位置
+        ctx.rotate(rotationAngle); // 旋转指定角度
+
         ctx.beginPath();
-        ctx.moveTo(startX, startY);
-
-        const endX1 = startX + width * Math.cos(angleDirection);
-        const endY1 = startY + width * Math.sin(angleDirection);
-        ctx.lineTo(endX1, endY1);
-
-        const controlX = endX1 + curveRadius * Math.cos(angleDirection);
-        const controlY = endY1 + (height / 2) * Math.sin(angleDirection);
-        const endX2 = endX1;
-        const endY2 = endY1 + height * Math.sin(angleDirection);
-        ctx.quadraticCurveTo(controlX, controlY, endX2, endY2);
-
-        const endX3 = startX;
-        const endY3 = startY + height * Math.sin(angleDirection);
-        ctx.lineTo(endX3, endY3);
-
+        ctx.moveTo(radius, 0);
+        ctx.arcTo(w, 0, w, h, radius); // 右上角
+        ctx.arcTo(w, h, 0, h, radius); // 右下角
+        ctx.arcTo(0, h, 0, 0, radius); // 左下角
+        ctx.arcTo(0, 0, w, 0, radius); // 左上角
         ctx.closePath();
 
-        ctx.fillStyle = fillColor;
-        ctx.strokeStyle = strokeColor;
-        ctx.lineWidth = lineWidth;
-
         ctx.fill();
-        ctx.stroke();
+
+        ctx.restore(); // 恢复之前保存的绘图状态
       }
 
       // 绘制哆啦 A 梦的身体
@@ -345,6 +277,19 @@
 
       // 绘制哆啦 A 梦的手
       function drawHands() {
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = "black";
+        ctx.fillStyle = "#0096FF"; // 设置填充颜色
+        drawRoundedRect(90, 310, 40, 80, 0, Math.PI / 4);
+        ctx.stroke();
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = "black";
+        ctx.fillStyle = "#0096FF"; // 设置填充颜色
+        drawRoundedRect(315, 310, 80, 40, 0, Math.PI / 4);
+        ctx.stroke();
+      }
+      // 绘制哆啦 A 梦的手掌
+      function drawPalms() {
         ctx.beginPath();
         ctx.lineWidth = 1;
         ctx.arc(40, 405, 40, 0, Math.PI * 2);
@@ -404,12 +349,10 @@
         ctx.lineTo(200, 370);
         ctx.stroke();
       }
-
-      drawSkewedShape(30, 440, 80, 100, 50, Math.PI / 4, true);
-      drawSkewedShape(310, 310, 80, 100, 50, Math.PI / 4, false);
-      drawBody();
-      drawFeet();
       drawHands();
+      drawBody();
+      drawPalms();
+      drawFeet();
       drawHead();
       drawBell();
     </script>
