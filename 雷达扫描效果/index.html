@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>雷达扫描效果</title>
+    <style>
+      .radar {
+        width: 100%;
+        height: 98vh;
+        display: flex;
+        /* background: rgb(0, 0, 0, 0.8); */
+      }
+      .radar-content {
+        margin: auto;
+        width: 500px;
+        height: 500px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="radar">
+      <canvas class="radar-content"></canvas>
+    </div>
+  </body>
+  <script>
+    const canvas = document.querySelector(".radar-content");
+    const ctx = canvas.getContext("2d");
+    const backaroundColor = "rgb(0, 0, 0, 0.8)"; // 背景颜色
+    const gridCount = 5; // 网格数量
+    const sideLength = 500; // 正方形边长
+    const gridColor = "#2EB74E"; // 网格颜色
+    const gridType = 1; // 网格类型 1: 圆形网格 2: 矩形网格
+    const rowCount = 10; // 行数
+    const tickCount = 4; // 刻度数量
+    const centerX = sideLength / 2; // 圆心X坐标
+    const centerY = sideLength / 2; // 圆心Y坐标
+    const radius = sideLength / 2; // 雷达半径
+    const scanSpeed = 0.01;
+    const scanColor = ["rgba(46, 183, 78, 0.5)", "rgba(46, 183, 78, 0.1)"];
+    // 点数组
+    // 包含x、y坐标、radius：半径（默认为5）、color：颜色（默认为green）、isScanShow：是否扫描的时候才显示（默认为true）
+    const points = [
+      { x: -50, y: -50 },
+      { x: 50, y: 50, isScanShow: false, color: "red" },
+      { x: -70, y: 50, isScanShow: false, color: "skyblue", radius: 10 },
+      { x: 80, y: 80 },
+      { x: 20, y: -20 },
+      { x: -30, y: 30 },
+    ]; // 点数组
+    const scanAreaAngle = 30;
+    let scanAngle = 0;
+
+    function drawCircleGird() {
+      // 绘制网格
+      const gridGap = radius / gridCount; // 网格间距
+      for (let i = 1; i <= gridCount; i++) {
+        const gridRadius = gridGap * i; // 网格半径
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, gridRadius, 0, Math.PI * 2, true);
+        ctx.strokeStyle = gridColor; // 网格颜色
+        ctx.stroke();
+        ctx.closePath();
+      }
+      // 绘制刻度
+      const tickGap = (Math.PI * 2) / tickCount;
+      for (let i = 0; i < tickCount; i++) {
+        const angle = tickGap * i;
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.lineTo(
+          centerX + Math.cos(angle) * radius,
+          centerY + Math.sin(angle) * radius
+        );
+        ctx.strokeStyle = gridColor; // 刻度颜色
+        ctx.stroke();
+        ctx.closePath();
+      }
+    }
+
+    function drawRectGird() {
+      ctx.strokeStyle = gridColor; // 网格颜色
+      const width = sideLength / rowCount; // 每个格子的宽度
+      // 绘制横线
+      const drawRow = (i) => {
+        const y = width * i;
+        const x = Math.sqrt(radius * radius - (centerY - y) ** 2); // 计算对应的x坐标
+        ctx.beginPath();
+        ctx.moveTo(radius - x, y);
+        ctx.lineTo(radius + x, y);
+        ctx.stroke();
+        ctx.closePath();
+      };
+      // 绘制竖线
+      const drawCol = (i) => {
+        const x = width * i;
+        const y = Math.sqrt(radius * radius - (centerX - x) ** 2); // 计算对应的y坐标
+        ctx.beginPath();
+        ctx.moveTo(x, radius - y);
+        ctx.lineTo(x, radius + y);
+        ctx.stroke();
+        ctx.closePath();
+      };
+
+      // 绘制横线
+      for (let i = 1; i <= rowCount; i++) {
+        drawCol(i);
+        drawRow(i);
+      }
+    }
+
+    function drawRadar() {
+      canvas.width = sideLength;
+      canvas.height = sideLength;
+      ctx.clearRect(0, 0, sideLength, sideLength);
+      // 绘制背景
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius, 0, Math.PI * 2, true); // 绘制圆形
+      ctx.fillStyle = backaroundColor; // 填充颜色
+      ctx.fill(); // 填充圆形
+      ctx.closePath(); // 关闭路径
+      if (gridType === 1) {
+        drawCircleGird();
+      }
+      if (gridType === 2) {
+        drawRectGird();
+      }
+
+      drawPoints();
+    }
+    //绘制点
+    function drawPoints() {
+      points.forEach((point) => {
+        const {
+          x,
+          y,
+          radius = "5",
+          color = "green",
+          isScanShow = true,
+        } = point;
+        //处于扫描区域内才显示
+        if (isScanShow) {
+          let angle = Math.atan2(y, x); // 计算角度
+          angle += Math.PI * 2; // 调整角度
+          angle %= Math.PI * 2; // 将角度转换为0到2π之间的值
+          if (
+            angle < scanAngle ||
+            angle > scanAngle + Math.PI / (180 / scanAreaAngle)
+          ) {
+            return;
+          }
+        }
+        ctx.beginPath();
+        ctx.arc(centerX + x, centerY + y, radius, 0, Math.PI * 2, true); // 绘制圆形
+        ctx.fillStyle = color; // 填充颜色
+        ctx.fill(); // 填充圆形
+        ctx.closePath(); // 关闭路径
+      });
+    }
+    function radarScan() {
+      let angle = 0; // 初始角度
+      const scanAnimation = () => {
+        drawRadar(); // 重新绘制背景
+        // 绘制扇形扫描区域
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY); // 移动到圆心
+        ctx.arc(
+          centerX,
+          centerY,
+          radius,
+          angle,
+          angle + Math.PI / (180 / scanAreaAngle),
+          false
+        );
+        //填充渐变色且半透明
+        const gradient = ctx.createLinearGradient(
+          centerX,
+          centerY,
+          centerX + Math.cos(angle) * radius,
+          centerY + Math.sin(angle) * radius
+        );
+        gradient.addColorStop(0, scanColor[0]); // 起始颜色
+        gradient.addColorStop(1, scanColor[1]); // 结束颜色
+        ctx.fillStyle = gradient; // 填充渐变色
+        ctx.fill(); // 填充扇形区域
+        ctx.closePath(); // 关闭路径
+        angle += scanSpeed; // 更新角度
+        if (angle >= Math.PI * 2) {
+          angle = 0; // 重置角度
+        }
+        scanAngle = angle;
+        requestAnimationFrame(scanAnimation); // 递归调用
+      };
+      scanAnimation(); // 开始扫描动画
+    }
+    radarScan();
+  </script>
+</html>
