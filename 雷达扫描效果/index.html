@@ -7,20 +7,50 @@
     <style>
       .radar {
         width: 100%;
-        height: 98vh;
+        height: 600px;
         display: flex;
-        /* background: rgb(0, 0, 0, 0.8); */
       }
+
       .radar-content {
         margin: auto;
         width: 500px;
         height: 500px;
+      }
+
+      .btns {
+        width: 500px;
+        margin: auto;
+        display: flex;
+        justify-content: space-between;
+      }
+
+      .btn {
+        width: 40%;
+        height: 40px;
+        border-radius: 5px;
+        border: none;
+        font-size: 16px;
+        cursor: pointer;
+      }
+
+      .btn:hover {
+        background-color: #2eb74e;
+        color: #fff;
+      }
+
+      .btn-active {
+        background-color: #2eb74e;
+        color: #fff;
       }
     </style>
   </head>
   <body>
     <div class="radar">
       <canvas class="radar-content"></canvas>
+    </div>
+    <div class="btns">
+      <button class="btn btn-active" data-type="1">圆形网格</button>
+      <button class="btn" data-type="2">矩形网格</button>
     </div>
   </body>
   <script>
@@ -30,7 +60,7 @@
     const gridCount = 5; // 网格数量
     const sideLength = 500; // 正方形边长
     const gridColor = "#2EB74E"; // 网格颜色
-    const gridType = 1; // 网格类型 1: 圆形网格 2: 矩形网格
+    let gridType = 1; // 网格类型 1: 圆形网格 2: 矩形网格
     const rowCount = 10; // 行数
     const tickCount = 4; // 刻度数量
     const centerX = sideLength / 2; // 圆心X坐标
@@ -38,6 +68,8 @@
     const radius = sideLength / 2; // 雷达半径
     const scanSpeed = 0.01;
     const scanColor = ["rgba(46, 183, 78, 0.5)", "rgba(46, 183, 78, 0.1)"];
+    let animationId = null; // 动画ID
+
     // 点数组
     // 包含x、y坐标、radius：半径（默认为5）、color：颜色（默认为green）、isScanShow：是否扫描的时候才显示（默认为true）
     const points = [
@@ -119,15 +151,15 @@
       ctx.fillStyle = backaroundColor; // 填充颜色
       ctx.fill(); // 填充圆形
       ctx.closePath(); // 关闭路径
-      if (gridType === 1) {
+      if (gridType == 1) {
         drawCircleGird();
       }
-      if (gridType === 2) {
+      if (gridType == 2) {
         drawRectGird();
       }
-
       drawPoints();
     }
+
     //绘制点
     function drawPoints() {
       points.forEach((point) => {
@@ -157,6 +189,7 @@
         ctx.closePath(); // 关闭路径
       });
     }
+
     function radarScan() {
       let angle = 0; // 初始角度
       const scanAnimation = () => {
@@ -189,10 +222,29 @@
           angle = 0; // 重置角度
         }
         scanAngle = angle;
-        requestAnimationFrame(scanAnimation); // 递归调用
+        animationId = requestAnimationFrame(scanAnimation); // 递归调用
       };
       scanAnimation(); // 开始扫描动画
     }
     radarScan();
+
+    changeGirdType = (e) => {
+      const btn = e.target;
+      const type = btn.getAttribute("data-type");
+      cancelAnimationFrame(animationId);
+      gridType = type;
+      scanAngle = 0;
+      // 重置按钮样式
+      const btns = document.querySelectorAll(".btn");
+      btns.forEach((btn) => {
+        btn.classList.remove("btn-active");
+      });
+      btn.classList.add("btn-active");
+      radarScan();
+    };
+    const btns = document.querySelectorAll(".btn");
+    btns.forEach((btn) => {
+      btn.addEventListener("click", changeGirdType);
+    });
   </script>
 </html>
