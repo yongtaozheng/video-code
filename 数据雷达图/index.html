@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>canvas实现雷达图</title>
+    <style>
+      body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        background-color: #f0f0f0;
+      }
+      .container {
+        position: relative;
+        width: 800px;
+        height: 800px;
+      }
+      canvas {
+        border: 1px solid #ccc;
+        position: absolute;
+        top: 0;
+        left: 0;
+      }
+      .legend {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background-color: rgba(56, 55, 60, 0.8);
+        padding: 10px;
+        border-radius: 5px;
+        box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+        font-family: Arial, sans-serif;
+        font-size: 12px;
+        color: #f0f0f0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <canvas id="radarChart" width="800" height="800"></canvas>
+      <div class="legend"></div>
+    </div>
+    <script>
+      class RadarChart {
+        constructor(canvasId, options) {
+          this.canvas = document.getElementById(canvasId);
+          this.ctx = this.canvas.getContext("2d");
+          this.options = options;
+          this.centerX = this.canvas.width / 2;
+          this.centerY = this.canvas.height / 2;
+          this.radius = Math.min(this.centerX, this.centerY) * 0.7;
+          this.indicators = this.options.radar.indicator;
+          this.series = this.options.series[0];
+          this.data = this.series.data;
+          this.indicatorCount = this.indicators.length;
+          this.angleStep = (Math.PI * 2) / this.indicatorCount;
+          this.defaultColors = [
+            "rgba(145, 204, 117, 0.3)",
+            "rgba(84, 112, 198, 0.3)",
+            "rgba(250, 200, 88, 0.3)",
+            "rgba(238, 102, 102, 0.3)",
+            "rgba(115, 192, 222, 0.3)",
+            "rgba(59, 162, 114, 0.3)",
+            "rgba(252, 132, 82, 0.3)",
+            "rgba(154, 96, 180, 0.3)",
+            "rgba(234, 124, 204, 0.3)",
+            "rgba(68, 68, 68, 0.3)",
+          ];
+          this.defaultLineColors = [
+            "rgba(145, 204, 117, 1)",
+            "rgba(84, 112, 198, 1)",
+            "rgba(250, 200, 88, 1)",
+            "rgba(238, 102, 102, 1)",
+            "rgba(115, 192, 222, 1)",
+            "rgba(59, 162, 114, 1)",
+            "rgba(252, 132, 82, 1)",
+            "rgba(154, 96, 180, 1)",
+            "rgba(234, 124, 204, 1)",
+            "rgba(68, 68, 68, 1)",
+          ];
+          this.init();
+        }
+
+        init() {
+          // 初始化角度，使第一个指标位于正上方
+          this.startAngle = -Math.PI / 2;
+
+          // 为每组数据设置默认样式（如果未指定）
+          this.data.forEach((item, index) => {
+            if (!item.areaStyle) {
+              item.areaStyle = {
+                color: this.defaultColors[index % this.defaultColors.length],
+              };
+            }
+
+            if (!item.lineStyle) {
+              item.lineStyle = {
+                color:
+                  this.defaultLineColors[index % this.defaultLineColors.length],
+                width: 2,
+              };
+            }
+
+            // 设置默认线条类型
+            if (!item.lineType) {
+              item.lineType = "solid"; // 默认实线
+            }
+          });
+        }
+
+        drawGrid() {
+          // 绘制背景网格
+          this.ctx.strokeStyle = "#ccc";
+          this.ctx.lineWidth = 1;
+
+          // 绘制多边形网格线
+          for (let level = 1; level <= 5; level++) {
+            const levelRadius = (this.radius / 5) * level;
+            this.ctx.beginPath();
+
+            for (let i = 0; i < this.indicatorCount; i++) {
+              const angle = this.startAngle + i * this.angleStep;
+              const x = this.centerX + levelRadius * Math.cos(angle);
+              const y = this.centerY + levelRadius * Math.sin(angle);
+
+              if (i === 0) {
+                this.ctx.moveTo(x, y);
+              } else {
+                this.ctx.lineTo(x, y);
+              }
+            }
+
+            this.ctx.closePath();
+            this.ctx.stroke();
+          }
+
+          // 绘制从中心出发的径向线
+          for (let i = 0; i < this.indicatorCount; i++) {
+            const angle = this.startAngle + i * this.angleStep;
+            const x = this.centerX + this.radius * Math.cos(angle);
+            const y = this.centerY + this.radius * Math.sin(angle);
+
+            this.ctx.beginPath();
+            this.ctx.moveTo(this.centerX, this.centerY);
+            this.ctx.lineTo(x, y);
+            this.ctx.stroke();
+
+            // 绘制指示器标签
+            this.ctx.font = "16px Arial";
+            this.ctx.fillStyle = "#333";
+            this.ctx.textAlign = "center";
+            this.ctx.textBaseline = "middle";
+
+            // 根据标签位置调整偏移量，避免重叠
+            const labelOffset = this.radius * 1.1;
+            const labelX = this.centerX + labelOffset * Math.cos(angle);
+            const labelY = this.centerY + labelOffset * Math.sin(angle);
+
+            this.ctx.fillText(this.indicators[i].name, labelX, labelY);
+          }
+        }
+
+        drawData() {
+          // 绘制多组数据
+          this.data.forEach((item, index) => {
+            const { value, areaStyle, lineStyle, lineType } = item;
+
+            // 跳过无效数据
+            if (!value || value.length !== this.indicatorCount) return;
+
+            this.ctx.beginPath();
+
+            for (let i = 0; i < this.indicatorCount; i++) {
+              const angle = this.startAngle + i * this.angleStep;
+              const percent = value[i] / this.indicators[i].max;
+              const x = this.centerX + this.radius * percent * Math.cos(angle);
+              const y = this.centerY + this.radius * percent * Math.sin(angle);
+
+              if (i === 0) {
+                this.ctx.moveTo(x, y);
+              } else {
+                this.ctx.lineTo(x, y);
+              }
+            }
+
+            this.ctx.closePath();
+
+            // 填充数据区域（如果有填充颜色）
+            if (areaStyle.color && areaStyle.color !== "none") {
+              this.ctx.fillStyle = areaStyle.color;
+              this.ctx.fill();
+            }
+
+            // 设置线条样式
+            this.ctx.strokeStyle = lineStyle.color;
+            this.ctx.lineWidth = lineStyle.width;
+
+            // 设置线条类型（实线或虚线）
+            if (lineType === "dashed" && this.ctx.setLineDash) {
+              this.ctx.setLineDash([10, 5]); // 虚线模式：10px实线段 + 5px空白
+            } else {
+              this.ctx.setLineDash([]); // 实线
+            }
+
+            // 绘制数据区域边框
+            this.ctx.stroke();
+
+            // 重置线条样式
+            this.ctx.setLineDash([]);
+          });
+        }
+
+        drawLegend() {
+          // 绘制图例
+          const legendDiv = document.querySelector(".legend");
+
+          this.data.forEach((item, index) => {
+            const { name, lineType } = item;
+            let { color } = item.areaStyle;
+
+            // 处理没有填充颜色的情况
+            if (!color || color === "none") {
+              color = item.lineStyle.color;
+            }
+
+            const legendItem = document.createElement("div");
+            const colorBox = document.createElement("span");
+            colorBox.style.display = "inline-block";
+            colorBox.style.width = "10px";
+            colorBox.style.height = "10px";
+            colorBox.style.backgroundColor = color.replace("0.3", "1"); // 使用不透明颜色
+
+            // 为虚线数据添加特殊标识
+            if (lineType === "dashed") {
+              colorBox.style.border = "2px dashed " + color.replace("0.3", "1");
+              colorBox.style.backgroundColor = "transparent";
+            }
+
+            const legendText = document.createElement("span");
+            legendText.textContent = name;
+            legendText.style.marginLeft = "5px";
+
+            legendItem.appendChild(colorBox);
+            legendItem.appendChild(legendText);
+            legendItem.style.marginBottom = "5px";
+
+            legendDiv.appendChild(legendItem);
+          });
+        }
+
+        render() {
+          // 清空画布
+          this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+          // 绘制雷达图
+          this.drawGrid();
+          this.drawData();
+          this.drawLegend();
+        }
+      }
+
+      const option = {
+        radar: {
+          indicator: [
+            { name: "KDA", max: 100 },
+            { name: "红方胜率", max: 100 },
+            { name: "场均推塔差", max: 100 },
+            { name: "场均暴君", max: 100 },
+            { name: "场均经济差", max: 100 },
+            { name: "蓝方胜率", max: 100 },
+          ],
+        },
+        series: [
+          {
+            name: "数据对比",
+            type: "radar",
+            data: [
+              {
+                value: [100, 100, 100, 95, 100, 100],
+                name: "红色方",
+                areaStyle: {
+                  color: "rgba(143,44,35, 0.3)",
+                },
+                lineStyle: {
+                  color: "rgba(143,44,35, 0.5)",
+                  width: 2,
+                },
+                lineType: "solid",
+              },
+              {
+                value: [68, 85, 68, 70, 90, 63],
+                name: "蓝色方",
+                areaStyle: {
+                  color: "rgba(91, 192, 222, 0.3)",
+                },
+                lineStyle: {
+                  color: "rgba(91, 192, 222, 0.5)",
+                  width: 2,
+                },
+                lineType: "solid",
+              },
+              {
+                value: [50, 55, 52, 53, 52, 52],
+                name: "平均值",
+                areaStyle: {
+                  color: "none",
+                },
+                lineStyle: {
+                  color: "rgba(255, 255, 255, 0.5)", // 修改为可见颜色
+                  width: 3,
+                },
+                lineType: "dashed", // 指定为虚线
+              },
+            ],
+          },
+        ],
+      };
+
+      // 创建并渲染雷达图
+      const radarChart = new RadarChart("radarChart", option);
+      radarChart.render();
+    </script>
+  </body>
+</html>

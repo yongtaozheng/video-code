@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ECharts 雷达图示例</title>
+    <!-- 引入 ECharts 文件 -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.2/dist/echarts.min.js"></script>
+    <style>
+      body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 为 ECharts 准备一个具备大小（宽高）的 DOM -->
+    <div id="main" style="width: 900px; height: 600px"></div>
+    <script type="text/javascript">
+      // 基于准备好的dom，初始化echarts实例
+      var myChart = echarts.init(document.getElementById("main"));
+
+      // 指定图表的配置项和数据
+      var option = {
+        radar: {
+          indicator: [
+            { name: "输出", max: 100 },
+            { name: "生存", max: 100 },
+            { name: "团战", max: 100 },
+            { name: "发育", max: 100 },
+            { name: "KDA", max: 100 },
+          ],
+        },
+        series: [
+          {
+            name: "个人能力雷达图",
+            type: "radar",
+            data: [
+              {
+                value: [60, 90, 90, 65, 90],
+                name: "个人能力",
+                areaStyle: {
+                  color: "rgba(91, 192, 222, 0.3)",
+                },
+                lineStyle: {
+                  color: "rgba(91, 192, 222, 0.3)",
+                  width: 2,
+                },
+                symbol: "none",
+              },
+            ],
+          },
+        ],
+      };
+
+      // 使用刚指定的配置项和数据显示图表。
+      myChart.setOption(option);
+    </script>
+  </body>
+</html>
