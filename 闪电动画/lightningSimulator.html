@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>闪电模拟器</title>
+    <style>
+      body {
+        background: #0a0c15;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin: 0;
+        min-height: 100vh;
+      }
+      #lightningCanvas {
+        background: radial-gradient(circle at center, #0a1120 0%, #000308 100%);
+        box-shadow: 0 0 50px rgba(0, 80, 255, 0.2);
+        margin-top: 20px;
+        border: 1px solid #1a2a42;
+      }
+      .control-panel {
+        margin: 20px;
+        padding: 15px;
+        background: #1a2333;
+        border-radius: 8px;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+      }
+      button {
+        padding: 8px 15px;
+        background: #2c3e50;
+        color: #ecf0f1;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.3s;
+      }
+      button:hover {
+        background: #34495e;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 80, 255, 0.3);
+      }
+      input[type="range"] {
+        width: 120px;
+        accent-color: #3498db;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="lightningCanvas"></canvas>
+    <div class="control-panel">
+      <button id="generateBtn">手动生成</button>
+      <button id="autoToggle">自动模式</button>
+      <div>
+        <label
+          >分支深度:
+          <input type="range" id="depthRange" min="1" max="10" value="5" />
+        </label>
+      </div>
+    </div>
+    <script>
+      class QuantumLightning {
+        constructor(canvas) {
+          this.canvas = canvas;
+          this.ctx = canvas.getContext("2d");
+          this.branches = [];
+          this.alpha = 1;
+          this.glow = 1;
+          this.autoMode = false;
+          this.maxDepth = 5;
+          this.occupiedPositions = new Set();
+        }
+
+        quantumRandom(min, max) {
+          const array = new Uint32Array(1);
+          window.crypto.getRandomValues(array);
+          return (array[0] / 4294967295) * (max - min) + min;
+        }
+
+        generate(startX) {
+          this.occupiedPositions.clear();
+          this.branches = [];
+          this.createQuantumBolt(startX);
+          this.alpha = 1;
+          this.glow = 1;
+        }
+
+        createQuantumBolt(startX) {
+          const mainPath = [];
+          let x = startX,
+            y = 0;
+          const step = this.canvas.height / 25; // 增加步长
+
+          while (y < this.canvas.height) {
+            // 调整主干角度范围，增加左右偏移概率
+            const baseAngle = this.quantumRandom(-Math.PI / 4, Math.PI / 4);
+            const angle =
+              baseAngle * (1 + Math.abs(y / this.canvas.height - 0.5));
+            const length = this.quantumRandom(step * 0.8, step * 1.5);
+
+            const newX = x + Math.sin(angle) * length * 1.2; // 增强水平分量
+            const newY = y + Math.cos(angle) * length * 0.8; // 减少垂直分量
+
+            mainPath.push({
+              x,
+              y,
+              nx: newX,
+              ny: newY,
+              isMain: true, // 标记主干
+            });
+
+            this.registerPosition(newX, newY);
+
+            // 增加分支生成概率
+            if (
+              this.quantumRandom(0, 1) < 0.6 &&
+              y > this.canvas.height * 0.15
+            ) {
+              this.createBranchChain(x, y, 0, angle); // 传递当前角度
+            }
+
+            x = newX;
+            y = newY;
+          }
+          this.branches.push(...mainPath);
+        }
+
+        createBranchChain(startX, startY, depth, parentAngle) {
+          if (depth > this.maxDepth) return;
+
+          const branch = [];
+          let x = startX,
+            y = startY;
+          const maxSteps = this.quantumRandom(3, 6);
+
+          // 调整分支角度生成策略
+          const baseAngle =
+            parentAngle + this.quantumRandom(-Math.PI / 2, Math.PI / 2);
+          const angleVariation = (Math.PI / 3) * (1 - depth / this.maxDepth);
+
+          for (let i = 0; i < maxSteps; i++) {
+            const angle = this.quantumRandom(
+              baseAngle - angleVariation,
+              baseAngle + angleVariation
+            );
+
+            const length =
+              this.quantumRandom(20, 50) * (0.7 - depth / this.maxDepth);
+            const newX = x + Math.sin(angle) * length * 1.5; // 增强水平分量
+            const newY = y + Math.cos(angle) * length * 0.7;
+
+            if (this.checkPosition(newX, newY)) {
+              branch.push({
+                x,
+                y,
+                nx: newX,
+                ny: newY,
+                isMain: false, // 标记分支
+              });
+
+              this.registerPosition(newX, newY);
+              x = newX;
+              y = newY;
+
+              // 增加子分支概率
+              if (this.quantumRandom(0, 1) < 0.7) {
+                this.createBranchChain(x, y, depth + 1, angle);
+              }
+            }
+          }
+          this.branches.push(...branch);
+        }
+
+        checkPosition(x, y) {
+          const key = `${Math.round(x / 10)}_${Math.round(y / 10)}`;
+          return !this.occupiedPositions.has(key);
+        }
+
+        registerPosition(x, y) {
+          const key = `${Math.round(x / 10)}_${Math.round(y / 10)}`;
+          this.occupiedPositions.add(key);
+        }
+
+        render() {
+          this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+          // 辉光背景
+          const gradient = this.ctx.createRadialGradient(
+            this.canvas.width / 2,
+            this.canvas.height / 2,
+            0,
+            this.canvas.width / 2,
+            this.canvas.height / 2,
+            Math.max(this.canvas.width, this.canvas.height)
+          );
+          gradient.addColorStop(0, `hsla(215, 80%, 60%, ${this.glow * 0.15})`);
+          gradient.addColorStop(1, `hsla(215, 80%, 30%, 0)`);
+          this.ctx.fillStyle = gradient;
+          this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+          // 绘制闪电
+          this.branches.forEach((seg) => {
+            // 主干和分支差异化处理
+            const isMain = seg.isMain;
+
+            const lineWidth = isMain
+              ? Math.max(3, 6 * (0.3 + this.glow * 0.7))
+              : Math.max(1, 3 * (0.3 + this.glow * 0.7));
+            const lineBrightness = Math.min(1, this.alpha * 1.5); // 亮度增强系数
+            this.ctx.strokeStyle = `hsla(210, 5%, 98%, ${lineBrightness})`;
+            this.ctx.lineWidth = lineWidth;
+            this.ctx.beginPath();
+            this.ctx.moveTo(seg.x, seg.y);
+            this.ctx.lineTo(seg.nx, seg.ny);
+            this.ctx.lineCap = "round";
+            this.ctx.shadowColor = `hsla(215, 100%, 95%, ${this.alpha * 0.4})`;
+            this.ctx.shadowBlur = 25 * this.glow;
+            this.ctx.stroke();
+          });
+
+          // 动态衰减
+          this.alpha *= 0.92;
+          this.glow *= 0.95;
+        }
+      }
+
+      // 初始化系统
+      const canvas = document.getElementById("lightningCanvas");
+      const resizeHandler = () => {
+        canvas.width = window.innerWidth * 0.9;
+        canvas.height = window.innerHeight * 0.75;
+      };
+      resizeHandler();
+
+      let resizeTimer;
+      window.addEventListener("resize", () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(resizeHandler, 200);
+      });
+
+      const quantumEngine = new QuantumLightning(canvas);
+      let animationFrame = null;
+
+      // 控制模块
+      document.getElementById("generateBtn").addEventListener("click", () => {
+        quantumEngine.generate(
+          canvas.width * 0.35 + Math.random() * canvas.width * 0.3
+        );
+        animate();
+      });
+
+      document
+        .getElementById("autoToggle")
+        .addEventListener("click", function () {
+          quantumEngine.autoMode = !quantumEngine.autoMode;
+          this.textContent = quantumEngine.autoMode ? "停止自动" : "自动模式";
+        });
+
+      document
+        .getElementById("depthRange")
+        .addEventListener("input", function () {
+          quantumEngine.maxDepth = parseInt(this.value);
+        });
+
+      // 动画循环
+      function animate() {
+        quantumEngine.render();
+        if (quantumEngine.alpha > 0.01) {
+          animationFrame = requestAnimationFrame(animate);
+        }
+      }
+
+      // 自动模式（优化版）
+      let autoInterval;
+      function toggleAutoMode() {
+        if (quantumEngine.autoMode) {
+          autoInterval = setInterval(() => {
+            quantumEngine.generate(
+              canvas.width * 0.3 + Math.random() * canvas.width * 0.4
+            );
+            animate();
+          }, 1000 + Math.random() * 1500);
+        } else {
+          clearInterval(autoInterval);
+        }
+      }
+      document
+        .getElementById("autoToggle")
+        .addEventListener("click", toggleAutoMode);
+    </script>
+  </body>
+</html>

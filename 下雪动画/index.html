@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <style>
+      body {
+        background: #cdcccc;
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      .snow {
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        background: #fff;
+        border-radius: 50%;
+        animation: fall linear infinite;
+        filter: blur(1px); /* 雪花朦胧感 */
+        top: -10px;
+      }
+
+      @keyframes fall {
+        0% {
+          opacity: 1;
+        }
+        65% {
+          opacity: 1;
+        }
+        75% {
+          opacity: 0.8;
+        }
+        100% {
+          transform: translateY(100vh);
+          opacity: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="snowCanvas"></canvas>
+
+    <script>
+      // 自动生成50片雪花
+      for (let i = 0; i < 50; i++) {
+        const snow = document.createElement("div");
+        snow.className = "snow";
+        snow.style.left = Math.random() * 100 + "vw";
+        snow.style.animationDuration = Math.random() * 3 + 2 + "s"; // 2-5秒下落
+        snow.style.animationDelay = Math.random() * 5 + "s"; // 随机延迟
+        document.body.appendChild(snow);
+      }
+    </script>
+  </body>
+</html>

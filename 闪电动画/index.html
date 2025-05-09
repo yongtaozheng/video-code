@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>闪电动画</title>
+    <style>
+      body {
+        background: #1a1a1a;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin: 0;
+        min-height: 100vh;
+      }
+      #tutorial {
+        background: radial-gradient(circle at center, #0a1120 0%, #000308 100%);
+        box-shadow: 0 0 50px rgba(0, 80, 255, 0.2);
+        margin-top: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="tutorial"></canvas>
+
+    <script>
+      class LightningEngine {
+        constructor(canvas) {
+          this.canvas = canvas;
+          this.ctx = canvas.getContext("2d");
+          this.branches = [];
+          this.drawIndex = 0;
+          this.alpha = 1;
+          this.glowIntensity = 0;
+          this.isFirst = false;
+          this.bgImage = new Image(); // 新增Image对象用于加载背景图片
+          this.bgImage.src = "bg.jpg"; // 这里假设背景图片名为bg.jpg，可替换为实际图片路径或在线链接
+          this.bgImage.onload = () => {
+            this.drawBackground(); // 图片加载完成后绘制背景
+          };
+          this.glowRadius = 0; // 新增光晕半径
+          this.lightIntensity = 0; // 新增亮度强度
+        }
+        drawBackground(opacity = 0.7) {
+          this.ctx.drawImage(
+            this.bgImage,
+            0,
+            0,
+            this.canvas.width,
+            this.canvas.height
+          );
+          this.ctx.fillStyle = `rgba(0, 0, 0, ${opacity})`; // 调整透明度来控制亮度，这里是0.7
+          this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        }
+        getRandom(min, max) {
+          return Math.random() * (max - min) + min;
+        }
+
+        generateLightning(startX) {
+          this.branches = this.createTrunk(startX);
+          this.alpha = 1;
+          this.glowIntensity = 1;
+        }
+
+        createTrunk(startX = 0, startY = this.getRandom(0, 40)) {
+          const maxY = this.getRandom(60, 100);
+          const branch = [];
+          const pointList = [[0, startY]];
+          while (startY < maxY) {
+            startY += this.getRandom(2, 3);
+            let xStep = 10;
+            if (Math.random() > 0.5) xStep = 30;
+            pointList.push([this.getRandom(-xStep, xStep), startY]);
+          }
+          for (let i = 0; i < pointList.length - 1; i++) {
+            const point = pointList[i];
+            const nextPoint = pointList[i + 1];
+            const height = this.canvas.height;
+            const x = startX + point[0];
+            const y = point[1] * height * 0.01;
+            const nextX = startX + nextPoint[0];
+            const nextY = nextPoint[1] * height * 0.01;
+            branch.push({ x, y, endX: nextX, endY: nextY });
+          }
+          return branch;
+        }
+
+        draw() {
+          if (this.drawIndex === 0) {
+            this.drawBackground(0.5);
+            this.isFirst = true;
+          }
+          let step = 1;
+          let minx = 0,
+            miny = 0,
+            maxx = 0,
+            maxy = 0;
+          this.branches.forEach((seg) => {
+            minx = Math.min(minx, seg.x, seg.endX);
+            miny = Math.min(miny, seg.y, seg.endY);
+            maxx = Math.max(maxx, seg.x, seg.endX);
+            maxy = Math.max(maxy, seg.y, seg.endY);
+          });
+          while (step--) {
+            const seg = this.branches[this.drawIndex];
+            if (!seg) {
+              this.drawBackground();
+            }
+            this.ctx.beginPath();
+            this.ctx.moveTo(seg.x, seg.y);
+            this.ctx.lineTo(seg.endX, seg.endY);
+            this.ctx.strokeStyle = `hsla(210, 5%, 98%, 0.8)`;
+            this.ctx.lineCap = "round";
+            this.ctx.lineWidth = Math.max(4, 5 * (1 - this.glowIntensity));
+            this.ctx.stroke();
+            this.drawIndex++;
+          }
+          requestAnimationFrame(this.draw.bind(this));
+        }
+      }
+
+      // 初始化系统
+      const canvas = document.getElementById("tutorial");
+      const resizeCanvas = () => {
+        canvas.width = window.innerWidth * 0.8;
+        canvas.height = window.innerHeight * 0.7;
+      };
+      resizeCanvas();
+      window.addEventListener("resize", resizeCanvas);
+
+      const engine = new LightningEngine(canvas);
+
+      // 初始生成闪电
+      setInterval(() => {
+        engine.generateLightning(
+          Math.random() * canvas.width * 0.3 + canvas.width * 0.35
+        );
+        engine.drawIndex = 0;
+        engine.draw();
+      }, 1000 + Math.random() * 1500);
+    </script>
+  </body>
+</html>

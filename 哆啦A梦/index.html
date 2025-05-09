@@ -138,8 +138,8 @@
         ctx.restore(); // 恢复之前保存的绘图状态
       }
 
-      // 绘制哆啦 A 梦的身体
       function drawBody() {
+        // 绘制哆啦 A 梦的身体
         drawBarrelShape(40, 310, 325, 230, 50, "#0096FF", "black", 1);
         // 肚子白色区域
         ctx.beginPath();
@@ -167,8 +167,8 @@
         ctx.stroke();
       }
 
-      // 绘制哆啦 A 梦的头部
       function drawHead() {
+        // 绘制哆啦 A 梦的头部
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.arc(200, 200, 160, (3 / 4) * Math.PI, (9 / 4) * Math.PI);
@@ -275,8 +275,8 @@
         ctx.stroke();
       }
 
-      // 绘制哆啦 A 梦的手
       function drawHands() {
+        // 绘制哆啦 A 梦的手
         ctx.lineWidth = 1;
         ctx.strokeStyle = "black";
         ctx.fillStyle = "#0096FF"; // 设置填充颜色
@@ -288,8 +288,8 @@
         drawRoundedRect(315, 310, 80, 40, 0, Math.PI / 4);
         ctx.stroke();
       }
-      // 绘制哆啦 A 梦的手掌
       function drawPalms() {
+        // 绘制哆啦 A 梦的手掌
         ctx.beginPath();
         ctx.lineWidth = 1;
         ctx.arc(40, 405, 40, 0, Math.PI * 2);
@@ -306,8 +306,8 @@
         ctx.stroke();
       }
 
-      // 绘制哆啦 A 梦的脚
       function drawFeet() {
+        // 绘制哆啦 A 梦的脚
         ctx.beginPath();
         ctx.ellipse(131, 550, 70, 30, 0, 0, 2 * Math.PI);
         ctx.fillStyle = "white";
@@ -324,8 +324,8 @@
         ctx.stroke();
       }
 
-      // 绘制哆啦 A 梦的铃铛
       function drawBell() {
+        // 绘制哆啦 A 梦的铃铛
         ctx.beginPath();
         ctx.fillStyle = "#CD0833"; // 设置填充颜色
         drawRoundedRect(85, 310, 235, 10, 5);
@@ -349,6 +349,7 @@
         ctx.lineTo(200, 370);
         ctx.stroke();
       }
+
       drawHands();
       drawBody();
       drawPalms();
