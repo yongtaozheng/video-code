@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>520 心动时刻</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        background: #000;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="canvas"></canvas>
+    <script>
+      // 粒子爱心动画
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d");
+      let particles = [];
+      let heartPoints = [];
+      let centerX, centerY;
+      let heartSize;
+      let animationId;
+      let isAnimating = true;
+      const pointCount = 2000; // 点的数量
+      let flag = false;
+      const flagDistance = 3;
+
+      // 设置画布尺寸
+      function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        // 计算爱心的中心和大小
+        centerX = canvas.width / 2;
+        centerY = canvas.height / 2;
+        heartSize = Math.min(canvas.width, canvas.height) * 0.3;
+
+        // 重新生成爱心点
+        generateHeartPoints();
+
+        // 如果有粒子，重新定位
+        if (particles.length > 0) {
+          resetParticles();
+        }
+      }
+
+      window.addEventListener("resize", resize);
+      resize();
+
+      // 生成爱心形状的点
+      function generateHeartPoints() {
+        heartPoints = [];
+        const points = pointCount; // 点的数量
+
+        for (let i = 0; i < points; i++) {
+          // 爱心参数方程: x = 16sin^3(t), y = 13cos(t) - 5cos(2t) - 2cos(3t) - cos(4t)
+          const t = (i * Math.PI * 2) / points;
+          const x = 16 * Math.pow(Math.sin(t), 3);
+          const y =
+            13 * Math.cos(t) -
+            5 * Math.cos(2 * t) -
+            2 * Math.cos(3 * t) -
+            Math.cos(4 * t);
+
+          // 缩放并平移到中心
+          heartPoints.push({
+            x: centerX + (x * heartSize) / 30,
+            y: centerY - (y * heartSize) / 30, // y坐标取负，因为Canvas的Y轴向下
+          });
+        }
+      }
+
+      // 粒子类
+      class Particle {
+        constructor(targetPoint) {
+          this.target = { ...targetPoint };
+          this.basePoint = { ...targetPoint };
+
+          // 初始位置随机在目标点附近
+          this.x = this.target.x + (Math.random() - 0.5) * heartSize * 0.3;
+          this.y = this.target.y + (Math.random() - 0.5) * heartSize * 0.3;
+
+          // 速度和加速度
+          this.vx = 0;
+          this.vy = 0;
+          this.ax = 0;
+          this.ay = 0;
+
+          // 粒子属性
+          this.size = 1 + Math.random() * 2;
+          this.alpha = 0.2 + Math.random() * 0.8;
+          this.color = getRandomHeartColor();
+
+          // 用于动画的随机相位
+          this.phase = Math.random() * Math.PI * 2;
+
+          this.pointsStack = [];
+        }
+
+        update() {
+          // 计算到目标点的距离
+          const dx = this.target.x - this.x;
+          const dy = this.target.y - this.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+
+          // 计算加速度（距离越远，加速度越大）
+          const force = distance * 0.0005;
+          this.ax = dx * force;
+          this.ay = dy * force;
+
+          // 添加一些随机性，使粒子有轻微的抖动
+          this.ax += (Math.random() - 0.5) * 0.1;
+          this.ay += (Math.random() - 0.5) * 0.1;
+
+          // 更新速度
+          this.vx += this.ax;
+          this.vy += this.ay;
+
+          // 添加阻力
+          this.vx *= 0.96;
+          this.vy *= 0.96;
+
+          // 更新位置
+          this.x += this.vx;
+          this.y += this.vy;
+
+          if (flag) {
+            const point = this.pointsStack.pop();
+            this.pointsStack.unshift(point);
+            this.target = point;
+            return;
+          }
+
+          // 爱心跳动效果 - 周期性改变目标点位置
+          const pulseFactor =
+            1 + 0.03 * Math.sin(Date.now() * 0.002 + this.phase);
+          this.target.x = centerX + (this.target.x - centerX) * pulseFactor;
+          this.target.y = centerY + (this.target.y - centerY) * pulseFactor;
+          this.pointsStack.push({ ...this.target });
+          if (
+            Math.abs(this.target.x - centerX) < flagDistance &&
+            Math.abs(this.target.y - centerY) < flagDistance
+          ) {
+            flag = true;
+          }
+        }
+
+        draw() {
+          // 创建径向渐变，使粒子看起来更有深度
+          const gradient = ctx.createRadialGradient(
+            this.x,
+            this.y,
+            0,
+            this.x,
+            this.y,
+            this.size
+          );
+
+          // 设置渐变颜色
+          gradient.addColorStop(
+            0,
+            `rgba(${this.color.r}, ${this.color.g}, ${this.color.b}, ${this.alpha})`
+          );
+          gradient.addColorStop(
+            1,
+            `rgba(${this.color.r}, ${this.color.g}, ${this.color.b}, 0)`
+          );
+
+          ctx.fillStyle = gradient;
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // 生成随机爱心颜色
+      function getRandomHeartColor() {
+        const colors = [
+          { r: 255, g: 64, b: 129 }, // 粉红色
+          { r: 255, g: 105, b: 180 }, // 热粉色
+          { r: 255, g: 20, b: 147 }, // 深粉色
+          { r: 255, g: 192, b: 203 }, // 浅粉色
+        ];
+        return colors[Math.floor(Math.random() * colors.length)];
+      }
+
+      // 初始化粒子
+      function initParticles() {
+        particles = [];
+        const particleCount = pointCount;
+
+        // 从爱心点中随机选择位置创建粒子
+        for (let i = 0; i < particleCount; i++) {
+          const randomPoint =
+            heartPoints[Math.floor(Math.random() * heartPoints.length)];
+          particles.push(new Particle(randomPoint));
+        }
+      }
+
+      // 重置粒子位置
+      function resetParticles() {
+        particles.forEach((particle) => {
+          const randomPoint =
+            heartPoints[Math.floor(Math.random() * heartPoints.length)];
+          particle.target = { ...randomPoint };
+        });
+      }
+
+      // 动画循环
+      function animate() {
+        if (!isAnimating) return;
+
+        // 清除画布
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 更新和绘制所有粒子
+        particles.forEach((particle) => {
+          particle.update();
+          particle.draw();
+        });
+
+        animationId = requestAnimationFrame(animate);
+      }
+
+      // 暂停/继续动画
+      function toggleAnimation() {
+        isAnimating = !isAnimating;
+        if (isAnimating) {
+          animate();
+        } else {
+          cancelAnimationFrame(animationId);
+        }
+      }
+
+      // 初始化
+      generateHeartPoints();
+      initParticles();
+      animate();
+    </script>
+  </body>
+</html>
