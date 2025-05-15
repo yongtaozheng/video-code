@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>520 心动时刻</title>
+    <title>粒子爱心动画</title>
     <style>
       body {
         margin: 0;
@@ -13,7 +13,6 @@
   <body>
     <canvas id="canvas"></canvas>
     <script>
-      // 粒子爱心动画
       const canvas = document.getElementById("canvas");
       const ctx = canvas.getContext("2d");
       let particles = [];
@@ -35,6 +34,7 @@
         centerX = canvas.width / 2;
         centerY = canvas.height / 2;
         heartSize = Math.min(canvas.width, canvas.height) * 0.3;
+        flag = false;
 
         // 重新生成爱心点
         generateHeartPoints();
@@ -52,7 +52,6 @@
       function generateHeartPoints() {
         heartPoints = [];
         const points = pointCount; // 点的数量
-
         for (let i = 0; i < points; i++) {
           // 爱心参数方程: x = 16sin^3(t), y = 13cos(t) - 5cos(2t) - 2cos(3t) - cos(4t)
           const t = (i * Math.PI * 2) / points;
@@ -147,7 +146,6 @@
         }
 
         draw() {
-          // 创建径向渐变，使粒子看起来更有深度
           const gradient = ctx.createRadialGradient(
             this.x,
             this.y,
