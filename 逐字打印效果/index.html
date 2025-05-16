@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <title>逐字打印效果</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        background: #000;
+      }
+      #text {
+        position: absolute;
+        top: 45%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: white;
+        font-size: clamp(1.2rem, 3vw, 1.8rem); /* 响应式字体 */
+        font-family: "楷体", cursive;
+        text-align: center;
+        z-index: 2;
+        text-shadow: 0 0 10px rgba(255, 64, 129, 0.6);
+      }
+      .cursor {
+        display: inline-block;
+        margin-left: 2px;
+        animation: blink 0.7s infinite;
+      }
+      @keyframes blink {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="text"></div>
+    <script>
+      const text = ["hello😳你好呀", "欢迎来到我的空间✨"];
+      let lineIndex = 0;
+      let charIndex = 0;
+      const textDiv = document.getElementById("text");
+      let cursor;
+      const typeSpeed = 150; // 打字速度（毫秒）
+
+      // 模拟光标
+      function createCursor() {
+        cursor = document.createElement("span");
+        cursor.innerHTML = "|";
+        cursor.className = "cursor";
+        textDiv.appendChild(cursor);
+      }
+
+      function removeCursor() {
+        if (!cursor) return;
+        cursor.remove();
+      }
+
+      function updateCursor() {
+        removeCursor();
+        createCursor();
+      }
+
+      function typeText() {
+        if (lineIndex < text.length) {
+          if (charIndex < text[lineIndex].length) {
+            removeCursor();
+            textDiv.innerHTML += text[lineIndex][charIndex++];
+            createCursor();
+            setTimeout(typeText, typeSpeed);
+          } else {
+            if (lineIndex === text.length - 1) {
+              return;
+            }
+            setTimeout(() => {
+              removeCursor();
+              textDiv.innerHTML += "<br>";
+              lineIndex++;
+              charIndex = 0;
+              setTimeout(typeText, typeSpeed);
+            }, typeSpeed / 2);
+          }
+        }
+      }
+
+      createCursor();
+      setTimeout(typeText, typeSpeed);
+    </script>
+  </body>
+</html>
