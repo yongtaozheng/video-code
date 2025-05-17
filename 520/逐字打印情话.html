@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>520 心动时刻</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        background: #000;
+      }
+      #poem {
+        position: absolute;
+        top: 45%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: white;
+        font-size: clamp(1.2rem, 3vw, 1.8rem); /* 响应式字体 */
+        font-family: "楷体", cursive;
+        text-align: center;
+        z-index: 2;
+        text-shadow: 0 0 10px rgba(255, 64, 129, 0.6);
+      }
+      #timer {
+        position: fixed;
+        bottom: 20px;
+        width: 100%;
+        color: #fff;
+        font-size: clamp(1rem, 2vw, 1.2rem); /* 响应式字体 */
+        text-align: center;
+        text-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+      }
+      .cursor {
+        display: inline-block;
+        margin-left: 2px;
+        animation: blink 0.7s infinite;
+      }
+      @keyframes blink {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="poem"></div>
+    <div id="timer"></div>
+
+    <script>
+      // 情诗内容
+      const poem = [
+        "在粒子跃动的时空里，",
+        "每个光点都是心跳的轨迹。",
+        "代码编织的玫瑰永不凋零，",
+        "算法推演的爱意永恒成立。",
+        "从第一次相遇到此刻的奇点，",
+        "我们的故事在内存中永不析构。",
+        "520——这个宇宙最美的常数，",
+        "愿用余生与你调试幸福方程式❤️",
+      ];
+
+      let lineIndex = 0;
+      let charIndex = 0;
+      const poemDiv = document.getElementById("poem");
+      let cursor;
+
+      // 创建光标元素
+      function createCursor() {
+        cursor = document.createElement("span");
+        cursor.innerHTML = "|";
+        cursor.className = "cursor";
+        poemDiv.appendChild(cursor);
+      }
+
+      function removeCursor() {
+        if (cursor) {
+          cursor.remove();
+        }
+      }
+
+      // 更新光标位置
+      function updateCursor() {
+        // 移除旧光标
+        removeCursor();
+        // 创建新光标
+        createCursor();
+      }
+
+      // 打字机效果
+      function typePoem() {
+        if (lineIndex < poem.length) {
+          if (charIndex < poem[lineIndex].length) {
+            // 移除旧光标
+            removeCursor();
+            // 添加字符
+            poemDiv.innerHTML += poem[lineIndex][charIndex];
+            charIndex++;
+            // 添加新光标
+            createCursor();
+            setTimeout(typePoem, 120);
+          } else {
+            if (lineIndex === poem.length - 1) {
+              removeCursor();
+              return;
+            }
+            setTimeout(() => {
+              // 移除旧光标
+              removeCursor();
+              // 添加换行
+              poemDiv.innerHTML += "<br>";
+              lineIndex++;
+              charIndex = 0;
+              // 添加新光标
+              if (lineIndex < poem.length) {
+                createCursor();
+                setTimeout(typePoem, 300);
+              }
+            }, 600);
+          }
+        } else {
+          // 所有行结束后，保留光标
+          //   createCursor();
+          removeCursor();
+        }
+      }
+
+      // 启动打字机效果
+      setTimeout(() => {
+        createCursor();
+        setTimeout(typePoem, 300);
+      }, 2000);
+
+      // 实时计时器
+      const params = new URLSearchParams(window.location.search);
+      const startDate = new Date(
+        params.get("startDate") || "2018-12-24 23:40:00"
+      );
+
+      function updateTimer() {
+        const now = new Date();
+        const diff = now - startDate;
+
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor(
+          (diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+        );
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+        document.getElementById(
+          "timer"
+        ).innerHTML = `我们已经相伴 ${days} 天 ${hours} 时 ${minutes} 分 ${seconds} 秒`;
+      }
+
+      setInterval(updateTimer, 1000);
+      updateTimer();
+    </script>
+  </body>
+</html>
