@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>页面水印</title>
+  </head>
+  <body>
+    <div>
+      <h1>你好</h1>
+      <p>hello world</p>
+    </div>
+  </body>
+  <script>
+    const watermark = (userID) => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 200;
+      const ctx = canvas.getContext("2d");
+      ctx.font = "15px Arial";
+      ctx.fillStyle = "rgba(200,0,0,0.2)";
+      ctx.rotate((-20 * Math.PI) / 180);
+      ctx.fillText(userID + " " + Date.now(), 10, 70);
+      document.body.style.backgroundImage = `url(${canvas.toDataURL()})`;
+    };
+    setInterval(() => {
+      watermark("我是水印");
+    }, 1000);
+  </script>
+</html>
