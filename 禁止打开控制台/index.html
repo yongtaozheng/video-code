@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>禁止打开控制台</title>
+  </head>
+  <body>
+    <div>
+      <h1>你好</h1>
+      <p>hello world</p>
+      <input placeholder="请输入" />
+      <button>提交</button>
+    </div>
+    <script>
+      //禁用右键菜单
+      document.addEventListener("contextmenu", (e) => e.preventDefault());
+      //拦截快捷键
+      document.addEventListener("keydown", (e) => {
+        if (
+          e.keyCode === 123 || // F12
+          (e.ctrlKey && e.shiftKey && e.keyCode === 67) || // Ctrl+Shift+c
+          (e.ctrlKey && e.shiftKey && e.keyCode === 73) || // Ctrl+Shift+i
+          (e.ctrlKey && e.keyCode === 85) // Ctrl+U
+        ) {
+          e.preventDefault();
+        }
+      });
+      //检测窗口变化
+      let lastWidth = window.innerWidth;
+      let lastHeight = window.innerHeight;
+
+      window.addEventListener("resize", () => {
+        const widthDiff = Math.abs(window.innerWidth - lastWidth);
+        const heightDiff = Math.abs(window.innerHeight - lastHeight);
+
+        // 如果窗口尺寸变化但不是全屏切换，可能是控制台打开
+        if ((widthDiff > 50 || heightDiff > 50) && !isFullScreen()) {
+          window.location.href = "about:blank";
+          alert("检测到异常窗口变化，请关闭开发者工具");
+          //跳转到空白页面
+        }
+
+        lastWidth = window.innerWidth;
+        lastHeight = window.innerHeight;
+      });
+
+      function isFullScreen() {
+        return (
+          document.fullscreenElement ||
+          document.webkitFullscreenElement ||
+          document.msFullscreenElement
+        );
+      }
+      //无限debugger循环
+      (() => {
+        function block() {
+          setInterval(() => {
+            (function () {
+              return false;
+            })
+              ["constructor"]("debugger")
+              ["call"]();
+          }, 50);
+        }
+        try {
+          block();
+        } catch (err) {}
+      })();
+    </script>
+  </body>
+</html>
