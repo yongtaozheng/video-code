@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>旋转div</title>
+    <style>
+      .container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+      }
+
+      .rotate-div {
+        position: relative;
+        width: 200px;
+        height: 200px;
+        background-color: skyblue;
+        transform-origin: center center;
+      }
+
+      .rotate-icon {
+        position: absolute;
+        top: -50px; /* 调整图标的位置 */
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 20px;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="rotate-div">
+        <text>hello world</text>
+        <div class="rotate-icon">&#x21bb;</div>
+      </div>
+    </div>
+  </body>
+  <script>
+    //获取操作元素
+    const rotateDiv = document.querySelector(".rotate-div");
+    const rotateIcon = document.querySelector(".rotate-icon");
+
+    //初始化
+    let startingMouseAngle = 0;
+    let startingRotation = 0;
+
+    //拦截选中事件
+    rotateIcon.addEventListener("selectstart", function (event) {
+      event.preventDefault();
+    });
+    //监听鼠标按下
+    rotateIcon.addEventListener("mousedown", function (event) {
+      const rect = rotateDiv.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      startingMouseAngle = getAngle(
+        centerX,
+        centerY,
+        event.clientX,
+        event.clientY
+      );
+      startingRotation = getCurrentRotation();
+
+      window.addEventListener("mousemove", spin);
+      window.addEventListener("mouseup", stopSpin);
+    });
+
+    //停止旋转
+    function stopSpin() {
+      window.removeEventListener("mousemove", spin);
+      window.removeEventListener("mouseup", stopSpin);
+    }
+
+    //旋转
+    function spin(event) {
+      const rect = rotateDiv.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const currentMouseAngle = getAngle(
+        centerX,
+        centerY,
+        event.clientX,
+        event.clientY
+      );
+      const deltaMouseAngle = currentMouseAngle - startingMouseAngle;
+      let newRotation = startingRotation + deltaMouseAngle;
+      newRotation = normalizeRotation(newRotation);
+      rotateDiv.style.transform = `rotate(${newRotation}deg)`;
+    }
+
+    //归一化旋转角度
+    function normalizeRotation(rotation) {
+      if (rotation >= 0) {
+        return rotation % 360;
+      } else {
+        return (rotation % 360) + 360;
+      }
+    }
+    //获取鼠标移动角度
+    function getAngle(centerX, centerY, mouseX, mouseY) {
+      return Math.atan2(mouseY - centerY, mouseX - centerX) * (180 / Math.PI);
+    }
+
+    //获取当前旋转角度
+    function getCurrentRotation() {
+      const transformStyle = window
+        .getComputedStyle(rotateDiv)
+        .getPropertyValue("transform");
+      const matrix = new DOMMatrixReadOnly(transformStyle);
+      const angle = Math.acos(matrix.a) * (180 / Math.PI);
+      return matrix.b < 0 ? -angle : angle;
+    }
+  </script>
+</html>
