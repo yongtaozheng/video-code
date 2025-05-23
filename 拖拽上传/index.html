@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>点击或拖拽上传并显示图片</title>
+    <style>
+      /* 样式 */
+      body {
+        display: flex;
+        flex-direction: column;
+      }
+
+      h2 {
+        text-align: center;
+      }
+
+      #drop-zone {
+        width: 300px;
+        height: 200px;
+        border: 2px dashed #ccc;
+        margin: 20px auto;
+        text-align: center;
+        line-height: 200px;
+        font-size: 18px;
+      }
+
+      #uploaded-image {
+        max-width: 300px;
+        max-height: 300px;
+        margin: 20px auto;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>点击或拖拽上传并显示图片示例</h2>
+    <div id="drop-zone">点击或拖拽上传图片</div>
+    <img id="uploaded-image" src="" alt="上传的图片" />
+
+    <script>
+      //js部分
+      // 获取操作元素
+      const dropZone = document.getElementById("drop-zone");
+      const uploadedImage = document.getElementById("uploaded-image");
+
+      // 阻止浏览器默认行为
+      dropZone.addEventListener("dragover", function (event) {
+        event.preventDefault();
+      });
+      dropZone.addEventListener("dragenter", function (event) {
+        dropZone.style.backgroundColor = "#f7f7f7";
+      });
+      dropZone.addEventListener("dragleave", function (event) {
+        dropZone.style.backgroundColor = "";
+      });
+
+      // 处理拖拽上传事件
+      dropZone.addEventListener("drop", function (event) {
+        event.preventDefault();
+        dropZone.style.backgroundColor = "";
+
+        const file = event.dataTransfer.files[0];
+        handleFile(file);
+      });
+
+      // 处理点击上传事件
+      dropZone.addEventListener("click", function (event) {
+        const input = document.createElement("input");
+        input.type = "file";
+        input.accept = "image/*";
+
+        input.onchange = function (event) {
+          const file = event.target.files[0];
+          handleFile(file);
+        };
+
+        input.click();
+      });
+
+      // 处理上传的文件
+      function handleFile(file) {
+        if (file && file.type.startsWith("image/")) {
+          const reader = new FileReader();
+
+          reader.onload = function (event) {
+            uploadedImage.src = event.target.result;
+          };
+
+          reader.readAsDataURL(file);
+        }
+      }
+    </script>
+  </body>
+</html>
