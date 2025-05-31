@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>流光边框</title>
+    <style>
+      /* css 样式 */
+      body {
+        margin: 0;
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .container {
+        position: relative;
+        width: 200px;
+        height: 200px;
+        box-shadow: 0 0 60px rgba(0, 188, 212, 0.3);
+      }
+
+      .box {
+        width: calc(100% - 20px);
+        height: calc(100% - 20px);
+        border-radius: 10px;
+        background-color: #8dc7f4;
+        position: relative;
+        overflow: hidden;
+        z-index: 2;
+        border: 10px solid rgba(69, 192, 241, 0.1);
+      }
+
+      .container::before {
+        content: "";
+        position: absolute;
+        z-index: 1;
+        top: -10px;
+        left: -10px;
+        width: 20px;
+        height: 20px;
+        border-radius: 10px;
+        background: linear-gradient(
+          45deg,
+          #0f3460 0%,
+          #1a508b 25%,
+          #3282b8 50%,
+          #bbe1fa 100%
+        );
+        background: linear-gradient(
+          135deg,
+          rgba(0, 119, 182, 0.2) 0%,
+          rgba(0, 150, 199, 0.1) 100%
+        );
+        box-shadow: 0 0 15px rgba(0, 119, 182, 0.5),
+          0 0 30px rgba(0, 150, 199, 0.3), inset 0 0 10px rgba(0, 119, 182, 0.2);
+        animation: flow 3s linear infinite, glow 3s linear infinite alternate;
+      }
+
+      @keyframes flow {
+        0% {
+          width: 20px;
+          height: 20px;
+        }
+        20% {
+          left: -10px;
+          top: -10px;
+          width: calc(100% + 20px);
+          height: 20px;
+        }
+        40% {
+          left: calc(100% - 10px);
+          top: -10px;
+          width: 20px;
+          height: calc(100% + 20px);
+        }
+        60% {
+          top: calc(100% - 10px);
+          left: -10px;
+          width: calc(100% + 20px);
+          height: 20px;
+        }
+        80% {
+          top: -10px;
+          left: -10px;
+          width: 20px;
+          height: calc(100% + 20px);
+        }
+        100% {
+          left: -10px;
+          top: -10px;
+          width: 20px;
+          height: 20px;
+        }
+      }
+
+      @keyframes glow {
+        from {
+          box-shadow: 0 0 10px rgba(0, 119, 182, 0.5),
+            0 0 20px rgba(0, 150, 199, 0.3),
+            inset 0 0 5px rgba(0, 119, 182, 0.2);
+        }
+        to {
+          box-shadow: 0 0 40px rgba(0, 119, 182, 0.8),
+            0 0 80px rgba(0, 150, 199, 0.5),
+            inset 0 0 20px rgba(0, 119, 182, 0.4);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="box"></div>
+    </div>
+  </body>
+</html>
