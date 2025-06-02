@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>水纹动画按钮</title>
+    <style>
+      /* css 样式 */
+      body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        margin: 0;
+        background: #1a1a2e;
+        font-family: "Inter", sans-serif;
+      }
+
+      .container {
+        text-align: center;
+      }
+
+      .water-ripple-btn {
+        position: relative;
+        width: 220px;
+        height: 70px;
+        border: none;
+        border-radius: 10px;
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: white;
+        background: linear-gradient(
+          135deg,
+          rgba(59, 130, 246, 0.3),
+          rgba(236, 72, 153, 0.3)
+        );
+        backdrop-filter: blur(10px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        cursor: pointer;
+        overflow: hidden;
+        transition: all 0.3s ease;
+      }
+
+      .water-ripple-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+      }
+
+      .ripple-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        overflow: hidden;
+      }
+
+      .hover-ripple,
+      .click-ripple {
+        position: absolute;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle,
+          rgba(255, 255, 255, 0.35) 0%,
+          rgba(255, 255, 255, 0) 70%
+        );
+        box-shadow: 0 0 25px rgba(255, 255, 255, 0.4);
+        transform: translate(-50%, -50%) scale(0);
+        opacity: 0.4;
+        transition: transform 1800ms ease-out, opacity 1800ms ease-out; /* 统一动画时长 */
+      }
+
+      .hover-ripple {
+        width: 30px;
+        height: 30px;
+        background: radial-gradient(
+          circle,
+          rgba(255, 255, 255, 0.25) 0%,
+          rgba(255, 255, 255, 0) 70%
+        );
+        box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+        transition: transform 500ms ease-out, opacity 500ms ease-out;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <button class="water-ripple-btn" id="rippleBtn">
+        <span>水纹按钮</span>
+        <div class="ripple-container" id="rippleContainer"></div>
+      </button>
+    </div>
+
+    <script>
+      // js 逻辑
+      const btn = document.getElementById("rippleBtn");
+      const rippleContainer = document.getElementById("rippleContainer");
+      let hoverRipple = null;
+      let isHovering = false;
+
+      // 创建悬停水纹
+      btn.addEventListener("mousemove", (e) => {
+        if (!isHovering) {
+          isHovering = true;
+          hoverRipple = document.createElement("div");
+          hoverRipple.className = "hover-ripple";
+          rippleContainer.appendChild(hoverRipple);
+        }
+
+        const rect = btn.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        // 更新悬停水纹位置
+        hoverRipple.style.left = `${x}px`;
+        hoverRipple.style.top = `${y}px`;
+        hoverRipple.style.opacity = "1";
+        hoverRipple.style.transform = `translate(-50%, -50%) scale(1)`;
+      });
+
+      // 鼠标离开时隐藏悬停水纹
+      btn.addEventListener("mouseleave", () => {
+        if (hoverRipple) {
+          hoverRipple.style.opacity = "0";
+          hoverRipple.style.transform = `translate(-50%, -50%) scale(0)`;
+
+          setTimeout(() => {
+            rippleContainer.removeChild(hoverRipple);
+            hoverRipple = null;
+            isHovering = false;
+          }, 500);
+        }
+      });
+
+      // 点击水纹扩散
+      btn.addEventListener("click", (e) => {
+        const rect = btn.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const widthDif = Math.max(rect.width - x, x);
+        const heightDif = Math.max(rect.height - y, y);
+        const radius = Math.max(widthDif, heightDif);
+        const createWaterPatterns = () => {
+          const ripple = document.createElement("div");
+          ripple.className = "click-ripple";
+          ripple.style.left = `${x}px`;
+          ripple.style.top = `${y}px`;
+          ripple.style.width = `${radius * 2 + 20}px`;
+          ripple.style.height = `${radius * 2 + 20}px`;
+          rippleContainer.appendChild(ripple);
+
+          setTimeout(() => {
+            ripple.style.transform = `translate(-50%, -50%) scale(1)`;
+          }, 100);
+          setTimeout(() => {
+            ripple.remove();
+          }, 1800);
+        };
+        createWaterPatterns();
+      });
+    </script>
+  </body>
+</html>
