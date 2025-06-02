@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>方向感知按钮</title>
+    <style>
+      /* css 样式 */
+      body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        margin: 0;
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 101%);
+        font-family: "Inter", sans-serif;
+        color: white;
+        overflow-x: hidden;
+      }
+
+      .container {
+        text-align: center;
+        padding: 2rem;
+      }
+
+      .direction-aware-btn {
+        position: relative;
+        width: 220px;
+        height: 70px;
+        border-radius: 10px;
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: white;
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        cursor: pointer;
+        overflow: hidden;
+        transition: all 0.3s ease;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+      }
+
+      .direction-aware-btn:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 30px -5px rgba(0, 0, 0, 0.4);
+      }
+
+      .btn-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 101%;
+        height: 101%;
+        z-index: -1;
+        transition: transform 0.5s ease;
+      }
+
+      /* 方向渐变样式 */
+      .from-top {
+        background: linear-gradient(to bottom, #3b82f6, #8b5cf6);
+        transform: translateY(-101%);
+      }
+
+      .from-right {
+        background: linear-gradient(to left, #8b5cf6, #ec4899);
+        transform: translateX(101%);
+      }
+
+      .from-bottom {
+        background: linear-gradient(to top, #ec4899, #f59e0b);
+        transform: translateY(101%);
+      }
+
+      .from-left {
+        background: linear-gradient(to right, #f59e0b, #3b82f6);
+        transform: translateX(-101%);
+      }
+
+      /* 激活状态 */
+      .direction-aware-btn:hover .from-top.active,
+      .direction-aware-btn:hover .from-right.active,
+      .direction-aware-btn:hover .from-bottom.active,
+      .direction-aware-btn:hover .from-left.active {
+        transform: translate(0, 0);
+      }
+
+      .btn-content {
+        position: relative;
+        z-index: 1;
+        transition: color 0.3s ease;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <button class="direction-aware-btn" id="directionBtn">
+        <div class="btn-overlay from-top"></div>
+        <div class="btn-overlay from-right"></div>
+        <div class="btn-overlay from-bottom"></div>
+        <div class="btn-overlay from-left"></div>
+        <span class="btn-content">方向感知</span>
+      </button>
+    </div>
+
+    <script>
+      // js 逻辑
+      document.addEventListener("DOMContentLoaded", () => {
+        const btn = document.getElementById("directionBtn");
+        const overlays = btn.querySelectorAll(".btn-overlay");
+
+        // 重置所有覆盖层
+        function resetOverlays() {
+          overlays.forEach((overlay) => {
+            overlay.classList.remove("active");
+          });
+        }
+
+        const getDirection = (e) => {
+          const rect = btn.getBoundingClientRect();
+          const x = e.clientX - rect.left; // 鼠标在按钮内的X坐标
+          const y = e.clientY - rect.top; // 鼠标在按钮内的Y坐标
+
+          // 计算到四条边的距离
+          const distToTop = y;
+          const distToRight = rect.width - x;
+          const distToBottom = rect.height - y;
+          const distToLeft = x;
+
+          // 找出最小距离，确定方向
+          const minDist = Math.min(
+            distToTop,
+            distToRight,
+            distToBottom,
+            distToLeft
+          );
+          if (minDist === distToTop) {
+            return "top";
+          } else if (minDist === distToRight) {
+            return "right";
+          } else if (minDist === distToBottom) {
+            return "bottom";
+          }
+          return "left";
+        };
+
+        btn.addEventListener("mouseenter", (e) => {
+          resetOverlays();
+          const direction = getDirection(e);
+
+          // 设置对应覆盖层的active类
+          const activeBtn = btn.querySelector(`.from-${direction}`);
+          activeBtn.classList.add("active");
+        });
+
+        // 鼠标离开时重置
+        btn.addEventListener("mouseleave", (e) => {
+          const activeBtn = btn.querySelector(".btn-overlay.active");
+          const direction = getDirection(e);
+          const directionMap = {
+            top: "translateY(-101%)",
+            right: "translateX(101%)",
+            bottom: "translateY(101%)",
+            left: "translateX(-101%)",
+          };
+          activeBtn.style.transform = directionMap[direction];
+          const classList = activeBtn.classList;
+          const directionClass = [...classList].find((cls) =>
+            cls.startsWith("from-")
+          );
+          const directionName = directionClass.replace("from-", "");
+          setTimeout(() => {
+            activeBtn.style.transition = "none";
+            activeBtn.style.transform = directionMap[directionName];
+            activeBtn.classList.remove("active");
+            setTimeout(() => {
+              activeBtn.style.transition = "transform 0.5s ease";
+              activeBtn.style.removeProperty("transform");
+            }, 50);
+          }, 500);
+        });
+      });
+    </script>
+  </body>
+</html>
