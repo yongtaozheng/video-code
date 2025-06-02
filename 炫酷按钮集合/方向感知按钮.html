@@ -104,80 +104,78 @@
 
     <script>
       // js 逻辑
-      document.addEventListener("DOMContentLoaded", () => {
-        const btn = document.getElementById("directionBtn");
-        const overlays = btn.querySelectorAll(".btn-overlay");
+      const btn = document.getElementById("directionBtn");
+      const overlays = btn.querySelectorAll(".btn-overlay");
 
-        // 重置所有覆盖层
-        function resetOverlays() {
-          overlays.forEach((overlay) => {
-            overlay.classList.remove("active");
-          });
+      // 重置所有覆盖层
+      function resetOverlays() {
+        overlays.forEach((overlay) => {
+          overlay.classList.remove("active");
+        });
+      }
+
+      const getDirection = (e) => {
+        const rect = btn.getBoundingClientRect();
+        const x = e.clientX - rect.left; // 鼠标在按钮内的X坐标
+        const y = e.clientY - rect.top; // 鼠标在按钮内的Y坐标
+
+        // 计算到四条边的距离
+        const distToTop = y;
+        const distToRight = rect.width - x;
+        const distToBottom = rect.height - y;
+        const distToLeft = x;
+
+        // 找出最小距离，确定方向
+        const minDist = Math.min(
+          distToTop,
+          distToRight,
+          distToBottom,
+          distToLeft
+        );
+        if (minDist === distToTop) {
+          return "top";
+        } else if (minDist === distToRight) {
+          return "right";
+        } else if (minDist === distToBottom) {
+          return "bottom";
         }
+        return "left";
+      };
 
-        const getDirection = (e) => {
-          const rect = btn.getBoundingClientRect();
-          const x = e.clientX - rect.left; // 鼠标在按钮内的X坐标
-          const y = e.clientY - rect.top; // 鼠标在按钮内的Y坐标
+      btn.addEventListener("mouseenter", (e) => {
+        resetOverlays();
+        const direction = getDirection(e);
 
-          // 计算到四条边的距离
-          const distToTop = y;
-          const distToRight = rect.width - x;
-          const distToBottom = rect.height - y;
-          const distToLeft = x;
+        // 设置对应覆盖层的active类
+        const activeBtn = btn.querySelector(`.from-${direction}`);
+        activeBtn.classList.add("active");
+      });
 
-          // 找出最小距离，确定方向
-          const minDist = Math.min(
-            distToTop,
-            distToRight,
-            distToBottom,
-            distToLeft
-          );
-          if (minDist === distToTop) {
-            return "top";
-          } else if (minDist === distToRight) {
-            return "right";
-          } else if (minDist === distToBottom) {
-            return "bottom";
-          }
-          return "left";
+      // 鼠标离开时重置
+      btn.addEventListener("mouseleave", (e) => {
+        const activeBtn = btn.querySelector(".btn-overlay.active");
+        const direction = getDirection(e);
+        const directionMap = {
+          top: "translateY(-101%)",
+          right: "translateX(101%)",
+          bottom: "translateY(101%)",
+          left: "translateX(-101%)",
         };
-
-        btn.addEventListener("mouseenter", (e) => {
-          resetOverlays();
-          const direction = getDirection(e);
-
-          // 设置对应覆盖层的active类
-          const activeBtn = btn.querySelector(`.from-${direction}`);
-          activeBtn.classList.add("active");
-        });
-
-        // 鼠标离开时重置
-        btn.addEventListener("mouseleave", (e) => {
-          const activeBtn = btn.querySelector(".btn-overlay.active");
-          const direction = getDirection(e);
-          const directionMap = {
-            top: "translateY(-101%)",
-            right: "translateX(101%)",
-            bottom: "translateY(101%)",
-            left: "translateX(-101%)",
-          };
-          activeBtn.style.transform = directionMap[direction];
-          const classList = activeBtn.classList;
-          const directionClass = [...classList].find((cls) =>
-            cls.startsWith("from-")
-          );
-          const directionName = directionClass.replace("from-", "");
+        activeBtn.style.transform = directionMap[direction];
+        const classList = activeBtn.classList;
+        const directionClass = [...classList].find((cls) =>
+          cls.startsWith("from-")
+        );
+        const directionName = directionClass.replace("from-", "");
+        setTimeout(() => {
+          activeBtn.style.transition = "none";
+          activeBtn.style.transform = directionMap[directionName];
+          activeBtn.classList.remove("active");
           setTimeout(() => {
-            activeBtn.style.transition = "none";
-            activeBtn.style.transform = directionMap[directionName];
-            activeBtn.classList.remove("active");
-            setTimeout(() => {
-              activeBtn.style.transition = "transform 0.5s ease";
-              activeBtn.style.removeProperty("transform");
-            }, 50);
-          }, 500);
-        });
+            activeBtn.style.transition = "transform 0.5s ease";
+            activeBtn.style.removeProperty("transform");
+          }, 50);
+        }, 500);
       });
     </script>
   </body>
