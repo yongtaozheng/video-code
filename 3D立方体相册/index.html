@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta name="referrer" content="no-referrer" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>3D旋转立方体</title>
+    <style>
+      /*css样式*/
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: linear-gradient(135deg, #0a0a0a 0%, #2a2a2a 100%);
+        overflow: hidden;
+      }
+
+      .scene {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        perspective: 1000px;
+      }
+
+      .cube-container {
+        position: relative;
+        transform-style: preserve-3d;
+        cursor: grab;
+        transition: transform 0.1s ease-out;
+      }
+
+      .cube-container:active {
+        cursor: grabbing;
+      }
+
+      .cube-face {
+        position: absolute;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background-size: cover;
+        background-position: center;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 24px;
+        color: rgba(255, 255, 255, 0.8);
+        box-shadow: 0 0 30px rgba(0, 0, 0, 0.3);
+        transition: all 0.3s ease;
+        cursor: pointer;
+      }
+
+      /* 鼠标交互时的样式 */
+      .cube-container.dragging .cube-face {
+        background-color: rgba(255, 255, 255, 0.1);
+        box-shadow: 0 0 40px rgba(255, 255, 255, 0.2);
+      }
+
+      .cube-face.active {
+        box-shadow: 0 0 50px rgba(255, 255, 255, 0.4);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="scene">
+      <div class="cube-container" id="cube"></div>
+    </div>
+
+    <script>
+      //根据配置信息创建正方体
+      const images = [
+        "../images/20220829143113_709aa.jpeg",
+        "../images/20220915224545_c2170.jpeg",
+        "../images/20230327231735_a195d.jpg",
+        "../images/7392069948318558889.png",
+        "../images/IMG_6589.JPG",
+        "../images/龙猫.jpg",
+      ];
+
+      // 配置对象 - 所有可配置参数集中在此
+      const CONFIG = {
+        cubeSize: 300, // 正方体大小 (px)
+        faceOpacity: 0.8, // 面透明度 (0-1)
+        initialRotationX: 60, // 初始X轴旋转角度
+        initialRotationY: 60, // 初始Y轴旋转角度
+        inertiaFactor: 0.98, // 惯性衰减因子
+        rotationSpeed: 0.5, // 旋转速度因子
+
+        // 面配置 - 可以在这里设置每个面的背景图片、标签等
+        faceConfig: {
+          front: {
+            position: "translateZ(calc(var(--cube-size) / 2))",
+            backgroundImage: images[0],
+          },
+          back: {
+            position: "rotateY(180deg) translateZ(calc(var(--cube-size) / 2))",
+            backgroundImage: images[1],
+          },
+          left: {
+            position: "rotateY(-90deg) translateZ(calc(var(--cube-size) / 2))",
+            backgroundImage: images[2],
+          },
+          right: {
+            position: "rotateY(90deg) translateZ(calc(var(--cube-size) / 2))",
+            backgroundImage: images[3],
+          },
+          top: {
+            position: "rotateX(90deg) translateZ(calc(var(--cube-size) / 2))",
+            backgroundImage: images[4],
+          },
+          bottom: {
+            position: "rotateX(-90deg) translateZ(calc(var(--cube-size) / 2))",
+            backgroundImage: images[5],
+          },
+        },
+      };
+
+      const cube = document.getElementById("cube");
+      let isDragging = false;
+      let startX, startY;
+      let currentX = CONFIG.initialRotationX; // 初始X轴旋转角度
+      let currentY = CONFIG.initialRotationY; // 初始Y轴旋转角度
+      let currentZ = 0; // Z轴旋转角度
+      let inertiaX = 1; // X轴旋转惯性
+      let inertiaY = 1; // Y轴旋转惯性
+      let inertiaZ = 1; // Z轴旋转惯性
+      let lastDragTime = 0; // 上次拖拽时间
+      let activeFace = null; // 当前活动面
+
+      // 初始化正方体
+      initCube();
+
+      // 初始化正方体
+      function initCube() {
+        // 设置CSS变量
+        cube.style.setProperty("--cube-size", `${CONFIG.cubeSize}px`);
+        cube.style.width = `${CONFIG.cubeSize}px`;
+        cube.style.height = `${CONFIG.cubeSize}px`;
+
+        // 创建六个面
+        for (const face in CONFIG.faceConfig) {
+          const faceElement = document.createElement("div");
+          faceElement.className = "cube-face";
+          faceElement.dataset.face = face;
+          faceElement.style.width = `${CONFIG.cubeSize}px`;
+          faceElement.style.height = `${CONFIG.cubeSize}px`;
+          faceElement.style.transform = CONFIG.faceConfig[face].position;
+
+          // 设置背景
+          faceElement.style.background = `url(${CONFIG.faceConfig[face].backgroundImage})`;
+          faceElement.style.backgroundSize = "cover";
+          faceElement.style.backgroundPosition = "center";
+
+          faceElement.style.opacity = CONFIG.faceOpacity;
+
+          // 添加标签
+          const label = document.createElement("span");
+          label.textContent = CONFIG.faceConfig[face].label;
+          faceElement.appendChild(label);
+
+          // 添加点击事件
+          faceElement.addEventListener("click", (e) => {
+            e.stopPropagation();
+            setActiveFace(face);
+          });
+
+          cube.appendChild(faceElement);
+        }
+
+        // 设置默认活动面
+        setActiveFace("front");
+
+        // 添加交互事件
+        setupEvents();
+      }
+
+      //处理鼠标交互
+      // 设置活动面
+      function setActiveFace(face) {
+        // 移除所有面的活动状态
+        const faces = document.querySelectorAll(".cube-face");
+        faces.forEach((f) => f.classList.remove("active"));
+
+        // 添加当前面的活动状态
+        const activeFaceElement = document.querySelector(
+          `.cube-face[data-face="${face}"]`
+        );
+        if (activeFaceElement) {
+          activeFaceElement.classList.add("active");
+          activeFace = face;
+        }
+      }
+
+      // 设置交互事件
+      function setupEvents() {
+        // 鼠标/触摸事件
+        cube.addEventListener("mousedown", startDrag);
+        cube.addEventListener("touchstart", startDrag, { passive: false });
+        document.addEventListener("mousemove", drag);
+        document.addEventListener("touchmove", drag, { passive: false });
+        document.addEventListener("mouseup", stopDrag);
+        document.addEventListener("touchend", stopDrag);
+      }
+
+      // 动画循环
+      function animate() {
+        // 应用惯性旋转
+        if (
+          Math.abs(inertiaX) > 0.01 ||
+          Math.abs(inertiaY) > 0.01 ||
+          Math.abs(inertiaZ) > 0.01
+        ) {
+          currentX += inertiaX;
+          currentY += inertiaY;
+          currentZ += inertiaZ;
+
+          // 应用旋转
+          updateCubeTransform();
+
+          // 衰减惯性
+          inertiaX *= CONFIG.inertiaFactor;
+          inertiaY *= CONFIG.inertiaFactor;
+          inertiaZ *= CONFIG.inertiaFactor;
+        }
+
+        requestAnimationFrame(animate);
+      }
+
+      // 更新立方体变换
+      function updateCubeTransform() {
+        cube.style.transform = `rotateX(${currentX}deg) rotateY(${currentY}deg) rotateZ(${currentZ}deg)`;
+      }
+
+      function startDrag(e) {
+        e.preventDefault();
+        isDragging = true;
+        cube.classList.add("dragging");
+        inertiaX = inertiaY = inertiaZ = 0; // 拖拽开始时清除惯性
+
+        // 获取初始位置
+        startX = e.type.includes("mouse") ? e.clientX : e.touches[0].clientX;
+        startY = e.type.includes("mouse") ? e.clientY : e.touches[0].clientY;
+        lastDragTime = Date.now();
+      }
+
+      function drag(e) {
+        if (!isDragging) return;
+        e.preventDefault();
+
+        // 获取当前位置和时间
+        const now = Date.now();
+        const clientX = e.type.includes("mouse")
+          ? e.clientX
+          : e.touches[0].clientX;
+        const clientY = e.type.includes("mouse")
+          ? e.clientY
+          : e.touches[0].clientY;
+
+        // 计算位移差和时间差
+        const deltaX = clientX - startX;
+        const deltaY = clientY - startY;
+        const timeDiff = Math.max(1, now - lastDragTime); // 避免除以0
+
+        // 基于当前活动面调整旋转轴
+        let rotateXAmount = 0;
+        let rotateYAmount = 0;
+        let rotateZAmount = 0;
+
+        // 根据活动面调整旋转逻辑
+        if (activeFace === "top" || activeFace === "bottom") {
+          // 顶面或底面为基准 - 垂直拖拽控制X轴旋转，水平拖拽控制Z轴旋转
+          rotateZAmount = deltaX * CONFIG.rotationSpeed;
+        } else if (activeFace === "left" || activeFace === "right") {
+          // 左面或右面为基准 - 垂直拖拽控制X轴旋转，水平拖拽控制Y轴旋转
+          rotateYAmount = -deltaX * CONFIG.rotationSpeed; // 左右面需要反转水平拖拽方向
+        } else {
+          // 前面或后面为基准 - 垂直拖拽控制X轴旋转，水平拖拽控制Y轴旋转
+          rotateYAmount = deltaX * CONFIG.rotationSpeed;
+        }
+        rotateXAmount = deltaY * CONFIG.rotationSpeed;
+
+        // 更新旋转角度
+        currentX -= rotateXAmount;
+        currentY += rotateYAmount;
+        currentZ += rotateZAmount;
+
+        // 计算惯性
+        inertiaX = -rotateXAmount / timeDiff;
+        inertiaY = rotateYAmount / timeDiff;
+        inertiaZ = rotateZAmount / timeDiff;
+
+        // 应用旋转
+        updateCubeTransform();
+
+        // 更新起始位置和时间
+        startX = clientX;
+        startY = clientY;
+        lastDragTime = now;
+      }
+
+      function stopDrag() {
+        if (isDragging) {
+          isDragging = false;
+          cube.classList.remove("dragging");
+        }
+      }
+
+      // 启动动画循环
+      animate();
+    </script>
+  </body>
+</html>
