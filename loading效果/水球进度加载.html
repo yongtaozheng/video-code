@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>水球进度加载</title>
+    <style>
+      /* css样式 */
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+
+      .loader-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: #1a1e2d;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+      }
+
+      .wave-loader {
+        position: relative;
+        width: 200px;
+        height: 200px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.1);
+        overflow: hidden;
+        box-shadow: 0 0 0 10px rgba(255, 255, 255, 0.05),
+          0 0 20px rgba(108, 92, 231, 0.3);
+      }
+
+      .wave {
+        position: absolute;
+        width: 200%;
+        height: 200%;
+        top: 50%;
+        left: -50%;
+        transform-origin: 50% 50%;
+        animation: wave 6s linear infinite;
+      }
+
+      .wave1 {
+        background: rgba(108, 92, 231, 0.8);
+        border-radius: 45%;
+        animation-duration: 6s;
+      }
+
+      .wave2 {
+        background: rgba(0, 206, 255, 0.6);
+        border-radius: 40%;
+        animation-duration: 8s;
+        top: 60%;
+      }
+
+      .percentage {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: white;
+        font-family: sans-serif;
+        font-size: 2rem;
+        font-weight: bold;
+        z-index: 10;
+        text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+      }
+
+      @keyframes wave {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      .drop {
+        position: absolute;
+        width: 8px;
+        height: 12px;
+        transform-origin: center;
+        opacity: 0;
+        background: linear-gradient(
+          180deg,
+          rgba(0, 206, 255, 0.9),
+          rgba(108, 92, 231, 0.9)
+        );
+        border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+        box-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
+      }
+
+      .ripple {
+        position: absolute;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        transform-origin: center;
+        opacity: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="loader-container">
+      <div class="wave-loader">
+        <div class="wave wave1"></div>
+        <div class="wave wave2"></div>
+        <div class="percentage">0%</div>
+      </div>
+    </div>
+
+    <script>
+      // js逻辑
+      const percentageEl = document.querySelector(".percentage");
+      const wave1 = document.querySelector(".wave1");
+      const wave2 = document.querySelector(".wave2");
+      const waveLoader = document.querySelector(".wave-loader");
+
+      let progress = 0;
+      const totalTime = 15000; // 15秒加载时间
+      const interval = 50; // 更新间隔
+      const increment = 100 / (totalTime / interval);
+
+      // 水滴参数
+      const dropIntervalMin = 200; // 最小滴落间隔(ms)
+      const dropIntervalMax = 300; // 最大滴落间隔(ms)
+      let nextDropTime = 0; // 下次滴落时间
+
+      // 创建水滴元素
+      function createDrop() {
+        const drop = document.createElement("div");
+        drop.classList.add("drop");
+        waveLoader.appendChild(drop);
+
+        // 随机位置
+        const x = Math.random() * 80 + 10; // 10% - 90%
+        drop.style.left = `${x}%`;
+        drop.style.top = "-15px";
+
+        // 下落动画
+        const height = waveLoader.offsetHeight;
+        const gravity = 0.25;
+        const drag = 0.98;
+        let velocity = 0;
+        let position = -15;
+
+        // 显示水滴
+        drop.style.opacity = "1";
+
+        // 计算水面位置
+        const waterLevel = 100 - progress;
+        const waterY = (waterLevel / 100) * height;
+
+        const dropInterval = setInterval(() => {
+          velocity += gravity;
+          velocity *= drag;
+          position += velocity;
+          drop.style.top = `${position}px`;
+
+          // 到达水面后
+          if (position >= waterY - 5) {
+            clearInterval(dropInterval);
+            createRipple(x, waterY);
+
+            // 隐藏并移除水滴
+            drop.style.transition = "opacity 0.2s";
+            drop.style.opacity = "0";
+            setTimeout(() => waveLoader.removeChild(drop), 300);
+          }
+        }, 16);
+      }
+
+      // 创建涟漪效果
+      function createRipple(xPercent, y) {
+        const ripple = document.createElement("div");
+        ripple.classList.add("ripple");
+        waveLoader.appendChild(ripple);
+
+        // 设置位置
+        ripple.style.left = `${xPercent}%`;
+        ripple.style.top = `${y}px`;
+        ripple.style.transform = "translate(-50%, -50%)";
+
+        // 涟漪动画
+        const size = 8 + Math.random() * 12;
+        const duration = 1000 + Math.random() * 500;
+
+        ripple.style.width = "0";
+        ripple.style.height = "0";
+        ripple.style.opacity = "0.7";
+
+        setTimeout(() => {
+          ripple.style.transition = `all ${duration}ms cubic-bezier(0.25, 0.46, 0.45, 0.94)`;
+          ripple.style.width = `${size}px`;
+          ripple.style.height = `${size}px`;
+          ripple.style.opacity = "0";
+
+          setTimeout(() => waveLoader.removeChild(ripple), duration);
+        }, 10);
+      }
+
+      // 动画循环
+      const loadingInterval = setInterval(() => {
+        progress += increment;
+        progress = Math.min(progress, 100);
+        percentageEl.textContent = `${Math.round(progress)}%`;
+
+        // 调整波浪位置
+        const height = 100 - progress;
+        wave1.style.top = `${height}%`;
+        wave2.style.top = `${height + 10}%`;
+
+        // 随机生成水滴
+        if (Date.now() > nextDropTime && progress < 100) {
+          createDrop();
+          nextDropTime =
+            Date.now() +
+            dropIntervalMin +
+            Math.random() * (dropIntervalMax - dropIntervalMin);
+        }
+
+        // 重置进度
+        if (progress >= 100) {
+          setTimeout(() => {
+            // 最终涟漪效果
+            for (let i = 0; i < 5; i++) {
+              setTimeout(() => {
+                createRipple(Math.random() * 80 + 10, 0);
+              }, i * 200);
+            }
+
+            // 重置进度条
+            setTimeout(() => {
+              progress = 0;
+            }, 1500);
+          }, 1000);
+        }
+      }, interval);
+    </script>
+  </body>
+</html>
