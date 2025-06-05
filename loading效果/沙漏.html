@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>沙漏动画</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: #1a1e2d;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        font-family: Arial, sans-serif;
+      }
+
+      .container {
+        text-align: center;
+      }
+
+      h1 {
+        color: white;
+        font-size: 2.5rem;
+        margin-bottom: 2rem;
+      }
+
+      .hourglass {
+        position: relative;
+        width: 120px;
+        height: 200px;
+        margin: 0 auto;
+        animation: rotate 10s linear infinite;
+        transform-origin: center 100px;
+      }
+
+      /* 沙漏框架 */
+      .frame {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        border: 6px solid #5d4037;
+        border-radius: 10px;
+        box-sizing: border-box;
+        z-index: 10;
+      }
+
+      /* 沙漏玻璃容器 */
+      .glass {
+        position: absolute;
+        top: 6px;
+        left: 6px;
+        right: 6px;
+        bottom: 6px;
+        border-radius: 4px;
+        overflow: hidden;
+        z-index: 5;
+      }
+
+      /* 上半部分沙子 */
+      .sand-top {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 90px;
+        background-color: #f5d76e;
+        clip-path: polygon(0 0, 100% 0, 51% 100%, 49% 100%);
+        border-top-left-radius: 10px;
+        border-top-right-radius: 10px;
+        animation: sand-top 10s linear infinite;
+      }
+      .sand-top-stroke {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 90px;
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.1) 0%,
+          rgba(255, 255, 255, 0.3) 100%
+        );
+        box-shadow: 0 0 10px rgba(255, 255, 255, 0.2) inset;
+        backdrop-filter: blur(2px);
+        clip-path: polygon(0 0, 100% 0, 51% 100%, 49% 100%);
+        border-top-left-radius: 10px;
+        border-top-right-radius: 10px;
+      }
+
+      /* 下半部分沙子 */
+      .sand-bottom {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 0;
+        background-color: #f5d76e;
+        clip-path: polygon(49% 0, 51% 0, 100% 100%, 0 100%);
+        animation: sand-bottom 10s linear infinite;
+        border-bottom-left-radius: 10px;
+        border-bottom-right-radius: 10px;
+      }
+      .sand-bottom-stroke {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 90px;
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.1) 0%,
+          rgba(255, 255, 255, 0.3) 100%
+        );
+        box-shadow: 0 0 10px rgba(255, 255, 255, 0.2) inset;
+        backdrop-filter: blur(2px);
+        clip-path: polygon(49% 0, 51% 0, 100% 100%, 0 100%);
+        border-bottom-left-radius: 10px;
+        border-bottom-right-radius: 10px;
+      }
+
+      /* 沙子流动 */
+      .sand-flow {
+        position: absolute;
+        width: 5px;
+        height: 22px;
+        background-color: #f5d76e;
+        left: 50%;
+        transform: translateX(-50%);
+        top: 89px;
+        z-index: 5;
+      }
+
+      /* 沙子滴落效果 */
+      .sand-drop {
+        position: absolute;
+        width: 5px;
+        height: 5px;
+        background-color: #f5d76e;
+        border-radius: 50%;
+        left: 50%;
+        transform: translateX(-50%);
+        top: 105px;
+        z-index: 5;
+        opacity: 0;
+        animation: sand-drop 0.5s linear infinite;
+      }
+      .sand-drop-up {
+        position: absolute;
+        width: 5px;
+        height: 5px;
+        background-color: #f5d76e;
+        border-radius: 50%;
+        left: 50%;
+        transform: translateX(-50%);
+        top: 90px;
+        z-index: 5;
+        opacity: 0;
+        animation: sand-drop-up 0.5s linear infinite;
+      }
+
+      /* 沙漏玻璃效果 */
+      .glass-reflection {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(
+          90deg,
+          rgba(255, 255, 255, 0) 0%,
+          rgba(255, 255, 255, 0.15) 50%,
+          rgba(255, 255, 255, 0) 100%
+        );
+        z-index: 15;
+        pointer-events: none;
+      }
+
+      /* 沙漏旋转动画 */
+      @keyframes rotate {
+        0% {
+          transform: rotate(0deg);
+        }
+        45% {
+          transform: rotate(0deg);
+        }
+        50% {
+          transform: rotate(180deg);
+        }
+        99% {
+          transform: rotate(180deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* 上半部分沙子减少动画 */
+      @keyframes sand-top {
+        0% {
+          height: 90px;
+          width: 100%;
+        }
+        49% {
+          height: 0;
+          width: 0;
+          left: 50%;
+          top: 90px;
+        }
+        50% {
+          height: 0px;
+          width: 100%;
+          top: 0;
+          left: 0;
+        }
+        99% {
+          width: 100%;
+          height: 90px;
+        }
+        100% {
+          width: 100%;
+          height: 90px;
+        }
+      }
+
+      /* 下半部分沙子增加动画 */
+      @keyframes sand-bottom {
+        0% {
+          height: 0;
+          width: 100%;
+          bottom: 0;
+          left: 0;
+        }
+        50% {
+          height: 90px;
+          width: 100%;
+          bottom: 0;
+          left: 0;
+        }
+        51% {
+          height: 90px;
+          width: 100%;
+          bottom: 0;
+          left: 0;
+        }
+        99% {
+          height: 0px;
+          width: 0;
+          bottom: 90px;
+          left: 50%;
+        }
+        100% {
+          height: 0px;
+          width: 0;
+          bottom: 90px;
+          left: 50%;
+        }
+      }
+
+      /* 沙子流动动画 */
+      @keyframes sand-flow {
+        0% {
+          height: 20px;
+        }
+        45% {
+          height: 20px;
+        }
+        50% {
+          height: 0px;
+        }
+        95% {
+          height: 0px;
+        }
+        100% {
+          height: 20px;
+        }
+      }
+
+      /* 沙子滴落动画 */
+      @keyframes sand-drop {
+        0% {
+          opacity: 0;
+          transform: translate(-50%, 0);
+        }
+        50% {
+          opacity: 1;
+          transform: translate(-50%, 0);
+        }
+        100% {
+          opacity: 0;
+          transform: translate(-50%, 15px);
+        }
+      }
+      @keyframes sand-drop-up {
+        0% {
+          opacity: 0;
+          transform: translate(-50%, 0);
+        }
+        50% {
+          opacity: 1;
+          transform: translate(-50%, 0);
+        }
+        100% {
+          opacity: 0;
+          transform: translate(-50%, -15px);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>纯CSS沙漏动画</h1>
+
+      <div class="hourglass">
+        <div class="frame"></div>
+        <div class="glass"></div>
+        <div class="sand-top-stroke"></div>
+        <div class="sand-top"></div>
+        <div class="sand-bottom-stroke"></div>
+        <div class="sand-bottom"></div>
+        <div class="sand-flow"></div>
+        <div class="sand-drop"></div>
+        <div class="sand-drop-up"></div>
+        <div class="glass-reflection"></div>
+      </div>
+    </div>
+  </body>
+</html>
