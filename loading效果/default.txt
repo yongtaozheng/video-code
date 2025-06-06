@@ -1,14 +1,23 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>沙漏动画</title>
-    <style>
-      /*css样式 */
+[[<body>]]
+    <div class="container">
+      <div class="hourglass">
+        <div class="frame"></div>
+        <div class="glass"></div>
+        <div class="sand-top-stroke"></div>
+        <div class="sand-top"></div>
+        <div class="sand-bottom-stroke"></div>
+        <div class="sand-bottom"></div>
+        <div class="sand-flow"></div>
+        <div class="sand-drop"></div>
+        <div class="glass-reflection"></div>
+      </div>
+    </div>
+[[<body>]]
+
+[[/*css样式 */]]
       :root {
         --rotateTime: 10s;
-      }
+      }@保存@
 
       body {
         margin: 0;
@@ -19,12 +28,12 @@
         align-items: center;
         min-height: 100vh;
         font-family: Arial, sans-serif;
-      }
+      }@保存@
 
       .container {
         text-align: center;
         transform: scale(2);
-      }
+      }@保存@
 
       .hourglass {
         position: relative;
@@ -33,7 +42,7 @@
         margin: 0 auto;
         animation: rotate var(--rotateTime) linear infinite;
         transform-origin: center 100px;
-      }
+      }@保存@
 
       /* 沙漏框架 */
       .frame {
@@ -44,7 +53,7 @@
         border-radius: 10px;
         box-sizing: border-box;
         z-index: 10;
-      }
+      }@保存@
 
       /* 沙漏玻璃容器 */
       .glass {
@@ -56,7 +65,7 @@
         border-radius: 4px;
         overflow: hidden;
         z-index: 5;
-      }
+      }@保存@
 
       /* 上半部分沙子 */
       .sand-top {
@@ -70,7 +79,7 @@
         border-top-left-radius: 10px;
         border-top-right-radius: 10px;
         animation: sand-top var(--rotateTime) linear infinite;
-      }
+      }@保存@
 
       .sand-top-stroke {
         position: absolute;
@@ -88,7 +97,7 @@
         clip-path: polygon(0 0, 100% 0, 51% 100%, 49% 100%);
         border-top-left-radius: 10px;
         border-top-right-radius: 10px;
-      }
+      }@保存@
 
       /* 下半部分沙子 */
       .sand-bottom {
@@ -102,7 +111,7 @@
         animation: sand-bottom var(--rotateTime) linear infinite;
         border-bottom-left-radius: 10px;
         border-bottom-right-radius: 10px;
-      }
+      }@保存@
 
       .sand-bottom-stroke {
         position: absolute;
@@ -120,7 +129,7 @@
         clip-path: polygon(49% 0, 51% 0, 100% 100%, 0 100%);
         border-bottom-left-radius: 10px;
         border-bottom-right-radius: 10px;
-      }
+      }@保存@
 
       /* 沙子流动 */
       .sand-flow {
@@ -132,7 +141,7 @@
         transform: translateX(-50%);
         top: 89px;
         z-index: 5;
-      }
+      }@保存@
 
       /* 沙子滴落效果 */
       .sand-drop {
@@ -147,7 +156,7 @@
         z-index: 5;
         opacity: 0;
         animation: sand-drop var(--rotateTime) linear infinite;
-      }
+      }@保存@
 
       /* 沙漏玻璃效果 */
       .glass-reflection {
@@ -164,7 +173,7 @@
         );
         z-index: 15;
         pointer-events: none;
-      }
+      }@保存@
 
       /* 沙漏旋转动画 */
       @keyframes rotate {
@@ -183,7 +192,7 @@
         100% {
           transform: rotate(360deg);
         }
-      }
+      }@保存@
 
       /* 上半部分沙子减少动画 */
       @keyframes sand-top {
@@ -211,7 +220,7 @@
           width: 100%;
           height: 90px;
         }
-      }
+      }@保存@
 
       /* 下半部分沙子增加动画 */
       @keyframes sand-bottom {
@@ -245,7 +254,7 @@
           bottom: 90px;
           left: 50%;
         }
-      }
+      }@保存@
 
       /* 沙子流动动画 */
       @keyframes sand-flow {
@@ -264,7 +273,7 @@
         100% {
           height: 20px;
         }
-      }
+      }@保存@
 
       /* 沙子滴落动画 */
       @keyframes sand-drop {
@@ -346,21 +355,4 @@
           transform: translate(-50%, -30px);
         }
       }
-    </style>
-  </head>
-  <body>
-    <div class="container">
-      <div class="hourglass">
-        <div class="frame"></div>
-        <div class="glass"></div>
-        <div class="sand-top-stroke"></div>
-        <div class="sand-top"></div>
-        <div class="sand-bottom-stroke"></div>
-        <div class="sand-bottom"></div>
-        <div class="sand-flow"></div>
-        <div class="sand-drop"></div>
-        <div class="glass-reflection"></div>
-      </div>
-    </div>
-  </body>
-</html>
+[[/*css样式 */]]
