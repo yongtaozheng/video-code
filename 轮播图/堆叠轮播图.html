@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>堆叠轮播图</title>
+    <style>
+      /* css样式 */
+      :root {
+        --card-width: 300px; /* 卡片宽度 */
+        --card-height: 450px; /* 卡片高度 */
+      }
+
+      /* 页面基础样式 */
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: #f0ead2;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        font-family: "楷体", serif;
+      }
+
+      /* 容器样式：控制整体居中 */
+      .container {
+        position: relative;
+        width: 100%;
+        max-width: 800px;
+        height: 500px;
+        padding: 20px;
+        box-sizing: border-box;
+      }
+
+      /* 卡片容器：用 flex 布局让卡片水平排列，超出部分隐藏 */
+      .card-wrapper {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      }
+
+      /* 单个卡片样式：设置宽度、过渡动画，让切换更丝滑 */
+      .card {
+        flex-shrink: 0;
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        width: var(--card-width);
+        height: var(--card-height);
+        margin: 0;
+        border-radius: 8px;
+        transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        cursor: pointer;
+      }
+
+      /* 卡片层级和样式配置 */
+      .card.active {
+        left: 50%;
+        transform: translate(-50%, -50%) scale(1);
+        z-index: 5;
+        opacity: 1;
+      }
+
+      .card.prev-1 {
+        left: 30%;
+        transform: translate(-50%, -50%) scale(0.9);
+        z-index: 4;
+        opacity: 0.8;
+      }
+
+      .card.next-1 {
+        left: 70%;
+        transform: translate(-50%, -50%) scale(0.9);
+        z-index: 4;
+        opacity: 0.8;
+      }
+
+      .card.prev-2 {
+        left: 20%;
+        transform: translate(-50%, -50%) scale(0.8);
+        z-index: 3;
+        opacity: 0.6;
+      }
+
+      .card.next-2 {
+        left: 80%;
+        transform: translate(-50%, -50%) scale(0.8);
+        z-index: 3;
+        opacity: 0.6;
+      }
+
+      .card.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      /* 卡片图片样式：覆盖整个卡片 */
+      .card img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.3s ease;
+        border-radius: 8px;
+      }
+
+      /* 鼠标悬停效果：仅应用于当前激活的卡片 */
+      .card.active:hover img {
+        transform: scale(1.2);
+      }
+
+      /* 左右箭头样式：固定位置、圆形、半透明背景 */
+      .arrow {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 40px;
+        height: 40px;
+        background-color: rgba(255, 255, 255, 0.8);
+        border-radius: 50%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+        font-size: 24px;
+        color: #333;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        z-index: 10;
+        transition: background-color 0.2s ease;
+      }
+
+      /* 箭头 hover 效果：加深背景 */
+      .arrow:hover {
+        background-color: rgba(255, 255, 255, 1);
+      }
+
+      /* 左箭头位置 */
+      .arrow-left {
+        left: 20px;
+      }
+
+      /* 右箭头位置 */
+      .arrow-right {
+        right: 20px;
+      }
+
+      /* 底部文字标签样式 */
+      .text-label {
+        position: absolute;
+        bottom: -40px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: #d4bfa3;
+        padding: 6px 16px;
+        border-radius: 20px;
+        color: #fff;
+        font-size: 16px;
+        z-index: 10;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 轮播图容器 -->
+    <div class="container">
+      <!-- 卡片包裹层 -->
+      <div class="card-wrapper" id="cardWrapper">
+        <div class="card active" data-index="0">
+          <img src="../images/宫崎骏/千与千寻.jpg" alt="千与千寻" />
+        </div>
+        <div class="card" data-index="1">
+          <img src="../images/宫崎骏/龙猫.jpg" alt="龙猫" />
+        </div>
+        <div class="card" data-index="2">
+          <img src="../images/宫崎骏/天空之城.jpg" alt="天空之城" />
+        </div>
+        <div class="card" data-index="3">
+          <img src="../images/宫崎骏/魔女宅急便.jpg" alt="魔女宅急便" />
+        </div>
+        <div class="card" data-index="4">
+          <img src="../images/宫崎骏/悬崖上的金鱼姬.jpg" alt="悬崖上的金鱼姬" />
+        </div>
+      </div>
+      <!-- 左箭头 -->
+      <div class="arrow arrow-left" id="arrowLeft">&lt;</div>
+      <!-- 右箭头 -->
+      <div class="arrow arrow-right" id="arrowRight">&gt;</div>
+      <!-- 底部文字标签 -->
+      <div class="text-label" id="textLabel"></div>
+    </div>
+
+    <script>
+      // js逻辑
+      // 获取 DOM 元素
+      const cardWrapper = document.getElementById("cardWrapper");
+      const cards = document.querySelectorAll(".card");
+      const arrowLeft = document.getElementById("arrowLeft");
+      const arrowRight = document.getElementById("arrowRight");
+      const textLabel = document.getElementById("textLabel");
+
+      // 定义数据：卡片对应的文字标签，顺序和卡片一致
+      const imaTags = document.querySelectorAll(".card img");
+      const cardTexts = Array.from(imaTags).map((img) => img.alt);
+      textLabel.textContent = cardTexts[0]; // 初始化底部文字标签
+
+      // 当前激活的卡片索引
+      let activeIndex = 0;
+      const cardCount = cards.length;
+
+      // 更新卡片位置的函数
+      function updateCardPositions() {
+        cards.forEach((card, index) => {
+          // 移除所有卡片的类
+          card.className = "card";
+
+          // 计算与当前激活卡片的距离
+          let diff = index - activeIndex;
+
+          // 处理循环逻辑
+          if (diff > Math.floor(cardCount / 2)) {
+            diff -= cardCount;
+          } else if (diff < -Math.floor(cardCount / 2)) {
+            diff += cardCount;
+          }
+
+          // 根据距离添加对应的类
+          const diffMap = {
+            "-2": "prev-2",
+            "-1": "prev-1",
+            0: "active",
+            1: "next-1",
+            2: "next-2",
+          };
+          card.classList.add(diffMap[diff] || "hidden");
+        });
+
+        // 更新底部文字标签
+        textLabel.textContent = cardTexts[activeIndex];
+      }
+
+      // 初始化卡片位置
+      updateCardPositions();
+
+      // 切换到指定卡片的函数
+      function switchToCard(index) {
+        activeIndex = index;
+        updateCardPositions();
+      }
+
+      // 监听右箭头点击
+      arrowRight.addEventListener("click", () => {
+        // 切换到下一张
+        switchToCard((activeIndex + 1) % cardCount);
+      });
+
+      // 监听左箭头点击
+      arrowLeft.addEventListener("click", () => {
+        // 切换到上一张
+        switchToCard((activeIndex - 1 + cardCount) % cardCount);
+      });
+
+      // 监听卡片点击
+      cards.forEach((card) => {
+        card.addEventListener("click", () => {
+          // 获取卡片的索引
+          const index = parseInt(card.getAttribute("data-index"));
+          // 直接切换到点击的卡片
+          switchToCard(index);
+        });
+      });
+
+      // 窗口大小变化时重新计算位置
+      window.addEventListener("resize", updateCardPositions);
+
+      //自动轮播
+      let intervalId = setInterval(() => {
+        switchToCard((activeIndex + 1) % cardCount);
+      }, 1500);
+
+      function resumeAutoPlay() {
+        intervalId = setInterval(() => {
+          switchToCard((activeIndex + 1) % cardCount);
+        }, 1500);
+      }
+
+      cardWrapper.addEventListener("mouseenter", () => {
+        clearInterval(intervalId);
+      });
+
+      cardWrapper.addEventListener("mouseleave", resumeAutoPlay);
+
+      arrowLeft.addEventListener("mouseenter", () => {
+        clearInterval(intervalId);
+      });
+
+      arrowRight.addEventListener("mouseenter", () => {
+        clearInterval(intervalId);
+      });
+
+      arrowLeft.addEventListener("mouseleave", resumeAutoPlay);
+
+      arrowRight.addEventListener("mouseleave", resumeAutoPlay);
+    </script>
+  </body>
+</html>

@@ -150,16 +150,38 @@
 
             // 绘制指示器标签
             this.ctx.font = "16px Arial";
-            this.ctx.fillStyle = "#333";
-            this.ctx.textAlign = "center";
             this.ctx.textBaseline = "middle";
 
-            // 根据标签位置调整偏移量，避免重叠
-            const labelOffset = this.radius * 1.1;
-            const labelX = this.centerX + labelOffset * Math.cos(angle);
-            const labelY = this.centerY + labelOffset * Math.sin(angle);
+            // 获取红色方和蓝色方数据
+            const redData = this.data.find((d) => d.name === "红色方") || {};
+            const blueData = this.data.find((d) => d.name === "蓝色方") || {};
 
+            // 获取对应颜色
+            const redColor = redData.lineStyle
+              ? redData.lineStyle.color
+              : "#333";
+            const blueColor = blueData.lineStyle
+              ? blueData.lineStyle.color
+              : "#333";
+
+            // 根据角度智能调整标签位置
+            const labelOffset = this.radius * 1.2;
+            let labelX = this.centerX + labelOffset * Math.cos(angle);
+            let labelY = this.centerY + labelOffset * Math.sin(angle);
+
+            // 调整文本对齐方式
+            this.ctx.textAlign = "center";
+            // 绘制红色方数值
+            this.ctx.fillStyle = redColor;
+            this.ctx.fillText(redData.value[i], labelX, labelY - 20);
+
+            // 绘制指标名称
+            this.ctx.fillStyle = "#333";
             this.ctx.fillText(this.indicators[i].name, labelX, labelY);
+
+            // 绘制蓝色方数值
+            this.ctx.fillStyle = blueColor;
+            this.ctx.fillText(blueData.value[i], labelX, labelY + 20);
           }
         }
 
@@ -242,6 +264,7 @@
             const legendText = document.createElement("span");
             legendText.textContent = name;
             legendText.style.marginLeft = "5px";
+            legendText.style.color = color.replace("0.3", "1"); // 使用不透明颜色
 
             legendItem.appendChild(colorBox);
             legendItem.appendChild(legendText);
@@ -265,12 +288,12 @@
       const option = {
         radar: {
           indicator: [
-            { name: "KDA", max: 100 },
-            { name: "红方胜率", max: 100 },
-            { name: "场均推塔差", max: 100 },
-            { name: "场均暴君", max: 100 },
-            { name: "场均经济差", max: 100 },
-            { name: "蓝方胜率", max: 100 },
+            { name: "KDA", max: 6.15 },
+            { name: "红方胜率", max: 80 },
+            { name: "场均推塔差", max: 2.5 },
+            { name: "场均暴君", max: 3 },
+            { name: "场均经济差", max: 4960.47 },
+            { name: "蓝方胜率", max: 73.3 },
           ],
         },
         series: [
@@ -279,37 +302,37 @@
             type: "radar",
             data: [
               {
-                value: [100, 100, 100, 95, 100, 100],
+                value: [6.15, 80, 2.5, 2.13, 4960.47, 73.3],
                 name: "红色方",
                 areaStyle: {
                   color: "rgba(143,44,35, 0.3)",
                 },
                 lineStyle: {
-                  color: "rgba(143,44,35, 0.5)",
+                  color: "rgba(143,44,35, 1)", // 修改为不透明颜色
                   width: 2,
                 },
                 lineType: "solid",
               },
               {
-                value: [68, 85, 68, 70, 90, 63],
+                value: [4.58, 68.4, 1.32, 1.9, 3163.56, 50],
                 name: "蓝色方",
                 areaStyle: {
                   color: "rgba(91, 192, 222, 0.3)",
                 },
                 lineStyle: {
-                  color: "rgba(91, 192, 222, 0.5)",
+                  color: "rgba(91, 192, 222, 1)", // 修改为不透明颜色
                   width: 2,
                 },
                 lineType: "solid",
               },
               {
-                value: [50, 55, 52, 53, 52, 52],
+                value: [3.6, 50, 0.8, 1, 1600, 40],
                 name: "平均值",
                 areaStyle: {
                   color: "none",
                 },
                 lineStyle: {
-                  color: "rgba(255, 255, 255, 0.5)", // 修改为可见颜色
+                  color: "rgba(128, 128, 128, 1)", // 修改为可见颜色
                   width: 3,
                 },
                 lineType: "dashed", // 指定为虚线
