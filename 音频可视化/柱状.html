@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>音频可视化</title>
+    <style>
+      /*css样式*/
+      :root {
+        --primary: #3b82f6;
+        --secondary: #10b981;
+        --dark: #1e293b;
+        --light: #f8fafc;
+        --gray: #64748b;
+        --dark-gray: #334155;
+        --glass: rgba(30, 41, 59, 0.7);
+        --glass-border: rgba(255, 255, 255, 0.1);
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      body {
+        background: linear-gradient(135deg, var(--dark), #0f172a);
+        color: var(--light);
+        font-family: "Inter", system-ui, sans-serif;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        overflow-x: hidden;
+      }
+
+      .container {
+        width: 100%;
+        max-width: 800px;
+      }
+
+      header {
+        text-align: center;
+        margin-bottom: 30px;
+      }
+
+      h1 {
+        background: linear-gradient(90deg, var(--primary), var(--secondary));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        font-size: clamp(1.8rem, 5vw, 3rem);
+        font-weight: 800;
+        letter-spacing: -1px;
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+      }
+
+      .audio-container {
+        background: var(--glass);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+        border: 1px solid var(--glass-border);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+
+      .audio-container:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4);
+      }
+
+      .visualizer-container {
+        height: 250px;
+        margin-bottom: 25px;
+        border-radius: 15px;
+        overflow: hidden;
+        background: linear-gradient(
+          180deg,
+          rgba(59, 130, 246, 0.1),
+          rgba(16, 185, 129, 0.1)
+        );
+        box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.2);
+      }
+
+      .progress-container {
+        height: 5px;
+        background: var(--dark-gray);
+        border-radius: 5px;
+        margin-bottom: 20px;
+        cursor: pointer;
+        transition: height 0.2s ease;
+      }
+
+      .progress-container:hover {
+        height: 8px;
+      }
+
+      .progress-bar {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, var(--primary), var(--secondary));
+        border-radius: 5px;
+        position: relative;
+      }
+
+      .progress-bar::after {
+        content: "";
+        position: absolute;
+        right: -8px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 16px;
+        height: 16px;
+        background: white;
+        border-radius: 50%;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+        opacity: 0;
+        transition: opacity 0.2s ease;
+      }
+
+      .progress-container:hover .progress-bar::after {
+        opacity: 1;
+      }
+
+      .time-display {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.9rem;
+        color: rgba(248, 250, 252, 0.7);
+        margin-bottom: 15px;
+      }
+
+      .control-panel {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 20px;
+        margin-bottom: 25px;
+      }
+
+      @media (min-width: 600px) {
+        .control-panel {
+          grid-template-columns: 2fr 1fr;
+        }
+      }
+
+      .btn-group {
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+      }
+
+      button {
+        padding: 12px 20px;
+        border-radius: 10px;
+        border: none;
+        cursor: pointer;
+        font-size: 1rem;
+        font-weight: 500;
+        transition: transform 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-width: 90px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+      }
+
+      button:hover {
+        transform: translateY(-2px);
+      }
+
+      .btn-primary {
+        background: linear-gradient(90deg, var(--primary), #2563eb);
+        color: white;
+        box-shadow: 0 4px 15px rgba(59, 130, 246, 0.2);
+      }
+
+      .btn-secondary {
+        background: linear-gradient(90deg, var(--secondary), #059669);
+        color: white;
+        box-shadow: 0 4px 15px rgba(16, 185, 129, 0.2);
+      }
+
+      .volume-control {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        background: var(--glass);
+        padding: 12px 15px;
+        border-radius: 10px;
+        border: 1px solid var(--glass-border);
+      }
+
+      .volume-icon {
+        font-size: 1.2rem;
+        color: var(--primary);
+      }
+
+      input[type="range"] {
+        width: 100%;
+        height: 5px;
+        background: var(--dark-gray);
+        border-radius: 5px;
+        appearance: none;
+      }
+
+      input[type="range"]::-webkit-slider-thumb {
+        appearance: none;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        cursor: pointer;
+        box-shadow: 0 0 10px rgba(67, 97, 238, 0.5);
+        transition: transform 0.2s ease;
+      }
+
+      .audio-info {
+        background: var(--glass);
+        border-radius: 15px;
+        padding: 15px 20px;
+        font-size: 0.95rem;
+        color: rgba(248, 250, 252, 0.8);
+        border: 1px solid var(--glass-border);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+
+      .audio-info:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+      }
+
+      footer {
+        text-align: center;
+        margin-top: 30px;
+        color: rgba(255, 255, 255, 0.3);
+        font-size: 0.8rem;
+      }
+
+      /* 图标样式 */
+      .icon-play::before {
+        content: "▶";
+      }
+      .icon-pause::before {
+        content: "⏸";
+      }
+      .icon-upload::before {
+        content: "⤴";
+      }
+      .icon-volume::before {
+        content: "�";
+      }
+
+      /* 文件选择按钮样式 */
+      .file-input-label {
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        color: white;
+        padding: 12px 20px;
+        border-radius: 10px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        box-shadow: 0 5px 15px rgba(67, 97, 238, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .file-input-label:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(67, 97, 238, 0.3);
+      }
+
+      /* 自定义滚动条 */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      ::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.05);
+      }
+
+      ::-webkit-scrollbar-thumb {
+        background: rgba(59, 130, 246, 0.5);
+        border-radius: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>音频可视化</h1>
+      </header>
+
+      <main>
+        <div class="audio-container">
+          <div class="visualizer-container">
+            <canvas id="visualizer"></canvas>
+          </div>
+
+          <div class="time-display">
+            <span id="current-time">00:00</span>
+            <span id="total-time">00:00</span>
+          </div>
+
+          <div class="progress-container" id="progress-container">
+            <div class="progress-bar" id="progress-bar"></div>
+          </div>
+
+          <div class="control-panel">
+            <div class="btn-group">
+              <button id="play-btn" class="btn-primary">
+                <span class="icon-play"></span>
+                <span>播放</span>
+              </button>
+              <button id="pause-btn" class="btn-secondary hidden">
+                <span class="icon-pause"></span>
+                <span>暂停</span>
+              </button>
+              <div>
+                <label for="audio-file" class="file-input-label">
+                  <span class="icon-upload"></span>
+                  <span>选择文件</span>
+                </label>
+                <input
+                  type="file"
+                  id="audio-file"
+                  accept="audio/*"
+                  class="hidden"
+                />
+              </div>
+            </div>
+
+            <div class="volume-control">
+              <span class="icon-volume volume-icon"></span>
+              <input
+                type="range"
+                id="volume"
+                min="0"
+                max="1"
+                step="0.05"
+                value="0.7"
+              />
+            </div>
+          </div>
+
+          <div class="audio-info" id="audio-info">
+            <p>未选择音频文件</p>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      //js逻辑
+      const canvas = document.getElementById("visualizer");
+      const ctx = canvas.getContext("2d");
+      const playBtn = document.getElementById("play-btn");
+      const pauseBtn = document.getElementById("pause-btn");
+      const volumeSlider = document.getElementById("volume");
+      const fileInput = document.getElementById("audio-file");
+      const audioInfo = document.getElementById("audio-info");
+      const progressBar = document.getElementById("progress-bar");
+      const progressContainer = document.getElementById("progress-container");
+      const currentTimeEl = document.getElementById("current-time");
+      const totalTimeEl = document.getElementById("total-time");
+
+      function resizeCanvas() {
+        const container = canvas.parentElement;
+        canvas.width = container.clientWidth;
+        canvas.height = container.clientHeight;
+      }
+      resizeCanvas();
+      window.addEventListener("resize", resizeCanvas);
+
+      let audioContext;
+      let analyser;
+      let audioSource;
+      let audioElement;
+      let isPlaying = false;
+      let animationId;
+      let audioDuration = "00:00";
+
+      const config = {
+        type: "bars",
+        maxBarHeight: 200,
+        circleRadius: 50,
+        circleCount: 128,
+        gradient: null,
+      };
+
+      function createGradient() {
+        const gradient = ctx.createLinearGradient(0, 0, 0, canvas.clientHeight);
+        gradient.addColorStop(0, "#3B82F6");
+        gradient.addColorStop(0.5, "#10B981");
+        gradient.addColorStop(1, "#8B5CF6");
+        return gradient;
+      }
+
+      function initAudio() {
+        if (!audioContext) {
+          audioContext = new (window.AudioContext ||
+            window.webkitAudioContext)();
+          analyser = audioContext.createAnalyser();
+          analyser.fftSize = 2048;
+          config.gradient = createGradient();
+        }
+      }
+
+      function loadAudio(file) {
+        initAudio();
+        if (audioSource) audioSource.disconnect();
+        if (isPlaying) stopAudio();
+
+        audioElement = new Audio(URL.createObjectURL(file));
+        audioElement.crossOrigin = "anonymous";
+
+        audioSource = audioContext.createMediaElementSource(audioElement);
+        audioSource.connect(analyser);
+        analyser.connect(audioContext.destination);
+
+        updateAudioInfo(file);
+
+        audioElement.onloadedmetadata = () => {
+          audioDuration = formatTime(audioElement.duration);
+          totalTimeEl.textContent = audioDuration;
+          updateAudioInfo(file);
+        };
+
+        audioElement.onended = () => {
+          isPlaying = false;
+          updateButtonStates();
+        };
+
+        // 更新进度条
+        audioElement.ontimeupdate = updateProgress;
+
+        visualize();
+      }
+
+      function updateAudioInfo(file) {
+        const fileSize = (file.size / (1024 * 1024)).toFixed(2);
+        audioInfo.innerHTML = `
+                    <p>文件名: ${file.name}</p>
+                    <p>文件大小: ${fileSize} MB</p>
+                    <p>时长: ${audioDuration || "加载中..."}</p>
+                `;
+      }
+
+      function formatTime(seconds) {
+        if (isNaN(seconds)) return "00:00";
+        const minutes = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${minutes.toString().padStart(2, "0")}:${secs
+          .toString()
+          .padStart(2, "0")}`;
+      }
+
+      function updateProgress() {
+        if (audioElement) {
+          const progressPercent =
+            (audioElement.currentTime / audioElement.duration) * 100;
+          progressBar.style.width = `${progressPercent}%`;
+          currentTimeEl.textContent = formatTime(audioElement.currentTime);
+        }
+      }
+
+      function stopAudio() {
+        if (!audioElement) return;
+        audioElement.pause();
+        audioElement.currentTime = 0;
+        isPlaying = false;
+        updateButtonStates();
+        cancelAnimationFrame(animationId);
+        updateProgress();
+      }
+
+      function playAudio() {
+        if (!audioElement) {
+          alert("请先选择音频文件");
+          return;
+        }
+
+        if (audioContext.state === "suspended") {
+          audioContext
+            .resume()
+            .then(() => {
+              audioElement.play();
+              isPlaying = true;
+              updateButtonStates();
+              visualize();
+            })
+            .catch((err) => {
+              console.error("无法恢复音频上下文:", err);
+              alert("由于浏览器限制，需要先与页面交互才能播放音频");
+            });
+        } else {
+          audioElement.play();
+          isPlaying = true;
+          updateButtonStates();
+          visualize();
+        }
+      }
+
+      function pauseAudio() {
+        if (!audioElement || !isPlaying) return;
+        audioElement.pause();
+        isPlaying = false;
+        updateButtonStates();
+        cancelAnimationFrame(animationId);
+      }
+
+      function updateButtonStates() {
+        if (isPlaying) {
+          playBtn.classList.add("hidden");
+          pauseBtn.classList.remove("hidden");
+        } else {
+          playBtn.classList.remove("hidden");
+          pauseBtn.classList.add("hidden");
+        }
+      }
+
+      function visualize() {
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+
+        function draw() {
+          animationId = requestAnimationFrame(draw);
+          analyser.getByteFrequencyData(dataArray);
+          ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+          if (config.type === "bars") drawBars(dataArray);
+        }
+        draw();
+      }
+
+      function drawBars(dataArray) {
+        const width = canvas.clientWidth;
+        const height = canvas.clientHeight;
+        const centerX = width / 2;
+
+        const barCount = Math.min(512, dataArray.length);
+        const availableWidth = width - 20;
+        const totalSpacing = (barCount - 1) * 1;
+        const barWidth = Math.max(
+          1,
+          (availableWidth - totalSpacing) / barCount
+        );
+
+        ctx.fillStyle = config.gradient;
+        const startX = centerX - (barCount * (barWidth + 1)) / 2;
+
+        for (let i = 0; i < barCount; i++) {
+          const value = dataArray[i];
+          const barHeight = (value / 255) * config.maxBarHeight;
+          const x = startX + i * (barWidth + 1);
+          const y = height - barHeight;
+          ctx.fillRect(x, y, barWidth, barHeight);
+        }
+      }
+
+      // 进度条点击跳转
+      progressContainer.addEventListener("click", (e) => {
+        if (!audioElement) return;
+
+        const progressWidth = progressContainer.clientWidth;
+        const clickPosition = e.offsetX;
+        const seekTime =
+          (clickPosition / progressWidth) * audioElement.duration;
+
+        audioElement.currentTime = seekTime;
+      });
+
+      fileInput.addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        if (file) loadAudio(file);
+      });
+
+      playBtn.addEventListener("click", playAudio);
+      pauseBtn.addEventListener("click", pauseAudio);
+
+      volumeSlider.addEventListener("input", () => {
+        if (audioElement) audioElement.volume = volumeSlider.value;
+      });
+
+      updateButtonStates();
+    </script>
+  </body>
+</html>
