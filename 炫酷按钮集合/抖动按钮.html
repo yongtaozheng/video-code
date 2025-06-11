@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>抖动按钮</title>
+    <style>
+      /*css样式*/
+      :root {
+        --primary: #4a6fa5; /* 主色调 */
+        --primary-dark: #3a5582; /* 主色深色 */
+        --primary-light: #86a1d4; /* 主色浅色 */
+        --background: linear-gradient(
+          135deg,
+          #1a1a2e 0%,
+          #16213e 101%
+        ); /* 背景色 */
+        --text: #333333; /* 文本色 */
+        --shadow: rgba(0, 0, 0, 0.1); /* 阴影 */
+      }
+
+      body {
+        width: 100%;
+        height: 100vh;
+        display: flex;
+        overflow: hidden;
+        background: var(--background);
+      }
+
+      .btn-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin: auto;
+        perspective: 800px;
+      }
+
+      .btn-shake {
+        padding: 12px 30px;
+        font-size: 18px;
+        width: 320px;
+        height: 100px;
+        background: linear-gradient(
+          135deg,
+          var(--primary),
+          var(--primary-dark)
+        );
+        color: white;
+        border: none;
+        border-radius: 25px;
+        cursor: pointer;
+        box-shadow: 0 8px 20px var(--shadow),
+          inset 0 -4px 8px rgba(0, 0, 0, 0.1),
+          inset 0 4px 8px rgba(255, 255, 255, 0.2);
+        position: relative;
+        transform-style: preserve-3d;
+        transition: all 0.3s ease;
+        font-weight: 500;
+        letter-spacing: 1px;
+      }
+
+      .btn-shake::before {
+        content: "";
+        position: absolute;
+        top: 6px;
+        left: 6px;
+        right: 6px;
+        bottom: 6px;
+        background: linear-gradient(
+          135deg,
+          var(--primary-light),
+          var(--primary)
+        );
+        border-radius: 24px;
+        z-index: -1;
+        transform: translateZ(-4px);
+        box-shadow: 0 8px 20px var(--shadow);
+      }
+
+      .btn-shake:active {
+        transform: translateY(4px);
+        box-shadow: 0 4px 10px var(--shadow),
+          inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+          inset 0 2px 4px rgba(255, 255, 255, 0.2);
+      }
+
+      .btn-shake:hover {
+        animation: shake 0.5s infinite;
+        background: linear-gradient(
+          135deg,
+          var(--primary-light),
+          var(--primary)
+        );
+      }
+
+      @keyframes shake {
+        0%,
+        100% {
+          transform: translateX(0) rotate(0deg);
+        }
+        25% {
+          transform: translateX(-6px) rotate(-3deg);
+        }
+        50% {
+          transform: translateX(6px) rotate(3deg);
+        }
+        75% {
+          transform: translateX(-6px) rotate(-3deg);
+        }
+      }
+
+      .btn-shake span {
+        position: relative;
+        z-index: 1;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="btn-container">
+      <button class="btn-shake"><span>抖动按钮</span></button>
+    </div>
+  </body>
+</html>
