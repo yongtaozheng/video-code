@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>聚光灯效果</title>
+    <style>
+      /*css样式*/
+      :root {
+        --transparent-size: 80px;
+        --color-size: 100px;
+        --zoom-transparent: 130px;
+        --zoom-color: 150px;
+        --transition-time: 0.3s;
+        --bg-opacity: 0.85;
+        --zoom-opacity: 0.95;
+      }
+
+      body {
+        height: 100vh;
+        cursor: none;
+        overflow: hidden;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #000;
+      }
+
+      .background-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+
+      .background-image {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        min-width: 100%;
+        min-height: 100%;
+        transform: translate(-50%, -50%);
+        object-fit: cover;
+        pointer-events: none;
+      }
+
+      .spotlight {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-image: radial-gradient(
+          circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+          transparent var(--transparent-size),
+          rgba(0, 0, 0, var(--bg-opacity)) var(--color-size)
+        );
+        pointer-events: none;
+        transition: background-image var(--transition-time) ease-out;
+      }
+
+      .info {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: rgba(0, 0, 0, 0.5);
+        color: white;
+        padding: 10px 15px;
+        border-radius: 8px;
+        font-family: Arial, sans-serif;
+        font-size: 14px;
+        pointer-events: none;
+        opacity: 0.7;
+        transition: opacity 0.3s;
+        z-index: 10;
+      }
+
+      .info:hover {
+        opacity: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="background-container">
+      <img
+        src="https://img03.ti-da.net/usr/tsukinosakana/enkai-l.jpg"
+        alt="聚光灯背景图"
+        class="background-image"
+      />
+    </div>
+    <div class="spotlight"></div>
+    <div class="info">按住鼠标增强聚焦效果</div>
+
+    <script>
+      //js逻辑
+      const spotlight = document.querySelector(".spotlight");
+      const info = document.querySelector(".info");
+      let isMouseDown = false;
+
+      // 监听鼠标移动
+      document.addEventListener("mousemove", (e) => {
+        const x = (e.clientX / window.innerWidth) * 100;
+        const y = (e.clientY / window.innerHeight) * 100;
+
+        spotlight.style.setProperty("--mouse-x", `${x}%`);
+        spotlight.style.setProperty("--mouse-y", `${y}%`);
+
+        // 动态调整提示信息位置
+        if (info) {
+          if (x > 70) {
+            info.style.right = "auto";
+            info.style.left = "20px";
+          } else {
+            info.style.left = "auto";
+            info.style.right = "20px";
+          }
+        }
+      });
+
+      // 监听鼠标按下
+      document.addEventListener("mousedown", () => {
+        isMouseDown = true;
+        document.documentElement.style.setProperty(
+          "--transparent-size",
+          "130px"
+        );
+        document.documentElement.style.setProperty("--color-size", "150px");
+        document.documentElement.style.setProperty("--bg-opacity", "0.95");
+      });
+
+      // 监听鼠标释放
+      document.addEventListener("mouseup", () => {
+        isMouseDown = false;
+        document.documentElement.style.setProperty(
+          "--transparent-size",
+          "80px"
+        );
+        document.documentElement.style.setProperty("--color-size", "100px");
+        document.documentElement.style.setProperty("--bg-opacity", "0.85");
+      });
+
+      // 监听窗口大小变化
+      window.addEventListener("resize", () => {
+        // 重置CSS变量以避免计算错误
+        const x = (window.innerWidth / 2 / window.innerWidth) * 100;
+        const y = (window.innerHeight / 2 / window.innerHeight) * 100;
+        spotlight.style.setProperty("--mouse-x", `${x}%`);
+        spotlight.style.setProperty("--mouse-y", `${y}%`);
+      });
+
+      // 移动端支持
+      if ("ontouchstart" in window) {
+        // 隐藏提示信息，因为移动端没有鼠标按下事件
+        if (info) info.style.display = "none";
+
+        // 移动端触摸移动事件
+        document.addEventListener(
+          "touchmove",
+          (e) => {
+            const touch = e.touches[0];
+            const x = (touch.clientX / window.innerWidth) * 100;
+            const y = (touch.clientY / window.innerHeight) * 100;
+
+            spotlight.style.setProperty("--mouse-x", `${x}%`);
+            spotlight.style.setProperty("--mouse-y", `${y}%`);
+
+            // 防止页面滚动
+            e.preventDefault();
+          },
+          { passive: false }
+        );
+      }
+    </script>
+  </body>
+</html>
