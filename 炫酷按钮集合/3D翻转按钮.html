@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>3D翻转按钮</title>
+    <style>
+      /*css样式*/
+      :root {
+        --width: 260px;
+        --height: 80px;
+        --font-size: 30px;
+        --main-color: #38bdf8;
+        --secondary-color: #06b6d4;
+        --box-shadow: inset 2px 2px 2px 0px rgba(255, 255, 255, 0.5),
+          7px 7px 20px 0px rgba(0, 0, 0, 0.1),
+          4px 4px 5px 0px rgba(0, 0, 0, 0.1);
+      }
+
+      body {
+        width: 100%;
+        height: 100vh;
+        display: flex;
+        overflow: hidden;
+        background: var(--background);
+      }
+
+      .btn-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin: auto;
+        perspective: 800px;
+      }
+
+      .custom-btn {
+        width: var(--width);
+        height: var(--height);
+        color: #fff;
+        border-radius: 5px;
+        font-weight: 500;
+        background: transparent;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+        display: inline-block;
+        box-shadow: var(--box-shadow);
+        outline: none;
+      }
+
+      .btn-flip {
+        position: relative;
+        border: none;
+        box-shadow: none;
+        font-size: var(--font-size);
+        width: var(--width);
+        height: var(--height);
+        line-height: var(--height);
+        perspective: calc(var(--width) * 2);
+      }
+
+      .btn-flip span {
+        background: linear-gradient(
+          0deg,
+          var(--main-color) 0%,
+          var(--secondary-color) 100%
+        );
+        display: block;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: var(--width);
+        height: var(--height);
+        box-shadow: var(--box-shadow);
+        border-radius: 5px;
+        margin: 0;
+        text-align: center;
+        box-sizing: border-box;
+        transition: all 0.3s;
+      }
+
+      .btn-flip .click-face {
+        box-shadow: var(--box-shadow);
+        transform: rotateX(90deg);
+        transform-origin: 50% 50% calc(var(--height) / -2);
+      }
+
+      .btn-flip .hover-face {
+        transform: rotateX(0deg);
+        transform-origin: 50% 50% calc(var(--height) / -2);
+      }
+
+      .btn-flip:hover .click-face {
+        box-shadow: var(--box-shadow);
+        transform: rotateX(0deg);
+      }
+
+      .btn-flip:hover .hover-face {
+        box-shadow: var(--box-shadow);
+        color: transparent;
+        transform: rotateX(-90deg);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="btn-container">
+      <button class="custom-btn btn-flip">
+        <span class="click-face">click</span
+        ><span class="hover-face">hover</span>
+      </button>
+    </div>
+  </body>
+</html>
