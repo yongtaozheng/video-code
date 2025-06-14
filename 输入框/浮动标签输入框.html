@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>浮动标签输入框</title>
+    <style>
+      /*css样式*/
+      :root {
+        --height: 50px;
+        --width: 350px;
+        --font-size: 1rem;
+        --primary-color: #165dff;
+        --secondary-color: #6b7280;
+        --neutral-color: #f3f4f6;
+        --dark-color: #1f2937;
+        --light-color: #ffffff;
+        --transition-time: 0.3s;
+      }
+
+      body {
+        width: 100%;
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: linear-gradient(
+          135deg,
+          var(--neutral-color) 0%,
+          var(--light-color) 100%
+        );
+        overflow: hidden;
+      }
+
+      .container {
+        position: relative;
+        width: var(--width);
+        height: var(--height);
+        margin: 20px 0;
+        transition: transform var(--transition-time) ease,
+          box-shadow var(--transition-time) ease;
+      }
+
+      .form-input {
+        width: 100%;
+        height: 100%;
+        padding: 0 16px;
+        box-sizing: border-box;
+        font-size: var(--font-size);
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        background-color: var(--light-color);
+        transition: all var(--transition-time) ease;
+        position: relative;
+        z-index: 1;
+      }
+
+      .form-label {
+        position: absolute;
+        top: 0;
+        left: 0;
+        color: var(--secondary-color);
+        transition: all var(--transition-time) cubic-bezier(0.4, 0, 0.2, 1);
+        padding-left: 16px;
+        height: var(--height);
+        line-height: var(--height);
+        font-size: var(--font-size);
+        pointer-events: none;
+        z-index: 2;
+      }
+
+      .form-input:focus + .form-label,
+      .form-input:not(:placeholder-shown) + .form-label {
+        top: calc(var(--height) * -1);
+        left: 0;
+        font-size: calc(var(--font-size) * 1.2);
+        color: var(--primary-color);
+        font-weight: 900;
+        padding-left: 0;
+      }
+
+      .container::before {
+        content: "";
+        position: absolute;
+        inset: -2px;
+        border-radius: 10px;
+        background: linear-gradient(
+          90deg,
+          rgba(22, 93, 255, 0.3),
+          rgba(92, 231, 255, 0.3),
+          rgba(22, 93, 255, 0.3)
+        );
+        background-size: 200% 100%;
+        z-index: 0;
+        opacity: 0;
+        transition: opacity var(--transition-time) ease;
+        animation: gradientMove 3s infinite linear;
+      }
+
+      @keyframes gradientMove {
+        0% {
+          background-position: 200% 0;
+        }
+        100% {
+          background-position: -200% 0;
+        }
+      }
+
+      .form-input:focus {
+        border-color: transparent;
+        outline: none;
+      }
+
+      .container:focus-within::before {
+        opacity: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <input
+        type="text"
+        id="username"
+        class="form-input"
+        placeholder=" "
+        autocomplete="off"
+        required
+      />
+      <span class="form-label">用户名</span>
+    </div>
+  </body>
+</html>
