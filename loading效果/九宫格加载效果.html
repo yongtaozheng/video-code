@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>九宫格加载效果</title>
+    <style>
+      /*css样式*/
+      :root {
+        --grid-color: #487df9;
+        --animation-duration: 1.8s;
+      }
+
+      body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        background: #121212;
+        font-family: "Inter", sans-serif;
+      }
+
+      .loader-container {
+        display: flex;
+        justify-content: center;
+      }
+
+      .grid-loader {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        grid-template-rows: repeat(3, 1fr);
+        gap: 6px;
+        width: 90px;
+        height: 90px;
+      }
+
+      .grid-cell {
+        background: var(--grid-color);
+        border-radius: 4px;
+        animation: pulse var(--animation-duration) cubic-bezier(0.4, 0, 0.2, 1)
+          infinite;
+        transform: scale(0.6);
+        opacity: 0.3;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          transform: scale(0.6);
+          opacity: 0.3;
+        }
+        50% {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="loader-container">
+      <div class="grid-loader" id="gridLoader"></div>
+    </div>
+
+    <script>
+      //js逻辑
+      // 动态生成9个格子并设置动画延迟
+      const gridLoader = document.getElementById("gridLoader");
+      const totalCells = 9;
+
+      for (let i = 0; i < totalCells; i++) {
+        const cell = document.createElement("div");
+        cell.className = "grid-cell";
+        // 设置每个格子的动画延迟
+        cell.style.animationDelay = `${i * 0.1}s`;
+        gridLoader.appendChild(cell);
+      }
+    </script>
+  </body>
+</html>
