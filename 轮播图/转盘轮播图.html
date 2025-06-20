@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>转盘轮播图</title>
+    <style>
+      /*css样式*/
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100vh;
+        width: 100vw;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .img-container {
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        width: 100vw;
+        overflow: hidden;
+        background-size: cover;
+        background-position: center;
+        position: absolute;
+        top: 0;
+        left: 0;
+      }
+
+      .container {
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        left: -50vw;
+        top: 0;
+      }
+
+      #pieChart {
+        position: relative;
+        display: block;
+        width: 100%;
+        height: 100%;
+        z-index: 2;
+      }
+
+      .text-container {
+        position: absolute;
+        height: 100%;
+        top: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        z-index: 2;
+        padding: 2em;
+        white-space: wrap;
+        box-sizing: border-box;
+        overflow: hidden;
+        text-align: center;
+        color: aliceblue;
+      }
+
+      .text-container-title {
+        font-size: 3em;
+        margin: 0;
+        padding: 0;
+        padding-bottom: 1em;
+      }
+
+      .text-container-desc {
+        font-size: 1.8em;
+        margin: 0.5em 0 0;
+        padding: 0;
+      }
+
+      .overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.4);
+        pointer-events: none;
+        z-index: 1;
+      }
+
+      .btn-container {
+        position: absolute;
+        top: 25vh;
+        height: 50vh;
+        width: 25vh;
+        left: 0;
+        z-index: 3;
+        display: flex;
+        align-items: center;
+        flex-direction: column;
+      }
+
+      .controls {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-direction: column;
+        margin: auto;
+        margin-left: 0;
+        transform: scale(0.8);
+        opacity: 0.5;
+      }
+
+      .control-btn {
+        background-color: rgba(255, 255, 255, 0.8);
+        color: #333;
+        border: none;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+        transition: background-color 0.3s, transform 0.3s;
+        font-size: 18px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+      }
+
+      #prevBtn {
+        transform: rotate(90deg);
+      }
+
+      #nextBtn {
+        transform: rotate(90deg);
+      }
+
+      .control-btn:hover {
+        background-color: white;
+        transform: scale(1.1);
+      }
+
+      .toggle-container {
+        position: relative;
+        display: inline-block;
+        width: 60px;
+        height: 30px;
+      }
+
+      .toggle-input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      .toggle-slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: 0.4s;
+        border-radius: 30px;
+      }
+
+      .toggle-slider:before {
+        position: absolute;
+        content: "";
+        height: 22px;
+        width: 22px;
+        left: 4px;
+        bottom: 4px;
+        background-color: white;
+        transition: 0.4s;
+        border-radius: 50%;
+      }
+
+      .toggle-input:checked + .toggle-slider {
+        background-color: #2196f3;
+      }
+
+      .toggle-input:focus + .toggle-slider {
+        box-shadow: 0 0 1px #2196f3;
+      }
+
+      .toggle-input:checked + .toggle-slider:before {
+        transform: translateX(30px);
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      class="img-container"
+      id="nextImgContainer"
+      style="display: none"
+    ></div>
+    <div class="img-container" id="imgContainer"></div>
+    <div class="overlay"></div>
+    <div class="btn-container">
+      <div class="controls">
+        <button class="control-btn" id="prevBtn" title="上一张">
+          <i>&lt;</i>
+        </button>
+        <label class="toggle-container" title="自动轮播">
+          <input type="checkbox" class="toggle-input" id="autoToggle" checked />
+          <span class="toggle-slider"></span>
+        </label>
+        <button class="control-btn" id="nextBtn" title="下一张">
+          <i>&gt;</i>
+        </button>
+      </div>
+    </div>
+    <div class="container">
+      <canvas id="pieChart"></canvas>
+    </div>
+    <div class="text-container">
+      <div>
+        <h1 class="text-container-title">.</h1>
+        <p class="text-container-desc"></p>
+      </div>
+    </div>
+
+    <script>
+      //js逻辑
+      const canvas = document.getElementById("pieChart");
+      const textContainer = document.querySelector(".text-container");
+      const imgContainer = document.querySelector("#imgContainer");
+      const nextImgContainer = document.querySelector("#nextImgContainer");
+      const titleElement = textContainer.querySelector(".text-container-title");
+      const descElement = textContainer.querySelector(".text-container-desc");
+      const prevBtn = document.getElementById("prevBtn");
+      const nextBtn = document.getElementById("nextBtn");
+      const autoToggle = document.getElementById("autoToggle");
+      const ctx = canvas.getContext("2d");
+      const container = canvas.parentElement;
+      let image = null;
+      let nextImage = null;
+      let autoRotateInterval = null;
+      let isAutoRotating = true;
+      let rotateAngle = 0;
+      let showIndex = 0;
+
+      const showList = [
+        {
+          img: "https://p2.itc.cn/images01/20210723/f341950b3adb4e9caab343c41d5bd6a4.jpeg", // "../images/7392069948318558889.png",
+          title: "《千与千寻》",
+          desc: "少女千寻误入神灵世界，为救变成猪的父母经历磨难，最终以勇气与善意赢得自由。影片隐喻现代社会异化与人性救赎，获奥斯卡最佳动画长片+柏林金熊奖，全球票房超3.5亿美元，成为日本影史巅峰。",
+        },
+        {
+          img: "https://pic3.zhimg.com/v2-f1159536dc58af663e3955e774a7a13a_r.jpg",
+          title: "《龙猫》",
+          desc: "宫崎骏执导的经典动画，讲述龙猫与他的伙伴们的故事。影片以细腻的画面和感人的故事，展现了龙猫的成长和成长过程，强调了爱与勇气的力量。",
+        },
+        {
+          img: "http://qqpublic.qpic.cn/qq_public_cover/0/0-2083471255-1DB77954D274653D98B57D000A686040_vsmcut/0",
+          title: "《天空之城》",
+          desc: "吉卜力工作室开山之作。少年帕祖与持有飞行石的少女希达为阻止军方夺取古代浮空文明“拉普达”的毁灭性武器，展开空中冒险。影片探讨科技异化与人性贪婪，久石让的配乐成为经典，结尾的“生命之树”象征自然永恒。",
+        },
+        {
+          img: "http://5b0988e595225.cdn.sohucs.com/images/20171122/c839ec116c7e4853ac9d34a7abf8b4cc.jpeg",
+          title: "《借东西的小人阿莉埃蒂》",
+          desc: "少女阿莉埃蒂是生活在人类家中的小小 “借东西族”。她与人类少年翔相遇后，家族因被人类发现而被迫搬家。该片由宫崎骏企划，米林宏昌执导，以细腻笔触描绘人与自然的微妙关系。",
+        },
+        {
+          img: "https://pic3.zhimg.com/v2-d0590fa634c9aae77339e820e185b75b_1440w.jpg?source=172ae18b", //"../images/20220829143113_709aa.jpeg",
+          title: "《起风了》",
+          desc: "以零式战机设计师堀越二郎为原型，讲述其追逐航空梦想却深陷战争矛盾的一生。现实题材罕见，融合历史反思与个人理想主义，获日本电影学院奖最佳动画，宫崎骏宣布引退（后复出）。",
+        },
+        {
+          img: "http://5b0988e595225.cdn.sohucs.com/images/20180824/781646fe72fc4788b7dfc24c112b5bbb.png", // "../images/20220915224545_c2170.jpeg",
+          title: "《悬崖上的金鱼姬》",
+          desc: "人鱼公主波妞逃离海洋，与人类男孩宗介缔结纯真友谊，挑战自然与人类的隔阂。手绘水彩风格营造童话质感，灵感源自《小美人鱼》，强调孩童视角的信任与生态和谐。",
+        },
+        {
+          img: "http://p6.itc.cn/q_70/images03/20210106/6cd651a28f9a46268205410dcc5cad4d.jpeg", // "../images/20230327231735_a195d.jpg",
+          title: "《魔女宅急便》",
+          desc: "13岁魔女琪琪带黑猫吉吉离家修行，在沿海城市以飞行技能送货谋生。经历成长挫折后重拾自信，学会独立与责任。欧洲风情背景与少女心路历程相融，诠释青春期的自我认同与社会融入。",
+        },
+      ];
+
+      function getBackgroundImageInfo(body = imgContainer) {
+        const computedStyle = getComputedStyle(body);
+        const backgroundPosition = computedStyle.backgroundPosition;
+
+        const [positionX, positionY] = backgroundPosition.split(" ");
+        const posX = positionX === "center" ? 50 : parseFloat(positionX);
+        const posY = positionY === "center" ? 50 : parseFloat(positionY);
+
+        const windowWidth = window.innerWidth;
+        const windowHeight = window.innerHeight;
+        const imageRatio = image.width / image.height;
+        const windowRatio = windowWidth / windowHeight;
+
+        let displayWidth, displayHeight, offsetX, offsetY;
+
+        if (windowRatio > imageRatio) {
+          displayWidth = windowWidth;
+          displayHeight = windowWidth / imageRatio;
+        } else {
+          displayHeight = windowHeight;
+          displayWidth = windowHeight * imageRatio;
+        }
+
+        offsetX = (windowWidth - displayWidth) * (posX / 100);
+        offsetY = (windowHeight - displayHeight) * (posY / 100);
+
+        const containerRect = container.getBoundingClientRect();
+        const containerOffsetX = containerRect.left;
+        const containerOffsetY = containerRect.top;
+
+        return {
+          width: displayWidth,
+          height: displayHeight,
+          offsetX: offsetX - containerOffsetX,
+          offsetY: offsetY - containerOffsetY,
+          containerOffsetX: containerOffsetX,
+          containerOffsetY: containerOffsetY,
+        };
+      }
+
+      function resizeCanvas() {
+        const containerWidth = container.clientWidth;
+        const containerHeight = container.clientHeight;
+
+        canvas.width = containerWidth;
+        canvas.height = containerHeight;
+
+        canvas.style.width = `${containerWidth}px`;
+        canvas.style.height = `${containerHeight}px`;
+      }
+
+      function createAlignedPattern() {
+        if (!image) return null;
+
+        const {
+          width,
+          height,
+          offsetX,
+          offsetY,
+          containerOffsetX,
+          containerOffsetY,
+        } = getBackgroundImageInfo();
+
+        const patternCanvas = document.createElement("canvas");
+        patternCanvas.width = window.innerWidth;
+        patternCanvas.height = window.innerHeight;
+
+        const patternCtx = patternCanvas.getContext("2d");
+
+        patternCtx.drawImage(
+          image,
+          0,
+          0,
+          image.width,
+          image.height,
+          offsetX,
+          offsetY,
+          width,
+          height
+        );
+
+        patternCtx.translate(patternCanvas.width / 2, patternCanvas.height / 2);
+        patternCtx.rotate(Math.PI);
+        patternCtx.translate(
+          -patternCanvas.width / 2,
+          -patternCanvas.height / 2
+        );
+        if (nextImage) {
+          patternCtx.drawImage(
+            nextImage,
+            0,
+            0,
+            nextImage.width,
+            nextImage.height,
+            offsetX,
+            offsetY,
+            width,
+            height
+          );
+        }
+
+        const pattern = ctx.createPattern(patternCanvas, "no-repeat");
+        if (pattern) {
+          const patternTransform = new DOMMatrix();
+          patternTransform.translate(containerOffsetX, containerOffsetY);
+          pattern.setTransform(patternTransform);
+        }
+
+        return pattern;
+      }
+
+      function drawConcentricPieChart() {
+        if (!image) return;
+
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+
+        const safeWidth = canvas.width;
+        const safeHeight = canvas.height;
+        const maxRadius = Math.min(safeWidth, safeHeight) / 2;
+        const innerRadius = maxRadius * 0.5;
+        const clientWidth = document.documentElement.clientWidth;
+        textContainer.style.width = `${clientWidth - maxRadius}px`;
+        textContainer.style.left = `${maxRadius}px`;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "#333";
+
+        const gapAngle = (Math.PI * 2) / (5 * 20);
+
+        const sliceAngle = (Math.PI * 2 - gapAngle * 5) / 5;
+
+        const pattern = createAlignedPattern();
+        if (!pattern) return;
+
+        for (let i = 0; i < 5; i++) {
+          const startAngle = -Math.PI / 2 + i * (sliceAngle + gapAngle);
+
+          ctx.beginPath();
+          ctx.arc(
+            centerX,
+            centerY,
+            maxRadius,
+            startAngle,
+            startAngle + sliceAngle
+          );
+          ctx.arc(
+            centerX,
+            centerY,
+            innerRadius,
+            startAngle + sliceAngle,
+            startAngle,
+            true
+          );
+          ctx.closePath();
+
+          ctx.fillStyle = pattern;
+          ctx.fill();
+
+          ctx.stroke();
+        }
+      }
+
+      async function transparencyAdjustment(from, to, step = 0.01) {
+        return new Promise((resolve) => {
+          let opacity = from;
+          const targetOpacity = to;
+
+          const fadeInOut = () => {
+            imgContainer.style.opacity = opacity;
+            textContainer.style.opacity = opacity;
+
+            if (
+              (step < 0 && opacity > targetOpacity) ||
+              (step > 0 && opacity < targetOpacity)
+            ) {
+              opacity += step;
+              requestAnimationFrame(fadeInOut);
+            } else {
+              resolve();
+            }
+          };
+
+          fadeInOut();
+        });
+      }
+
+      async function init(src, isFirst = false, step = 1) {
+        image = new Image();
+        image.src = src;
+        nextImage = new Image();
+        nextImage.src =
+          showList[(showIndex + step + showList.length) % showList.length].img;
+
+        await new Promise(async (resolve) => {
+          image.onload = resolve;
+          if (!isFirst) {
+            await transparencyAdjustment(1, 0.5, -0.005);
+          }
+          imgContainer.style.backgroundImage = `url(${image.src})`;
+          nextImgContainer.style.backgroundImage = `url(${nextImage.src})`;
+          titleElement.textContent = showList[showIndex].title;
+          descElement.textContent = showList[showIndex].desc;
+          if (!isFirst) {
+            await transparencyAdjustment(0.5, 1, 0.005);
+          }
+        });
+
+        resizeCanvas();
+
+        drawConcentricPieChart();
+
+        window.addEventListener("resize", () => {
+          resizeCanvas();
+          drawConcentricPieChart();
+        });
+
+        const observer = new ResizeObserver(() => {
+          drawConcentricPieChart();
+        });
+        observer.observe(container);
+      }
+
+      init(showList[showIndex].img, true);
+
+      function autoRotate(continueRotation = true, step = 1) {
+        rotateAngle = 0;
+        const rotationSpeed = 0.01;
+        const targetAngle = Math.PI;
+        let lastStep = step;
+
+        async function rotate() {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.save();
+          ctx.translate(canvas.width / 2, canvas.height / 2);
+          ctx.rotate(rotateAngle);
+          ctx.translate(-canvas.width / 2, -canvas.height / 2);
+          drawConcentricPieChart();
+          ctx.restore();
+
+          rotateAngle =
+            Math.min(Math.abs(rotateAngle) + rotationSpeed, targetAngle) * step;
+          if (Math.abs(rotateAngle) >= targetAngle) {
+            if (lastStep < 0) await init(showList[showIndex].img, true, 1);
+            changeShowItem(step);
+            if (!continueRotation || !isAutoRotating) return;
+            lastStep = step;
+            autoRotateInterval = setTimeout(autoRotate, 3000);
+            return;
+          }
+          requestAnimationFrame(rotate);
+        }
+
+        rotate();
+      }
+      autoRotateInterval = setTimeout(autoRotate, 3000);
+
+      function changeShowItem(step) {
+        showIndex = (showIndex + step + showList.length) % showList.length;
+        init(showList[showIndex].img, false, step);
+        autoRotateInterval && clearTimeout(autoRotateInterval);
+      }
+
+      let lastClickTime = 0;
+      const debounceTime = 3000;
+      function debounceClick(callback) {
+        return async function () {
+          const currentTime = Date.now();
+          if (currentTime - lastClickTime < debounceTime) return;
+          lastClickTime = currentTime;
+          await callback();
+        };
+      }
+
+      prevBtn.onclick = debounceClick(async () => {
+        await init(showList[showIndex].img, true, -1);
+        autoRotateInterval && clearTimeout(autoRotateInterval);
+        autoRotate(isAutoRotating, -1);
+      });
+      nextBtn.onclick = debounceClick(async () => {
+        await init(showList[showIndex].img, true, 1);
+        autoRotateInterval && clearTimeout(autoRotateInterval);
+        autoRotate(isAutoRotating, 1);
+      });
+
+      autoToggle.addEventListener("change", async function () {
+        isAutoRotating = this.checked;
+
+        if (isAutoRotating) {
+          await init(showList[showIndex].img, true, 1);
+          autoRotateInterval = setTimeout(autoRotate, 3000);
+        } else {
+          autoRotateInterval && clearTimeout(autoRotateInterval);
+        }
+      });
+    </script>
+  </body>
+</html>
