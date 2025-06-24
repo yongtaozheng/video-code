@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>沉浸式轮播图</title>
+    <style>
+      /*css样式*/
+      :root {
+        --width: 8vw;
+        --height: 20vh;
+        --img-padding: 20px;
+        --container-width: 80vw;
+        --container-height: 80vh;
+        --opacity: 0.7;
+      }
+
+      body {
+        background-color: #eaeaea;
+        overflow: hidden;
+      }
+
+      .container {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: var(--container-width);
+        height: var(--container-height);
+        padding: 50px;
+        background-color: #f5f5f5;
+        box-shadow: 0 30px 50px #dbdbdb;
+      }
+
+      #slide {
+        width: max-content;
+        margin-top: 50px;
+        border-radius: 20px;
+      }
+
+      .item {
+        width: var(--width);
+        height: var(--height);
+        background-position: 50% 50%;
+        display: inline-block;
+        transition: 0.5s;
+        background-size: cover;
+        position: absolute;
+        z-index: 1;
+        top: calc(100% - var(--height));
+        transform: translate(0, -20%);
+        border-radius: 20px;
+        box-shadow: 0 30px 50px #505050;
+        opacity: var(--opacity);
+      }
+
+      .item:hover {
+        opacity: 1;
+      }
+
+      .item:nth-child(1),
+      .item:nth-child(2) {
+        left: 0;
+        top: 0;
+        transform: translate(0, 0);
+        border-radius: 0;
+        width: 100%;
+        height: 100%;
+        box-shadow: none;
+        opacity: 1 !important;
+      }
+
+      .item:nth-child(3) {
+        left: calc(110% - (var(--width) + var(--img-padding)) * 3);
+      }
+
+      .item:nth-child(4) {
+        left: calc(110% - (var(--width) + var(--img-padding)) * 2);
+      }
+
+      .item:nth-child(5) {
+        left: calc(110% - (var(--width) + var(--img-padding)) * 1);
+      }
+
+      .item:nth-child(n + 6) {
+        left: calc(110% - (var(--width) + var(--img-padding)) * 0);
+        opacity: 0;
+      }
+
+      .item .content {
+        position: absolute;
+        top: 50%;
+        left: 100px;
+        width: 300px;
+        text-align: left;
+        padding: 0;
+        color: #eee;
+        transform: translate(0, -50%);
+        display: none;
+        font-family: system-ui;
+      }
+
+      .item:nth-child(2) .content {
+        display: block;
+        z-index: 11111;
+      }
+
+      .item .name {
+        font-size: 40px;
+        font-weight: bold;
+        opacity: 0;
+        animation: showcontent 1s ease-in-out 1 forwards;
+        white-space: nowrap;
+        background: rgba(0, 0, 0, 0.3);
+        padding: 10px;
+        border-radius: 10px;
+        display: inline-block;
+        backdrop-filter: blur(5px);
+      }
+
+      .item .des {
+        margin: 20px 0;
+        opacity: 0;
+        animation: showcontent 1s ease-in-out 0.3s 1 forwards;
+        background: rgba(0, 0, 0, 0.3);
+        padding: 10px;
+        border-radius: 10px;
+        backdrop-filter: blur(5px);
+      }
+
+      .item button {
+        padding: 10px 20px;
+        border: none;
+        opacity: 0;
+        animation: showcontent 1s ease-in-out 0.6s 1 forwards;
+        border-radius: 10000px;
+      }
+
+      @keyframes showcontent {
+        from {
+          opacity: 0;
+          transform: translate(0, 100px);
+          filter: blur(33px);
+        }
+        to {
+          opacity: 1;
+          transform: translate(0, 0);
+          filter: blur(0);
+        }
+      }
+
+      .buttons {
+        position: absolute;
+        bottom: 30px;
+        z-index: 222222;
+        text-align: center;
+        width: 100%;
+      }
+
+      .buttons button {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        border: none;
+        transition: 0.5s;
+        font-size: 1rem;
+        font-weight: 600;
+      }
+
+      button:hover {
+        background-color: #ff9800;
+      }
+
+      button {
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div id="slide"></div>
+      <div class="buttons">
+        <button id="prev"><</button>
+        <button id="next">></button>
+      </div>
+    </div>
+
+    <script>
+      //js逻辑
+      // 轮播图配置数据
+      const carouselConfig = [
+        {
+          imageUrl:
+            "http://5b0988e595225.cdn.sohucs.com/images/20180130/24aecf0d680546ccbf6480badce389dc.jpeg", // "../images/7392069948318558889.png",
+          name: "《千与千寻》",
+          description:
+            "少女千寻误入神灵世界，为救变成猪的父母经历磨难，最终以勇气与善意赢得自由。影片隐喻现代社会异化与人性救赎，获奥斯卡最佳动画长片+柏林金熊奖，全球票房超3.5亿美元，成为日本影史巅峰。",
+          buttonText: "查看更多→",
+        },
+        {
+          imageUrl:
+            "https://pic3.zhimg.com/v2-f1159536dc58af663e3955e774a7a13a_r.jpg",
+          name: "《龙猫》",
+          description:
+            "宫崎骏执导的经典动画，讲述龙猫与他的伙伴们的故事。影片以细腻的画面和感人的故事，展现了龙猫的成长和成长过程，强调了爱与勇气的力量。",
+          buttonText: "查看更多→",
+        },
+        {
+          imageUrl:
+            "http://qqpublic.qpic.cn/qq_public_cover/0/0-2083471255-1DB77954D274653D98B57D000A686040_vsmcut/0",
+          name: "《天空之城》",
+          description:
+            "吉卜力工作室开山之作。少年帕祖与持有飞行石的少女希达为阻止军方夺取古代浮空文明“拉普达”的毁灭性武器，展开空中冒险。影片探讨科技异化与人性贪婪，久石让的配乐成为经典，结尾的“生命之树”象征自然永恒。",
+          buttonText: "查看更多→",
+        },
+        {
+          imageUrl:
+            "http://5b0988e595225.cdn.sohucs.com/images/20171122/c839ec116c7e4853ac9d34a7abf8b4cc.jpeg",
+          name: "《借东西的小人阿莉埃蒂》",
+          description:
+            "少女阿莉埃蒂是生活在人类家中的小小 “借东西族”。她与人类少年翔相遇后，家族因被人类发现而被迫搬家。该片由宫崎骏企划，米林宏昌执导，以细腻笔触描绘人与自然的微妙关系。",
+          buttonText: "查看更多→",
+        },
+        {
+          imageUrl:
+            "https://pic3.zhimg.com/v2-d0590fa634c9aae77339e820e185b75b_1440w.jpg?source=172ae18b", //"../images/20220829143113_709aa.jpeg",
+          name: "《起风了》",
+          description:
+            "以零式战机设计师堀越二郎为原型，讲述其追逐航空梦想却深陷战争矛盾的一生。现实题材罕见，融合历史反思与个人理想主义，获日本电影学院奖最佳动画，宫崎骏宣布引退（后复出）。",
+          buttonText: "查看更多→",
+        },
+        {
+          imageUrl:
+            "http://5b0988e595225.cdn.sohucs.com/images/20180824/781646fe72fc4788b7dfc24c112b5bbb.png", // "../images/20220915224545_c2170.jpeg",
+          name: "《悬崖上的金鱼姬》",
+          description:
+            "人鱼公主波妞逃离海洋，与人类男孩宗介缔结纯真友谊，挑战自然与人类的隔阂。手绘水彩风格营造童话质感，灵感源自《小美人鱼》，强调孩童视角的信任与生态和谐。",
+          buttonText: "查看更多→",
+        },
+        {
+          imageUrl:
+            "http://p6.itc.cn/q_70/images03/20210106/6cd651a28f9a46268205410dcc5cad4d.jpeg", // "../images/20230327231735_a195d.jpg",
+          name: "《魔女宅急便》",
+          description:
+            "13岁魔女琪琪带黑猫吉吉离家修行，在沿海城市以飞行技能送货谋生。经历成长挫折后重拾自信，学会独立与责任。欧洲风情背景与少女心路历程相融，诠释青春期的自我认同与社会融入。",
+          buttonText: "查看更多→",
+        },
+      ];
+
+      // 动态生成轮播项
+      function generateCarouselItems() {
+        const slideContainer = document.getElementById("slide");
+        slideContainer.innerHTML = "";
+
+        carouselConfig.forEach((item) => {
+          const carouselItem = document.createElement("div");
+          carouselItem.className = "item";
+          carouselItem.style.backgroundImage = `url(${item.imageUrl})`;
+
+          const content = document.createElement("div");
+          content.className = "content";
+
+          const name = document.createElement("div");
+          name.className = "name";
+          name.textContent = item.name;
+
+          const description = document.createElement("div");
+          description.className = "des";
+          description.textContent = item.description;
+
+          const button = document.createElement("button");
+          button.textContent = item.buttonText;
+
+          content.appendChild(name);
+          content.appendChild(description);
+          content.appendChild(button);
+          carouselItem.appendChild(content);
+
+          slideContainer.appendChild(carouselItem);
+        });
+      }
+
+      let timeOutTimer = null;
+
+      function autoPlay() {
+        timeOutTimer = setInterval(() => {
+          let lists = document.querySelectorAll(".item");
+          document.getElementById("slide").appendChild(lists[0]);
+        }, 5000);
+      }
+
+      function resetAutoPlay() {
+        clearInterval(timeOutTimer);
+        autoPlay();
+      }
+
+      // 初始化轮播图
+      function initCarousel() {
+        generateCarouselItems();
+
+        document.getElementById("next").onclick = function () {
+          let lists = document.querySelectorAll(".item");
+          document.getElementById("slide").appendChild(lists[0]);
+          resetAutoPlay();
+        };
+
+        document.getElementById("prev").onclick = function () {
+          let lists = document.querySelectorAll(".item");
+          document.getElementById("slide").prepend(lists[lists.length - 1]);
+          resetAutoPlay();
+        };
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        initCarousel();
+        autoPlay();
+      });
+    </script>
+  </body>
+</html>
