@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>音乐专辑</title>
+    <style>
+      /*css样式*/
+      :root {
+        --width: 60rem;
+        --height: 28rem;
+        --font-size: 1.2rem;
+        --animation-duration: 2s;
+      }
+
+      body {
+        background-color: #4f4e68;
+        height: 100%;
+        overflow: hidden;
+      }
+
+      .book {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        margin: auto;
+        width: var(--width);
+        height: var(--height);
+        perspective: 70rem;
+      }
+
+      .coverEnd {
+        right: -0.5rem !important;
+      }
+
+      .cover {
+        background-color: #36354e;
+        transform: rotateY(0deg);
+        width: calc(var(--width) / 2);
+        height: var(--height);
+        overflow: hidden;
+      }
+
+      .cover-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        pointer-events: none;
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 0;
+        opacity: 0.8;
+      }
+
+      .cover-title {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+        background: linear-gradient(45deg, #ff0000, #ff7f00, #ffff00);
+        background-clip: text;
+        -webkit-background-clip: text;
+        color: transparent;
+        font-size: 2rem;
+        font-weight: bold;
+        text-align: center;
+        z-index: 1;
+        width: 100%;
+      }
+
+      .cover-menu {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        /* pointer-events: none; */
+        color: orange;
+        font-size: 1.2rem;
+        font-weight: bold;
+        text-align: left;
+        z-index: 1;
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 0.5em;
+        padding: 1em;
+        max-height: 90%;
+        overflow-y: scroll;
+      }
+
+      .cover-menu::-webkit-scrollbar {
+        width: 4px;
+        height: 8px;
+      }
+
+      .cover-menu::-webkit-scrollbar-track {
+        border-radius: 10px;
+        background-color: #fafafa;
+      }
+
+      .cover-menu::-webkit-scrollbar-thumb {
+        border-radius: 10px;
+        background: rgb(191, 191, 191);
+      }
+
+      .cover-menu-item {
+        cursor: pointer;
+      }
+
+      .cover-menu-item:hover {
+        color: skyblue;
+      }
+
+      .page {
+        width: calc(var(--width) / 2 - 0.5rem);
+        height: calc(var(--height) - 0.5rem);
+        background-color: #e9e6c4;
+        transform: rotateY(0deg);
+        text-align: right;
+        font-size: var(--font-size);
+        color: #777;
+        font-family: monospace;
+        overflow: hidden;
+      }
+
+      .page::after {
+        display: block;
+        content: "";
+        position: absolute;
+        top: calc(var(--font-size) * 2);
+        left: 1rem;
+        right: 1rem;
+        bottom: 1rem;
+        background-size: 100% calc(var(--font-size) + 0.5rem); /* 调整行高 */
+        opacity: 1; /* 调整透明度 */
+        pointer-events: none; /* 让点击事件穿透伪元素 */
+      }
+
+      .cover,
+      .page {
+        position: absolute;
+        padding-top: 1rem;
+        transform-origin: 0 0;
+        border-radius: 5px 0 0 5px;
+        box-shadow: inset 3px 0px 20px rgba(0, 0, 0, 0.2),
+          0px 0px 15px rgba(0, 0, 0, 0.1);
+        box-sizing: border-box;
+        text-align: left;
+        right: 0;
+      }
+
+      .page-title {
+        transform: translate(0, 0);
+        pointer-events: none;
+        background: linear-gradient(45deg, #ff0000, #ff7f00, #ffff00);
+        background-clip: text;
+        -webkit-background-clip: text;
+        color: transparent;
+        font-weight: bold;
+        text-align: center;
+        text-indent: 0;
+        margin: auto;
+        padding-left: 0.5em;
+        padding-right: 0.5em;
+        width: 2em;
+        font-size: 1.5em;
+      }
+
+      .page-text {
+        mix-blend-mode: hard-light;
+        font-size: calc(var(--font-size) * 0.9);
+        line-height: calc(var(--font-size) + 0.5rem);
+        font-weight: bold;
+        flex: 1;
+        text-align: center;
+        height: calc(100% - 1em);
+        overflow-y: scroll;
+        padding: 0.5em;
+        background: rgba(0, 0, 0, 0.3);
+        color: aliceblue;
+      }
+
+      .page-text::-webkit-scrollbar {
+        width: 4px;
+        height: 8px;
+      }
+
+      .page-text::-webkit-scrollbar-track {
+        border-radius: 10px;
+        background-color: #fafafa;
+      }
+
+      .page-text::-webkit-scrollbar-thumb {
+        border-radius: 10px;
+        background: rgb(191, 191, 191);
+      }
+
+      .page-next {
+        width: 2em;
+      }
+
+      .page-image {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        pointer-events: none;
+        opacity: 0.8;
+        z-index: 0;
+      }
+
+      .turn {
+        animation: turnForward var(--animation-duration) forwards;
+      }
+
+      .turnBack {
+        animation: turnBackward var(--animation-duration) forwards;
+      }
+
+      .front-page,
+      .back-page {
+        /* overflow: hidden; */
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        width: 100%;
+        right: 0;
+        bottom: 0;
+        margin: 0;
+        z-index: 1;
+        display: flex;
+      }
+
+      .page > .front-page,
+      .page > .back-page {
+        height: calc(100% - 2em);
+      }
+
+      audio {
+        position: absolute;
+        bottom: -2em;
+        height: 2em;
+        width: 105%;
+        left: -2.5%;
+      }
+
+      .back-page {
+        transform: rotateY(180deg);
+        visibility: hidden;
+      }
+
+      .turn-page.turn > div.front-page {
+        animation: fadeOut var(--animation-duration) forwards;
+      }
+
+      .turn-page.turnBack > div.front-page {
+        animation: fadeIn var(--animation-duration) forwards;
+      }
+
+      .turn-page.turnBack > div.back-page {
+        animation: fadeOut var(--animation-duration) forwards;
+      }
+
+      .turn-page.turn > div.back-page {
+        animation: fadeIn var(--animation-duration) forwards;
+      }
+
+      /* 淡出动画 */
+      @keyframes fadeOut {
+        0% {
+          visibility: visible;
+        }
+        49% {
+          visibility: visible;
+        }
+        50% {
+          visibility: hidden;
+        }
+        100% {
+          visibility: hidden;
+        }
+      }
+
+      /* 淡入动画 */
+      @keyframes fadeIn {
+        0% {
+          visibility: hidden;
+        }
+        50% {
+          visibility: hidden;
+        }
+        51% {
+          visibility: visible;
+        }
+        100% {
+          visibility: visible;
+        }
+      }
+
+      @keyframes turnForward {
+        0% {
+          z-index: 999;
+        }
+        40% {
+          z-index: 999;
+        }
+        49% {
+          transform: rotateY(-90deg);
+        }
+        50% {
+          transform: rotateY(-90deg);
+        }
+        100% {
+          transform: rotateY(-180deg);
+          z-index: null;
+        }
+      }
+
+      @keyframes turnBackward {
+        0% {
+          z-index: 999;
+        }
+        40% {
+          z-index: 999;
+        }
+        49% {
+          transform: rotateY(-90deg);
+        }
+        50% {
+          transform: rotateY(-90deg);
+        }
+        100% {
+          transform: rotateY(0deg);
+          z-index: null;
+        }
+      }
+
+      .current {
+        color: #ff7f00;
+        font-size: calc(var(--font-size) * 1.2);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="book"></div>
+    <script src="./config.js"></script>
+    <script>
+      //js逻辑
+      const book = document.querySelector(".book");
+      let isTurnIng = false;
+      let showPageNumber = 0;
+      let timer = null;
+      const lyricMap = {};
+      const requestAnimationFrameMap = {};
+
+      function createPage(info = {}, isCover = false) {
+        const pageElement = document.createElement("div");
+        const pre = isCover ? "cover" : "page";
+        if (info.background) {
+          const img = document.createElement("img");
+          img.classList.add(`${pre}-image`);
+          img.src = info.background;
+          pageElement.appendChild(img);
+        }
+        if (info.title) {
+          const titleElement = document.createElement("div");
+          titleElement.innerText = info.title;
+          titleElement.classList.add(`${pre}-title`);
+          pageElement.appendChild(titleElement);
+        }
+        if (info.menu) {
+          const menuElement = document.createElement("div");
+          info.menu.forEach((item, index) => {
+            const menuItem = document.createElement("div");
+            menuItem.innerText = `${index + 1}、${item.title}`;
+            menuItem.classList.add(`${pre}-menu-item`);
+            menuItem.setAttribute("data-id", item.id);
+            menuItem.setAttribute("data-index", index + 1);
+            menuElement.appendChild(menuItem);
+          });
+          menuElement.classList.add(`${pre}-menu`);
+          pageElement.appendChild(menuElement);
+        }
+        const textElement = document.createElement("div");
+        const { result, text = "" } = parseLyric(info.lyric);
+        if (isCover && info.text) {
+          textElement.innerText = info.text;
+        } else {
+          textElement.innerHTML = text;
+        }
+        textElement.classList.add(`${pre}-text`);
+        textElement.id = info.id;
+        textElement.setAttribute("data-id", info.id);
+        lyricMap[textElement.id] = result;
+        if (info.text || text) pageElement.appendChild(textElement);
+
+        if (info.title) {
+          const titleElement = document.createElement("div");
+          titleElement.innerText = info.title;
+          titleElement.classList.add(`${pre}-title`);
+          pageElement.appendChild(titleElement);
+        }
+        if (pre === "page") {
+          const audioDom = document.createElement("audio");
+          audioDom.src = info.music;
+          audioDom.controls = true;
+          pageElement.appendChild(audioDom);
+          audioDom.addEventListener("play", audioPlay);
+          audioDom.addEventListener("pause", audioPause);
+          audioDom.addEventListener("ended", audioEnded);
+        }
+        return pageElement;
+      }
+
+      function createFrontAndBackPage(pageElement, page = {}, isCover = false) {
+        if (!isCover) pageElement.classList.add("page");
+        pageElement.classList.add("turn-page");
+        const frontPage = createPage(page.front, isCover);
+        frontPage.classList.add("front-page");
+        const backPage = createPage(page.back, isCover);
+        backPage.classList.add("back-page");
+        pageElement.appendChild(frontPage);
+        pageElement.appendChild(backPage);
+      }
+
+      function createPages(page) {
+        pages.reverse().forEach((page, index) => {
+          const pageElement = document.createElement("span");
+          createFrontAndBackPage(pageElement, page);
+          pageElement.setAttribute("data-index", pages.length - index);
+          book.appendChild(pageElement);
+        });
+      }
+
+      const coverEnd = document.createElement("span");
+      coverEnd.classList.add("cover");
+      coverEnd.classList.add("coverEnd");
+      coverEnd.setAttribute("data-index", pages.length + 1);
+      createFrontAndBackPage(coverEnd, covers[1], true);
+      book.appendChild(coverEnd);
+
+      createPages();
+
+      const cover = document.createElement("span");
+      cover.classList.add("cover");
+      cover.setAttribute("data-index", "0");
+      createFrontAndBackPage(cover, covers[0], true);
+      book.appendChild(cover);
+      const root = document.documentElement;
+      const computedStyle = getComputedStyle(root);
+      const duration = computedStyle.getPropertyValue("--animation-duration");
+
+      //判断是否pc端
+      if (window.outerWidth <= 768) {
+        root.style.setProperty("--width", "100vw");
+      }
+
+      function turnPageFn() {
+        const coverElements = book.querySelectorAll(".cover");
+        const pageElements = book.querySelectorAll(".page");
+        const menuElements = book.querySelectorAll(".cover-menu-item");
+        pageElements.forEach((page, index) => {
+          page.addEventListener("click", pageClick);
+        });
+        coverElements.forEach((cover, index) => {
+          cover.addEventListener("click", pageClick);
+        });
+        menuElements.forEach((menu, index) => {
+          menu.addEventListener("click", menuClick);
+        });
+      }
+      function menuClick(e) {
+        const target = e.target;
+        const menuList = target.parentElement;
+        let page =
+          menuList.parentElement.parentElement.previousElementSibling
+            .firstElementChild;
+        const id = target.getAttribute("data-id");
+        while (page) {
+          const tmp = page.querySelector(`[data-id="${id}"]`);
+          if (tmp) {
+            const audio = page.querySelector("audio");
+            audio.play();
+            break;
+          }
+          let nextPage = page.nextElementSibling;
+          if (nextPage == null) {
+            nextPage =
+              page.parentElement.previousElementSibling.firstElementChild;
+            page = nextPage;
+          } else {
+            page = nextPage;
+            page.click();
+          }
+        }
+      }
+      function calZIndex(selector = ".turn") {
+        const turnedPages = document.querySelectorAll(selector);
+        return turnedPages.length + 1;
+      }
+      function pageClick(e) {
+        const target = e.target.parentElement;
+        const index = parseInt(target.getAttribute("data-index"));
+        if (![showPageNumber, showPageNumber - 1].includes(index)) {
+          return;
+        }
+        if (target.classList.contains("turn")) {
+          if (isTurnIng === "turnBack") return;
+          showPageNumber = index;
+          isTurnIng = "turn";
+          target.style.transform = "rotateY(-180deg)";
+          target.classList.remove("turn");
+          target.classList.add("turnBack");
+          target.style.zIndex = null;
+        } else {
+          if (isTurnIng === "turn") return;
+          showPageNumber = index + 1;
+          isTurnIng = "turnBack";
+          target.style.transform = "rotateY(0deg)";
+          target.classList.remove("turnBack");
+          target.classList.add("turn");
+          target.style.zIndex = calZIndex();
+        }
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+          isTurnIng = false;
+        }, parseFloat(duration) * 1000);
+      }
+      turnPageFn();
+
+      //限制同时只能播放一个音乐
+      let isPlaying = false;
+      // 暂停所有音乐
+      function pauseAllAudios(audioT) {
+        const audioElements = document.querySelectorAll("audio");
+        audioElements.forEach((audio) => {
+          if (audioT != audio && !audio.paused) {
+            audio.pause();
+            const page = audio.parentElement;
+            const pageText = page.querySelector(".page-text");
+            const id = pageText.id;
+            requestAnimationFrameMap[id] &&
+              cancelAnimationFrame(requestAnimationFrameMap[id]);
+          }
+        });
+      }
+
+      function audioPlay(e) {
+        const audio = e.target;
+        pauseAllAudios(audio);
+        lyricScroll(audio);
+      }
+      function audioPause(e) {
+        const audio = e.target;
+        const page = audio.parentElement;
+        const pageText = page.querySelector(".page-text");
+        const id = pageText.id;
+        requestAnimationFrameMap[id] &&
+          cancelAnimationFrame(requestAnimationFrameMap[id]);
+      }
+      function audioEnded(e) {
+        const audio = e.target;
+        const page = audio.parentNode;
+        //自动翻页并播放
+        let nextPage = page.nextElementSibling;
+        if (nextPage == null) {
+          nextPage =
+            page.parentElement.previousElementSibling.firstElementChild;
+        } else {
+          page.click();
+        }
+        if (nextPage) {
+          const nextAudio = nextPage.querySelector("audio");
+          nextAudio.play();
+        }
+      }
+      function lyricScroll(audio) {
+        const page = audio.parentElement;
+        const pageText = page.querySelector(".page-text");
+        const playTime = audio.currentTime;
+        updateLyric(audio, pageText);
+      }
+      //监听播放进度更新歌词
+      function updateLyric(audio, pageText) {
+        const id = pageText.id;
+        const lyricLines = lyricMap[id];
+        const playTime = audio.currentTime * 1000;
+        let nextTime = 1000;
+        for (let i = lyricLines.length - 1; i >= 0; i--) {
+          const lyricLine = lyricLines[i];
+          if (playTime >= lyricLine.time) {
+            nextTime = lyricLine.time;
+            const current = pageText.querySelector(".current");
+            if (current) {
+              current.classList.remove("current");
+            }
+            const currentLyric = pageText.querySelector(`[data-index="${i}"]`);
+            if (currentLyric) {
+              currentLyric.classList.add("current");
+            }
+            break;
+          }
+        }
+        //滚动歌词
+        const current = pageText.querySelector(".current");
+        if (current) {
+          const currentTop = current.offsetTop;
+          const pageTextTop = pageText.offsetTop;
+          const pageTextHeight = pageText.clientHeight;
+          //当前歌词至少位于页面的一半位置
+          const paddingBottom = pageTextHeight / 2;
+          pageText.scrollTop = Math.max(0, currentTop - paddingBottom);
+        }
+        requestAnimationFrameMap[id] = requestAnimationFrame(() => {
+          updateLyric(audio, pageText);
+        });
+      }
+
+      //歌词处理
+      function parseLyric(lyric) {
+        if (!lyric) return {};
+        const lines = lyric.split("\n");
+        const result = [];
+        const timeRegExp = /\[(\d{2}):(\d{2})\.(\d{2,3})\]/;
+        for (let line of lines) {
+          if (line) {
+            const timeResult = timeRegExp.exec(line);
+            if (timeResult) {
+              const text = line.replace(timeRegExp, "").trim();
+              const time1 = timeResult[1] * 60 * 1000;
+              const time2 = timeResult[2] * 1000;
+              const time3 =
+                timeResult[3].length === 3
+                  ? timeResult[3] * 1
+                  : timeResult[3] * 10;
+              const time = time1 + time2 + time3;
+              result.push({ time, text });
+            }
+          }
+        }
+        return {
+          result,
+          //返回text按行分割用span包裹起来，data-index为i
+          text: result
+            .map(
+              (item, index) => `<span data-index="${index}">${item.text}</span>`
+            )
+            .join("<br>"),
+        };
+      }
+    </script>
+  </body>
+</html>
