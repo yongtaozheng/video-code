@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>密码切换输入框</title>
+    <style>
+      /*css样式*/
+      :root {
+        --height: 80px;
+        --width: 700px;
+        --font-size: 2rem;
+      }
+
+      body {
+        width: 100%;
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden;
+      }
+
+      .container {
+        position: relative;
+        margin: 20px 0;
+        transition: transform var(--transition-time) ease,
+          box-shadow var(--transition-time) ease;
+      }
+
+      .password-container {
+        position: relative;
+      }
+
+      input {
+        padding: 10px 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+        box-sizing: border-box;
+        font-size: var(--font-size);
+        width: var(--width);
+        height: var(--height);
+      }
+
+      input:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+      }
+
+      .toggle-button {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 4px;
+        color: #6b7280;
+      }
+
+      .toggle-button:hover {
+        color: #3b82f6;
+      }
+
+      .icon {
+        display: inline-block;
+        stroke-width: 0;
+        stroke: currentColor;
+        fill: currentColor;
+        font-size: var(--font-size);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="password-container">
+        <input type="password" id="password" placeholder="输入密码" />
+        <button
+          type="button"
+          class="toggle-button"
+          onclick="togglePasswordVisibility('password', 'toggleIcon')"
+        >
+          <i id="toggleIcon" class="icon">👁️</i>
+        </button>
+      </div>
+    </div>
+
+    <script>
+      //js逻辑
+      function togglePasswordVisibility(inputId, iconId) {
+        const input = document.getElementById(inputId);
+        const icon = document.getElementById(iconId);
+
+        if (input.type === "password") {
+          input.type = "text";
+          icon.textContent = "👁️‍🗨️";
+        } else {
+          input.type = "password";
+          icon.textContent = "👁️";
+        }
+      }
+    </script>
+  </body>
+</html>

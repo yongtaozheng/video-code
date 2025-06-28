@@ -2,3 +2,8 @@ dist
 node_modules
 temp
 default.txt
+# 螺旋波纹.html
+loading效果/螺旋波纹.html
+书本翻页/test.html
+音乐专辑/test.json
+音乐专辑/test.js
