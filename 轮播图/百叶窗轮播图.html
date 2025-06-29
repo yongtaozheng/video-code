@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>百叶窗轮播图</title>
+    <style>
+      /*css样式*/
+      :root {
+        --hover-width: 30%;
+        --container-width: 100%;
+        --picture-height: 600px;
+      }
+
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background-color: #f0f0f0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100vh;
+      }
+
+      .container {
+        display: flex;
+        flex: 1;
+        width: var(--container-width);
+        padding: 0 3rem;
+        margin: 0 auto;
+        overflow: auto;
+        align-items: flex-start;
+        justify-content: center;
+      }
+
+      .card {
+        flex: 1 1 1%;
+        position: relative;
+        transition: flex 600ms cubic-bezier(0.25, 1, 0.5, 1);
+        cursor: pointer;
+        overflow: hidden;
+      }
+
+      .card.is-active {
+        flex-basis: 30%;
+      }
+
+      .card__inner {
+        margin: 0.25rem;
+        background: #fff;
+        border-radius: 8px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+          0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        transition: all 0.3s ease;
+        height: 100%;
+      }
+
+      .card.is-active .card__inner {
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+          0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        transform: translateY(-2px);
+      }
+
+      .card picture {
+        width: 100%;
+        height: 0;
+        padding-bottom: var(--picture-height);
+        overflow: hidden;
+        position: relative;
+      }
+
+      .card picture img {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+        transition: transform 0.5s ease;
+      }
+
+      .card.is-active picture img {
+        transform: scale(1);
+      }
+
+      /* 自动轮播指示器 */
+      .carousel-indicators {
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 6px;
+        z-index: 10;
+        background: rgba(0, 0, 0, 0.2);
+        padding: 0.5rem 1rem;
+        border-radius: 1rem;
+      }
+
+      .carousel-indicator {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background-color: rgba(255, 255, 255, 0.5);
+        cursor: pointer;
+        transition: background-color 0.3s ease, width 0.3s ease,
+          border-radius 0.3s ease;
+      }
+
+      .carousel-indicator.active {
+        background-color: #fff;
+        width: 24px;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container" id="swiper-container"></div>
+    <div class="carousel-indicators" id="carousel-indicators"></div>
+
+    <script>
+      //js逻辑
+      // 图片配置
+      const images = [
+        {
+          src: "http://5b0988e595225.cdn.sohucs.com/images/20180130/24aecf0d680546ccbf6480badce389dc.jpeg",
+          alt: "千与千寻",
+        },
+        {
+          src: "https://pic3.zhimg.com/v2-f1159536dc58af663e3955e774a7a13a_r.jpg",
+          alt: "龙猫",
+        },
+        {
+          src: "http://qqpublic.qpic.cn/qq_public_cover/0/0-2083471255-1DB77954D274653D98B57D000A686040_vsmcut/0",
+          alt: "天空之城",
+        },
+        {
+          src: "http://5b0988e595225.cdn.sohucs.com/images/20171122/c839ec116c7e4853ac9d34a7abf8b4cc.jpeg",
+          alt: "借东西的小人阿莉埃蒂",
+        },
+        {
+          src: "https://pic3.zhimg.com/v2-d0590fa634c9aae77339e820e185b75b_1440w.jpg?source=172ae18b",
+          alt: "起风了",
+        },
+        {
+          src: "http://5b0988e595225.cdn.sohucs.com/images/20180824/781646fe72fc4788b7dfc24c112b5bbb.png",
+          alt: "悬崖上的金鱼姬",
+        },
+        {
+          src: "http://p6.itc.cn/q_70/images03/20210106/6cd651a28f9a46268205410dcc5cad4d.jpeg",
+          alt: "魔女宅急便",
+        },
+        {
+          src: "https://wenhui.whb.cn/u/cms/www/201907/04234229c951.jpg",
+          alt: "幽灵公主",
+        },
+        {
+          src: "https://x0.ifengimg.com/ucms/2024_13/88635184EFC2FFE43710A5DF199B7067DF336C0F_size489_w1000_h1423.jpg",
+          alt: "你想活出怎样的人生",
+        },
+      ];
+
+      function init() {
+        const rootElement = document.documentElement;
+        const height = rootElement.clientHeight * 0.7;
+        rootElement.style.setProperty("--picture-height", height + "px");
+      }
+      init();
+
+      // 轮播配置
+      const carouselConfig = {
+        enabled: true, // 是否启用自动轮播
+        interval: 5000, // 轮播间隔时间（毫秒）
+        pauseOnHover: true, // 鼠标悬停时暂停轮播
+      };
+
+      let currentSlide = -1;
+      let carouselInterval;
+      let isPaused = false;
+
+      // 生成轮播图
+      function createSwiper() {
+        const container = document.getElementById("swiper-container");
+
+        // 清空容器
+        container.innerHTML = "";
+
+        function calcMarginTop(index) {
+          const list = [0, "2.5%", "5%", "2.5%"];
+          return list[index % 4];
+        }
+
+        // 生成卡片
+        images.forEach((image, index) => {
+          const card = document.createElement("div");
+          card.className = "card";
+          card.dataset.index = index;
+          card.style.marginTop = calcMarginTop(index);
+
+          const cardInner = document.createElement("div");
+          cardInner.className = "card__inner";
+
+          const picture = document.createElement("picture");
+
+          const img = document.createElement("img");
+          img.src = image.src;
+          img.alt = image.alt || `图片 ${index + 1}`;
+
+          picture.appendChild(img);
+          cardInner.appendChild(picture);
+          card.appendChild(cardInner);
+
+          container.appendChild(card);
+        });
+      }
+
+      createSwiper();
+
+      // 切换到指定幻灯片
+      function goToSlide(index) {
+        if (index === currentSlide) return;
+
+        const cards = document.querySelectorAll(".card");
+        const indicators = document.querySelectorAll(".carousel-indicator");
+
+        // 更新当前幻灯片索引
+        currentSlide = index;
+
+        // 更新卡片状态
+        cards.forEach((card, i) => {
+          if (i === index) {
+            card.classList.add("is-active");
+          } else {
+            card.classList.remove("is-active");
+          }
+        });
+
+        // 更新指示器状态
+        indicators.forEach((indicator, i) => {
+          if (i === index) {
+            indicator.classList.add("active");
+          } else {
+            indicator.classList.remove("active");
+          }
+        });
+      }
+
+      // 创建轮播指示器
+      function createCarouselIndicators() {
+        const indicatorsContainer = document.getElementById(
+          "carousel-indicators"
+        );
+        indicatorsContainer.innerHTML = "";
+
+        images.forEach((_, index) => {
+          const indicator = document.createElement("div");
+          indicator.className = `carousel-indicator ${
+            index === 0 ? "active" : ""
+          }`;
+          indicator.dataset.index = index;
+          indicator.addEventListener("click", () => {
+            clearInterval(carouselInterval);
+            goToSlide(index);
+            startCarousel();
+          });
+          indicatorsContainer.appendChild(indicator);
+        });
+      }
+
+      createCarouselIndicators();
+
+      // 初始化卡片交互
+      function initCardInteraction() {
+        const cards = document.querySelectorAll(".card");
+
+        // 鼠标进入卡片
+        document.addEventListener(
+          "mouseenter",
+          (event) => {
+            const card = event.target.closest(".card");
+            if (card) {
+              if (carouselConfig.pauseOnHover) {
+                pauseCarousel();
+              }
+
+              const index = parseInt(card.dataset.index);
+              goToSlide(index);
+            }
+          },
+          true
+        );
+
+        // 鼠标离开容器
+        document
+          .querySelector(".container")
+          .addEventListener("mouseleave", () => {
+            if (carouselConfig.pauseOnHover && carouselConfig.enabled) {
+              startCarousel();
+            }
+          });
+      }
+
+      initCardInteraction();
+
+      // 启动自动轮播
+      function startCarousel() {
+        if (!carouselConfig.enabled || isPaused) return;
+
+        clearInterval(carouselInterval);
+        carouselInterval = setInterval(() => {
+          goToSlide((currentSlide + 1) % images.length);
+        }, carouselConfig.interval);
+      }
+
+      startCarousel();
+
+      // 初始时激活第一张卡片
+      setTimeout(() => {
+        goToSlide(0);
+      }, 100);
+
+      // 暂停自动轮播
+      function pauseCarousel() {
+        clearInterval(carouselInterval);
+      }
+
+      // 窗口大小变化时重新布局
+      window.addEventListener("resize", () => {
+        init();
+        // 重置轮播
+        clearInterval(carouselInterval);
+        startCarousel();
+      });
+    </script>
+  </body>
+</html>
