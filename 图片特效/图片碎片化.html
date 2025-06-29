@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>图片碎片化</title>
+    <style>
+      /*css样式*/
+      body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        margin: 0;
+      }
+
+      .container {
+        position: relative;
+        width: 100%;
+        max-width: 800px;
+        margin: 20px auto;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .image-container {
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+
+      #target-image {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: opacity 0.3s ease;
+      }
+
+      .fragment {
+        position: absolute;
+        pointer-events: none;
+        transition: all 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+        box-sizing: border-box;
+      }
+
+      button {
+        margin-top: 20px;
+        padding: 12px 24px;
+        font-size: 18px;
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.3s;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="image-container" id="image-container">
+        <img
+          id="target-image"
+          src="../images/宫崎骏/千与千寻.jpg"
+          alt="示例图片"
+        />
+      </div>
+      <button id="fragment-btn">碎片化</button>
+    </div>
+
+    <script>
+      //js逻辑
+      const imageContainer = document.getElementById("image-container");
+      const targetImage = document.getElementById("target-image");
+      const fragmentBtn = document.getElementById("fragment-btn");
+
+      // 配置参数
+      const config = {
+        rows: 12, // 碎片行数
+        cols: 18, // 碎片列数
+        animationSpeed: 0.9, // 动画速度（秒）
+        maxDisplacement: 400, // 最大位移距离（像素）
+        maxRotation: 180, // 最大旋转角度（度）
+        minScale: 0.3, // 最小缩放比例
+      };
+
+      let aspectRatio = 1;
+
+      // 监听图片加载完成，获取真实宽高比并调整容器大小
+      targetImage.onload = function () {
+        aspectRatio = targetImage.naturalWidth / targetImage.naturalHeight;
+        updateImageContainerSize();
+      };
+
+      window.addEventListener("resize", updateImageContainerSize);
+
+      // 更新图片容器大小，确保不超过屏幕视口的80%
+      function updateImageContainerSize() {
+        if (!targetImage.complete) return;
+
+        // 计算屏幕视口的80%作为最大宽高
+        const maxWidth = window.innerWidth * 0.8;
+        const maxHeight = window.innerHeight * 0.8;
+
+        // 根据图片原始宽高比计算适配后的尺寸
+        let displayWidth, displayHeight;
+
+        if (
+          targetImage.naturalWidth / targetImage.naturalHeight >
+          maxWidth / maxHeight
+        ) {
+          // 图片更宽，以最大宽度为基准
+          displayWidth = maxWidth;
+          displayHeight = maxWidth / aspectRatio;
+        } else {
+          // 图片更高，以最大高度为基准
+          displayHeight = maxHeight;
+          displayWidth = maxHeight * aspectRatio;
+        }
+
+        // 应用计算出的尺寸到容器
+        imageContainer.style.width = `${displayWidth}px`;
+        imageContainer.style.height = `${displayHeight}px`;
+        imageContainer.style.paddingBottom = "0"; // 移除之前的padding-bottom设置
+      }
+
+      // 触发碎片化动画
+      fragmentBtn.addEventListener("click", function () {
+        fragmentImage();
+      });
+
+      // 图片碎片化函数
+      function fragmentImage() {
+        // 确保图片已加载且容器尺寸已更新
+        if (!targetImage.complete) {
+          targetImage.onload = fragmentImage;
+          return;
+        }
+
+        // 移除之前的碎片
+        const existingFragments = imageContainer.querySelectorAll(".fragment");
+        existingFragments.forEach((frag) => frag.remove());
+
+        // 隐藏原图
+        targetImage.style.opacity = "0";
+
+        // 使用图片的自然宽高
+        const imgWidth = targetImage.naturalWidth;
+        const imgHeight = targetImage.naturalHeight;
+
+        // 获取容器的实际显示尺寸
+        const containerWidth = imageContainer.offsetWidth;
+        const containerHeight = imageContainer.offsetHeight;
+
+        // 计算缩放比例
+        const scaleX = containerWidth / imgWidth;
+        const scaleY = containerHeight / imgHeight;
+
+        // 设置碎片参数
+        const fragmentWidth = imgWidth / config.cols;
+        const fragmentHeight = imgHeight / config.rows;
+
+        // 创建碎片
+        for (let i = 0; i < config.rows; i++) {
+          for (let j = 0; j < config.cols; j++) {
+            const fragment = document.createElement("div");
+            fragment.className = "fragment";
+
+            // 设置碎片的位置和大小（使用缩放后的尺寸）
+            fragment.style.left = `${j * fragmentWidth * scaleX}px`;
+            fragment.style.top = `${i * fragmentHeight * scaleY}px`;
+            fragment.style.width = `${fragmentWidth * scaleX}px`;
+            fragment.style.height = `${fragmentHeight * scaleY}px`;
+
+            // 使用背景图定位来显示原图的相应部分
+            fragment.style.backgroundImage = `url(${targetImage.src})`;
+            fragment.style.backgroundSize = `${imgWidth * scaleX}px ${
+              imgHeight * scaleY
+            }px`;
+            fragment.style.backgroundPosition = `-${
+              j * fragmentWidth * scaleX
+            }px -${i * fragmentHeight * scaleY}px`;
+
+            // 设置初始不透明度
+            fragment.style.opacity = "1";
+
+            // 添加到容器
+            imageContainer.appendChild(fragment);
+
+            // 延迟一点时间后触发动画，创造级联效果
+            setTimeout(() => {
+              // 计算随机位移、旋转和不透明度
+              const randomX = (Math.random() - 0.5) * config.maxDisplacement;
+              const randomY = (Math.random() - 0.5) * config.maxDisplacement;
+              const randomRotation = (Math.random() - 0.5) * config.maxRotation;
+              const randomScale =
+                config.minScale + Math.random() * (1 - config.minScale);
+
+              fragment.style.transform = `translate(${randomX}px, ${randomY}px) rotate(${randomRotation}deg) scale(${randomScale})`;
+              fragment.style.opacity = "0";
+            }, (i * config.cols + j) * 10); // 基于位置的延迟，创造波浪效果
+          }
+        }
+
+        // 动画结束后重置
+        const totalDuration =
+          config.animationSpeed * 1000 + config.rows * config.cols * 10;
+        setTimeout(() => {
+          const fragments = imageContainer.querySelectorAll(".fragment");
+          fragments.forEach((frag) => frag.remove());
+          targetImage.style.opacity = "1";
+        }, totalDuration);
+      }
+    </script>
+  </body>
+</html>
