@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>图片堆叠展开效果</title>
+    <style>
+      /*css样式*/
+      :root {
+        --card-width: 16vw;
+        --card-height: 12vw;
+      }
+
+      body {
+        display: flex;
+        min-height: 100vh;
+        align-items: center;
+        justify-content: center;
+        background-color: hsl(240deg, 10%, 10%);
+        color: hsl(240deg, 10%, 90%);
+        overflow: hidden;
+      }
+
+      .container {
+        display: inline-grid;
+        grid-template-columns: repeat(var(--card-count), 0);
+        gap: 0;
+        transition: 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        position: relative;
+      }
+
+      .container:hover {
+        grid-template-columns: repeat(var(--card-count), var(--card-width));
+        gap: 1vw;
+      }
+
+      .card {
+        position: relative;
+        height: var(--card-height);
+        width: var(--card-width);
+        transform-origin: 50% 100%;
+        transform: rotate(calc(var(--rotation) * 1deg));
+        border-radius: clamp(0.2rem, 1vmin, 0.5rem);
+        border: 1px solid currentColor;
+        background-size: cover;
+        background-position: center;
+        transition: 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        z-index: 1;
+        margin: 0 auto;
+        margin-left: calc(var(--card-width) / -2);
+      }
+
+      .container:hover .card {
+        transform: rotate(0deg);
+        margin-left: 0;
+      }
+
+      /* 卡片悬停效果 */
+      .card:hover {
+        transform: rotate(0deg) translateY(-0.5rem) scale(1.05);
+        z-index: 10;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
+      }
+
+      /* 加载状态 */
+      .card.loading {
+        background-color: hsl(240deg, 15%, 15%);
+        background-image: none !important;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7rem;
+      }
+
+      .card.loading::after {
+        content: "加载中...";
+      }
+
+      .card.error::after {
+        content: "加载失败";
+      }
+    </style>
+  </head>
+  <body>
+    <div id="container" class="container"></div>
+    <script>
+      //js逻辑
+      // 配置参数
+      const config = {
+        imgs: [
+          {
+            src: "../images/宫崎骏/千与千寻.jpg",
+            alt: "千与千寻",
+          },
+          { src: "../images/宫崎骏/魔女宅急便.jpg", alt: "魔女宅急便" },
+          { src: "../images/宫崎骏/龙猫.jpg", alt: "龙猫" },
+          { src: "../images/宫崎骏/天空之城.jpg", alt: "天空之城" },
+          {
+            src: "../images/宫崎骏/悬崖上的金鱼姬.jpg",
+            alt: "悬崖上的金鱼姬",
+          },
+        ],
+        startRotation: -30, // 起始旋转角度
+        rotationStep: 15, // 每张卡片增加的旋转角度
+      };
+
+      config.cardCount = config.imgs.length;
+      const container = document.getElementById("container");
+      container.style.setProperty("--card-count", config.cardCount);
+
+      // 生成卡片
+      for (let i = 0; i < config.imgs.length; i++) {
+        const card = document.createElement("div");
+        card.className = "card loading";
+        card.dataset.index = i + 1;
+        card.dataset.alt = config.imgs[i].alt;
+        card.style.setProperty(
+          "--rotation",
+          config.startRotation + i * config.rotationStep
+        );
+
+        container.appendChild(card);
+
+        const img = new Image();
+        img.src = config.imgs[i].src;
+        img.onload = () => {
+          card.style.backgroundImage = `url(${config.imgs[i].src})`;
+          card.classList.remove("loading");
+        };
+        img.onerror = () => {
+          card.classList.remove("loading");
+          card.classList.add("error");
+        };
+      }
+
+      // 添加窗口大小变化事件
+      window.addEventListener("resize", () => {
+        const cards = document.querySelectorAll(".card");
+        cards.forEach((card, i) => {
+          card.style.setProperty(
+            "--rotation",
+            config.startRotation + i * config.rotationStep
+          );
+        });
+      });
+    </script>
+  </body>
+</html>
