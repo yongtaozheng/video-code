@@ -57,6 +57,8 @@
         margin-top: -100px;
         border-radius: 8px;
         box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        z-index: 99999;
+        cursor: pointer;
       }
 
       /* 控制轮播图的指示器 */
@@ -116,7 +118,7 @@
     <div id="swipe3D">
       <div class="nav-btn prev" onclick="rotate(-1,true)">&#10094;</div>
       <div class="nav-btn next" onclick="rotate(1,true)">&#10095;</div>
-      <div class="spinner"></div>
+      <div class="spinner" style="transform: rotateY(0deg)"></div>
       <div class="indicators"></div>
     </div>
 
@@ -156,6 +158,79 @@
       const rotationDuration = 800; // 与CSS中transition时间匹配
       const totalImages = config.imgList.length;
       const degreesPerImage = 360 / totalImages;
+      let lastEnterImg = null;
+
+      const swipe3D = document.getElementById("swipe3D");
+      //获取当前展示的图片
+      swipe3D.addEventListener("click", (e) => {
+        const index = judgeImg(e);
+        if (index == -1) return;
+        handleImageClick((totalImages - index) % totalImages);
+      });
+      swipe3D.addEventListener("mousemove", (e) => {
+        const index = judgeImg(e);
+        if (index == -1) {
+          if (!lastEnterImg) return;
+          handleMouseLeave({ target: lastEnterImg });
+          lastEnterImg = null;
+          swipe3D.style.cursor = "auto";
+          return;
+        }
+        const img = document.querySelector(
+          `.spinner img[data-index="${index}"]`
+        );
+        swipe3D.style.cursor = "pointer";
+        if (lastEnterImg == img) return;
+        handleMouseEnter({ target: img });
+        lastEnterImg = img;
+      });
+
+      function judgeImg(e) {
+        const target = e.target;
+        if (target.tagName === "IMG") {
+          return -1;
+        }
+        if (target.classList.contains("nav-btn")) {
+          return -1;
+        }
+        const imgs = document.querySelectorAll(".spinner img");
+        const spinner = document.querySelector(".spinner");
+        const spinnerRect = spinner.getBoundingClientRect();
+        const spinnerRotateY = spinner.style.transform.match(
+          /rotateY\((-?\d+)deg\)/
+        )[1];
+        const rect = swipe3D.getBoundingClientRect();
+
+        const x = e.pageX;
+        const y = e.pageY;
+        for (let img of imgs) {
+          const index = img.dataset.index;
+          const rotateY = img.style.transform.match(/rotateY\((-?\d+)deg\)/)[1];
+          const angle = Math.abs(
+            (Number(spinnerRotateY) + Number(rotateY)) % 360
+          );
+          if (
+            degreesPerImage >= angle ||
+            360 - degreesPerImage <= angle ||
+            angle == degreesPerImage * 9
+          ) {
+            const imgRect = img.getBoundingClientRect();
+            const imgX = imgRect.x;
+            const imgY = imgRect.y;
+            const imgWidth = imgRect.width;
+            const imgHeight = imgRect.height;
+            if (
+              x > imgX &&
+              x < imgX + imgWidth &&
+              y > imgY &&
+              y < imgY + imgHeight
+            ) {
+              return index;
+            }
+          }
+        }
+        return -1;
+      }
 
       // 动态创建图片元素
       config.imgList.forEach((src, index) => {
@@ -185,6 +260,7 @@
       function startAutoPlay() {
         // 自动轮播
         if (mouseHover || !config.autoPlay) return;
+        if (autoPlayInterval) clearInterval(autoPlayInterval);
         autoPlayInterval = setInterval(() => {
           if (!mouseHover) {
             rotate(1);
