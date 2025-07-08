@@ -14,6 +14,7 @@
         --light: #f8f9fa;
         --image-width: 60%;
         --image-height: 60%;
+        --transition-duration: 0.8s;
       }
 
       /* 基础样式 */
@@ -131,7 +132,8 @@
       .fragment {
         position: absolute;
         pointer-events: none;
-        transition: all 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+        transition: all var(--transition-duration)
+          cubic-bezier(0.2, 0.8, 0.2, 1);
       }
     </style>
   </head>
@@ -217,6 +219,12 @@
       let isPlaying = carouselConfig.autoplay;
       let autoplaySpeed = carouselConfig.autoplaySpeed;
       let isTransitioning = false; // 过渡状态锁
+      //使用transitionDuration更新css变量
+      const transitionDuration = carouselConfig.transitionDuration;
+      document.documentElement.style.setProperty(
+        "--transition-duration",
+        `${transitionDuration / 1000}s`
+      );
 
       // 初始化轮播图
       function initCarousel() {
@@ -280,15 +288,13 @@
           // 解除锁定
           isTransitioning = false;
         });
-        setTimeout(() => {
-          currentSlideEl.style.opacity = "0";
-          newSlideEl.style.opacity = "1";
-          currentSlide = index;
-          // 更新指示器
-          document.querySelectorAll(".dot").forEach((dot, i) => {
-            dot.classList.toggle("active", i === index);
-          });
-        }, 0);
+        currentSlideEl.style.opacity = "0";
+        newSlideEl.style.opacity = "1";
+        currentSlide = index;
+        // 更新指示器
+        document.querySelectorAll(".dot").forEach((dot, i) => {
+          dot.classList.toggle("active", i === index);
+        });
       }
 
       // 切换到上一张
