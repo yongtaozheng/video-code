@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>立体展示卡片</title>
+    <style>
+      /*css样式*/
+      body {
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: #f0f2f5;
+        perspective: 1000px;
+        overflow: hidden;
+        margin: 0;
+        padding: 0;
+        background: rgba(0, 0, 0, 0.2);
+      }
+
+      .card-container {
+        width: 600px;
+        height: 600px;
+        position: relative;
+        transform-style: preserve-3d;
+        transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+
+      .card-bg {
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        background: linear-gradient(135deg, #4a6cf7 0%, #3a5ae7 100%);
+        border-radius: 16px;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+        transform-style: preserve-3d;
+        transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+        transform: translateZ(0);
+      }
+
+      .card-img {
+        width: 90%;
+        height: 75%;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) translateZ(40px);
+        border-radius: 12px;
+        overflow: hidden;
+        transform-style: preserve-3d;
+        transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+        z-index: 2;
+      }
+
+      .card-img img {
+        width: 100%;
+        object-fit: cover;
+        display: block;
+        transition: filter 0.3s ease;
+      }
+
+      .card-container:hover {
+        transform: translateY(-15px);
+      }
+
+      .card-container:hover .card-bg {
+        transform: rotateX(35deg) translateZ(0) translateY(-30px);
+        box-shadow: 0 40px 50px rgba(0, 0, 0, 0.25);
+        background: linear-gradient(135deg, #3a5ae7 0%, #2a4ad7 100%);
+      }
+
+      .card-container:hover .card-img {
+        transform: translate(-50%, -65%) translateZ(120px) scale(1.08);
+      }
+
+      .card-container:hover .inverted-image {
+        animation: showImg 0.2s ease forwards 0.2s;
+      }
+
+      @keyframes showImg {
+        0% {
+          opacity: 0;
+          visibility: hidden;
+        }
+        100% {
+          opacity: 0.5;
+          visibility: visible;
+        }
+      }
+
+      .card-container:hover .card-img::after {
+        transform: translateZ(-50px) scale(1.05) translateY(20px);
+        background: transparent;
+        filter: blur(25px);
+      }
+
+      .inverted-image {
+        height: 75%;
+        transform: skewX(328deg);
+        position: relative;
+        left: 22%;
+        top: 8%;
+        visibility: hidden;
+        opacity: 0.5;
+        filter: grayscale(100%) blur(15px);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card-container">
+      <div class="card-bg">
+        <img src="./cat.png" alt="" class="inverted-image" />
+      </div>
+      <div class="card-img">
+        <img src="./cat.png" alt="" />
+      </div>
+    </div>
+  </body>
+</html>
