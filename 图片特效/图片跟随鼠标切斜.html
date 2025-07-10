@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>图片鼠标跟随倾斜效果</title>
+    <style>
+      /*css样式*/
+      body {
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+        overflow: hidden;
+      }
+
+      .image-container {
+        position: relative;
+        width: 100%;
+        max-width: 800px;
+        perspective: 1000px;
+        border-radius: 16px;
+      }
+
+      .tilt-image {
+        width: 100%;
+        height: auto;
+        display: block;
+        transform-style: preserve-3d;
+        transition: transform 0.15s ease-out;
+        box-shadow: 0 10px 50px rgba(0, 0, 0, 0.15);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="image-container">
+      <img
+        src="http://5b0988e595225.cdn.sohucs.com/images/20180130/24aecf0d680546ccbf6480badce389dc.jpeg"
+        alt=""
+        class="tilt-image"
+        id="mainImage"
+      />
+    </div>
+
+    <script>
+      //js逻辑
+      const container = document.querySelector(".image-container");
+      const image = document.getElementById("mainImage");
+      const maxTilt = 8; // 最大倾斜角度
+
+      container.addEventListener("mousemove", (e) => {
+        const rect = container.getBoundingClientRect();
+        // 计算鼠标在容器内的相对位置（0-1范围）
+        const xPos = (e.clientX - rect.left) / rect.width;
+        const yPos = (e.clientY - rect.top) / rect.height;
+
+        // 计算倾斜角度（从负最大到正最大）
+        const tiltX = (yPos - 0.5) * -maxTilt;
+        const tiltY = (xPos - 0.5) * maxTilt;
+
+        // 样式修改
+        image.style.transform = `rotateX(${tiltX}deg) rotateY(${tiltY}deg)`;
+      });
+
+      // 鼠标离开时恢复
+      container.addEventListener("mouseleave", () => {
+        image.style.transform = "rotateX(0) rotateY(0)";
+      });
+    </script>
+  </body>
+</html>
