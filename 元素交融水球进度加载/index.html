@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>元素交融水球进度加载</title>
+    <style>
+      /*css样式*/
+      :root {
+        --main-ball-r: 400px;
+        --ball-r: 40px;
+        --container-height: 90vh;
+      }
+
+      body {
+        display: flex;
+        justify-items: center;
+        justify-content: center;
+        margin: 0;
+        padding: 0;
+      }
+
+      .container {
+        width: var(--main-ball-r);
+        height: var(--container-height);
+        overflow: hidden;
+        filter: url(#blob);
+        margin: auto;
+        margin-top: calc(100vh - var(--container-height));
+        position: relative;
+      }
+
+      .container2 {
+        position: absolute;
+        top: calc(100vh - var(--container-height));
+      }
+
+      .container2 .main-ball {
+        background: rgba(46, 136, 232, 0.5);
+      }
+
+      .main-ball {
+        width: var(--main-ball-r);
+        height: var(--main-ball-r);
+        border-radius: 50%;
+      }
+
+      .wave-loader {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        overflow: hidden;
+      }
+
+      .wave {
+        position: absolute;
+        width: 200%;
+        height: 200%;
+        left: -50%;
+        top: 100%;
+        transform-origin: 50% 50%;
+        animation: wave 6s linear infinite;
+      }
+
+      .wave1 {
+        background: rgba(46, 136, 232, 1);
+        border-radius: 45%;
+        animation-duration: 6s;
+        top: 100%;
+      }
+
+      .wave2 {
+        background: rgba(46, 136, 232, 1);
+        border-radius: 40%;
+        animation-duration: 8s;
+        top: 100%;
+      }
+
+      .percentage {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: white;
+        font-family: sans-serif;
+        font-size: 2rem;
+        font-weight: bold;
+        z-index: 10;
+        text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+      }
+
+      @keyframes wave {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+      .ball {
+        width: var(--ball-r);
+        height: var(--ball-r);
+        background-color: rgb(46, 136, 232);
+        border-radius: 50%;
+        position: absolute;
+        top: var(--container-height);
+        left: 0;
+        animation-name: ballMove;
+        animation-duration: 2s;
+        animation-fill-mode: forwards;
+        opacity: 0.8;
+      }
+
+      @keyframes ballMove {
+        0% {
+          top: var(--container-height);
+        }
+        100% {
+          top: calc(var(--main-ball-r) / 10 * 9);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container" id="container">
+      <div class="main-ball">
+        <div class="wave-loader">
+          <div class="wave wave1"></div>
+          <div class="wave wave2"></div>
+        </div>
+      </div>
+    </div>
+    <div class="container2">
+      <div class="main-ball">
+        <div class="percentage">0.00%</div>
+      </div>
+    </div>
+    <svg style="display: none">
+      <defs>
+        <filter id="blob">
+          <feGaussianBlur stdDeviation="10" in="SourceGraphic" result="blur" />
+          <feColorMatrix
+            in="blur"
+            mode="matrix"
+            values="
+            1 0 0 0 0 
+            0 1 0 0 0 
+            0 0 1 0 0 
+            0 0 0 20 -10"
+          />
+        </filter>
+      </defs>
+    </svg>
+  </body>
+  <script>
+    //js逻辑
+    const ballNum = 2;
+    const animationDuration = 1;
+    let pencent = 0;
+    const percentage = document.querySelector(".percentage");
+    const root = document.querySelector(":root");
+    const rootStyles = getComputedStyle(root);
+    const mainBallR = rootStyles.getPropertyValue("--main-ball-r");
+    const ballR = rootStyles.getPropertyValue("--ball-r");
+    function getRandom(min, max) {
+      return Math.random() * (max - min) + min;
+    }
+    function createBall() {
+      const ball = document.createElement("div");
+      ball.classList.add("ball");
+      const left = getRandom(
+        ((parseFloat(mainBallR) - parseFloat(ballR)) * 2) / 10,
+        ((parseFloat(mainBallR) - parseFloat(ballR)) * 8) / 10
+      );
+      ball.style.left = left + "px";
+      const duration = Math.random() * 3 + animationDuration;
+      ball.style.animationDuration = duration + "s";
+      const container = document.getElementById("container");
+      const interval = Math.random() * 500 + 200;
+      setTimeout(() => {
+        container.appendChild(ball);
+        setTimeout(() => {
+          ball.remove();
+          pencent = pencent + getRandom(0.1, 0.5);
+          changePencent();
+        }, duration * 1000);
+      }, interval);
+    }
+    function changePencent() {
+      pencent = Math.min(pencent, 100);
+      percentage.textContent = pencent.toFixed(2) + "%";
+      const wave1 = document.querySelector(".wave1");
+      wave1.style.top = 100 - pencent + "%";
+      const wave2 = document.querySelector(".wave2");
+      wave2.style.top = 100 - pencent - 2 + "%";
+      if (pencent == 100) pencent = 0;
+    }
+    function loop() {
+      for (let i = 0; i < ballNum; i++) {
+        createBall();
+      }
+      setTimeout(() => {
+        loop();
+      }, 1500);
+    }
+    loop();
+  </script>
+</html>
