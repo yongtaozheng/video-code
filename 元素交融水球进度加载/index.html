@@ -200,10 +200,10 @@
       for (let i = 0; i < ballNum; i++) {
         createBall();
       }
-      setTimeout(() => {
-        loop();
-      }, 1500);
     }
     loop();
+    setInterval(() => {
+      loop();
+    }, 1000);
   </script>
 </html>
