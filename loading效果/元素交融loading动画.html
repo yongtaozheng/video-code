@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>元素交融loading动画</title>
+    <style>
+      /*css样式*/
+      :root {
+        --container-height: 100vh;
+        --container-width: 100vw;
+        --primary: #165dff;
+        --duration: 5s;
+        --ball-container-width: 300px;
+        --ball-container-height: 300px;
+        --ball-size: 60px;
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100vh;
+        width: 100vw;
+        overflow: hidden;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: #121212;
+        color: #e5e7eb;
+      }
+
+      .container {
+        position: relative;
+      }
+
+      .rotating-balls {
+        width: var(--ball-container-width);
+        height: var(--ball-container-height);
+        position: relative;
+        filter: url(#blob); /* 应用流体交融滤镜 */
+      }
+
+      .rotating-balls span {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: var(--ball-size);
+        height: var(--ball-size);
+        border-radius: 50%;
+        background: var(--primary);
+        transform: translate(-50%, -50%) rotate(360deg)
+          translateX(calc(var(--ball-container-width) / 2));
+        animation: rotate-ball var(--duration)
+          cubic-bezier(0.18, 0.89, 0.32, 1.28) infinite;
+      }
+
+      @keyframes rotate-ball {
+        0% {
+          transform: translate(-50%, -50%) rotate(0deg)
+            translateX(calc(var(--ball-container-width) / 2));
+          opacity: 1;
+        }
+        100% {
+          transform: translate(-50%, -50%) rotate(360deg)
+            translateX(calc(var(--ball-container-width) / 2));
+          opacity: 1;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container" id="container">
+      <div class="rotating-balls" id="ballsContainer"></div>
+    </div>
+    <svg style="display: none">
+      <defs>
+        <filter id="blob">
+          <feGaussianBlur stdDeviation="10" in="SourceGraphic" result="blur" />
+          <feColorMatrix
+            in="blur"
+            mode="matrix"
+            values="
+                    1 0 0 0 0 
+                    0 1 0 0 0 
+                    0 0 1 0 0 
+                    0 0 0 20 -10"
+          />
+        </filter>
+      </defs>
+    </svg>
+
+    <script>
+      //js逻辑
+      // 配置参数
+      const config = {
+        ballCount: 8, // 小球数量
+        duration: 0.8, // 动画周期（秒）
+        colors: [
+          "#165dff",
+          "#722ed1",
+          "#0fc6c2",
+          "#7bc616",
+          "#f53f3f",
+          "#ff7d00",
+          "#ff007d",
+          "#ff7d00",
+        ], // 小球颜色集合
+      };
+
+      const ballsContainer = document.getElementById("ballsContainer");
+
+      // 动态生成小球
+      function createBalls() {
+        ballsContainer.innerHTML = "";
+        const delayInterval = config.duration / config.ballCount;
+        for (let i = 0; i < config.ballCount; i++) {
+          const ball = document.createElement("span");
+          ball.style.animationDelay = `${i * delayInterval}s`;
+          const colorIndex = i % config.colors.length;
+          ball.style.backgroundColor =
+            config.colors[colorIndex] || config.colors[0];
+          ballsContainer.appendChild(ball);
+        }
+      }
+
+      createBalls();
+    </script>
+  </body>
+</html>
