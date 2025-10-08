@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>星空流星效果</title>
+    <style>
+      /*css样式*/
+      body {
+        margin: 0;
+        padding: 0;
+        background: radial-gradient(
+          ellipse at bottom,
+          #1b2735 0%,
+          #090a0f 100%
+        );
+        height: 100vh;
+        width: 100vw;
+        overflow: hidden;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      #meteorContainer {
+        position: absolute;
+        width: 80vw;
+        height: 80vh;
+        transform: rotateZ(30deg);
+        left: 10vw;
+        top: 10vh;
+      }
+
+      .night {
+        position: absolute;
+        width: 100vw;
+        height: 100vh;
+        top: 0;
+        left: 0;
+      }
+
+      .shooting_star {
+        position: absolute;
+        height: 2px;
+        background: linear-gradient(
+          -45deg,
+          rgba(95, 145, 255, 1),
+          rgba(0, 0, 255, 0)
+        );
+        border-radius: 999px;
+        filter: drop-shadow(0 0 6px rgba(105, 155, 255, 1));
+        animation: tail 6000ms ease-in-out infinite,
+          shooting 6000ms ease-in-out infinite;
+      }
+
+      .shooting_star::before {
+        content: "";
+        position: absolute;
+        top: calc(50% - 1px);
+        right: 0;
+        height: 2px;
+        background: linear-gradient(
+          -45deg,
+          rgba(0, 0, 255, 0),
+          rgba(95, 145, 255, 1),
+          rgba(0, 0, 255, 0)
+        );
+        transform: translateX(50%) rotateZ(45deg);
+        border-radius: 100%;
+        animation: shining 6000ms ease-in-out infinite;
+      }
+
+      .shooting_star::after {
+        content: "";
+        position: absolute;
+        top: calc(50% - 1px);
+        right: 0;
+        height: 2px;
+        background: linear-gradient(
+          -45deg,
+          rgba(0, 0, 255, 0),
+          rgba(95, 145, 255, 1),
+          rgba(0, 0, 255, 0)
+        );
+        transform: translateX(50%) rotateZ(-45deg);
+        border-radius: 100%;
+        animation: shining 6000ms ease-in-out infinite;
+      }
+
+      .star {
+        position: absolute;
+        background-color: #fff;
+        border-radius: 50%;
+        animation: twinkle 3s infinite alternate;
+      }
+
+      @keyframes tail {
+        0% {
+          width: 0;
+        }
+        30% {
+          width: 100px;
+        }
+        100% {
+          width: 0;
+        }
+      }
+
+      @keyframes shining {
+        0% {
+          width: 0;
+        }
+        50% {
+          width: 30px;
+        }
+        100% {
+          width: 0;
+        }
+      }
+
+      @keyframes shooting {
+        0% {
+          transform: translateX(0);
+        }
+        100% {
+          transform: translateX(70vw);
+        }
+      }
+
+      @keyframes twinkle {
+        0% {
+          opacity: 0.3;
+        }
+        100% {
+          opacity: 1;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="night" id="nightSky"></div>
+    <div id="meteorContainer"></div>
+
+    <script>
+      // js代码
+      const STAR_COUNT = 10; // 流星数量
+      const FIXED_STAR_COUNT = 300; // 静态星星数量
+      const MAX_DELAY = 10000; // 流星最大延迟(ms)
+
+      const nightSky = document.getElementById("nightSky");
+      const meteorContainer = document.getElementById("meteorContainer");
+
+      // 生成随机数
+      const randomRange = (min, max) => Math.random() * (max - min) + min;
+
+      // 静态星星
+      for (let i = 0; i < FIXED_STAR_COUNT; i++) {
+        const fixedStar = document.createElement("div");
+        fixedStar.classList.add("star");
+        fixedStar.style.left = `${randomRange(0, 100)}vw`;
+        fixedStar.style.top = `${randomRange(0, 100)}vh`;
+        fixedStar.style.width = `${randomRange(0.5, 2)}px`;
+        fixedStar.style.height = fixedStar.style.width;
+        fixedStar.style.animationDelay = `${randomRange(0, 3)}s`;
+        nightSky.appendChild(fixedStar);
+      }
+
+      const windowWidth = window.innerWidth;
+      const windowHeight = window.innerHeight;
+      // 动态流星
+      for (let i = 0; i < STAR_COUNT; i++) {
+        const star = document.createElement("div");
+        star.classList.add("shooting_star");
+        const top = randomRange(0, windowWidth / 2);
+        const left = randomRange(0, windowHeight / 2);
+        const delay = randomRange(0, MAX_DELAY);
+
+        star.style.top = `${top}px`;
+        star.style.left = `${left}px`;
+        star.style.animationDelay = `${delay}ms`;
+
+        meteorContainer.appendChild(star);
+      }
+    </script>
+  </body>
+</html>
