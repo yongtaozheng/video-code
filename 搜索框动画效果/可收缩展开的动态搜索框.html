@@ -3,8 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>展开式搜索框</title>
+    <title>可收缩展开的动态搜索框</title>
     <style>
+      /* CSS 代码 */
       * {
         margin: 0;
         padding: 0;
@@ -12,13 +13,10 @@
       }
 
       body {
-        background: white;
-        min-height: 100vh;
-        font-family: "Arial", sans-serif;
+        height: 100vh;
         display: flex;
         justify-content: center;
         align-items: center;
-        padding: 20px;
       }
 
       .container {
@@ -138,13 +136,6 @@
         transform: translate(50%, -50%) !important;
         color: #667eea !important;
       }
-
-      /* 响应式设计 */
-      @media (max-width: 768px) {
-        .search-container {
-          padding: 1.5rem;
-        }
-      }
     </style>
   </head>
   <body>
@@ -159,73 +150,67 @@
     </div>
 
     <script>
+      // js 代码
       // 展开式搜索框交互效果
-      document.addEventListener("DOMContentLoaded", function () {
-        const expandSearch = document.querySelector(".expand-search input");
-        const clearBtn = document.querySelector(".clear-btn");
-        const searchIcon = document.querySelector(".search-icon");
+      const expandSearch = document.querySelector(".expand-search input");
+      const clearBtn = document.querySelector(".clear-btn");
+      const searchIcon = document.querySelector(".search-icon");
 
-        if (expandSearch && clearBtn && searchIcon) {
-          // 更新清除按钮显示状态
-          function updateClearButton() {
-            if (expandSearch.value.trim() !== "") {
-              clearBtn.classList.add("show");
-              searchIcon.style.opacity = "0";
-              expandSearch.classList.add("has-content");
-              // 确保有内容时保持胶囊型
-              expandSearch.style.width = "100%";
-              expandSearch.style.borderRadius = "30px";
-            } else {
-              clearBtn.classList.remove("show");
-              searchIcon.style.opacity = "1";
-              expandSearch.classList.remove("has-content");
-            }
+      if (expandSearch && clearBtn && searchIcon) {
+        // 更新清除按钮显示状态
+        function updateClearButton() {
+          if (expandSearch.value.trim() !== "") {
+            clearBtn.classList.add("show");
+            searchIcon.style.opacity = "0";
+            expandSearch.classList.add("has-content");
+            // 确保有内容时保持胶囊型
+            expandSearch.style.width = "100%";
+            expandSearch.style.borderRadius = "30px";
+          } else {
+            clearBtn.classList.remove("show");
+            searchIcon.style.opacity = "1";
+            expandSearch.classList.remove("has-content");
           }
-
-          // 聚焦事件
-          expandSearch.addEventListener("focus", function () {
-            this.style.width = "100%";
-            this.style.borderRadius = "30px";
-          });
-
-          // 失焦事件
-          expandSearch.addEventListener("blur", function () {
-            // 只有当输入框为空时才收起
-            if (this.value.trim() === "") {
-              this.style.width = "60px";
-              this.style.borderRadius = "50%";
-            }
-            // 有内容时保持胶囊型，不需要额外处理
-          });
-
-          // 输入事件
-          expandSearch.addEventListener("input", function () {
-            updateClearButton();
-            if (this.value.length > 0) {
-              this.style.borderColor = "#667eea";
-            } else {
-              this.style.borderColor = "#667eea";
-            }
-          });
-
-          // 清除按钮点击事件
-          clearBtn.addEventListener("click", function () {
-            expandSearch.value = "";
-            expandSearch.focus();
-            updateClearButton();
-          });
-
-          // 添加键盘支持
-          expandSearch.addEventListener("keydown", function (e) {
-            if (e.key === "Escape") {
-              this.blur();
-            }
-          });
-
-          // 初始化
-          updateClearButton();
         }
-      });
+
+        // 聚焦事件
+        expandSearch.addEventListener("focus", function () {
+          this.style.width = "100%";
+          this.style.borderRadius = "30px";
+        });
+
+        // 失焦事件
+        expandSearch.addEventListener("blur", function () {
+          // 只有当输入框为空时才收起
+          if (this.value.trim() === "") {
+            this.style.width = "60px";
+            this.style.borderRadius = "50%";
+          }
+        });
+
+        // 输入事件
+        expandSearch.addEventListener("input", function () {
+          updateClearButton();
+          this.style.borderColor = "#667eea";
+        });
+
+        // 清除按钮点击事件
+        clearBtn.addEventListener("click", function () {
+          expandSearch.value = "";
+          expandSearch.focus();
+          updateClearButton();
+        });
+
+        // 添加键盘支持
+        expandSearch.addEventListener("keydown", function (e) {
+          if (e.key === "Escape") {
+            this.blur();
+          }
+        });
+
+        // 初始化
+        updateClearButton();
+      }
     </script>
   </body>
 </html>
