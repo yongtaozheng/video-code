@@ -1,0 +1,310 @@
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>3D 立方体轮播图（优化版）</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --carousel-width: 600px;
+        --carousel-height: 400px;
+        --translate-z: 300px;
+        --nav-button-size: 50px;
+        --bg-color: #1a1a1a;
+        --nav-color: rgba(255, 255, 255, 0.7);
+        --nav-hover-color: rgba(255, 255, 255, 1);
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Helvetica, Arial, sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        background-color: var(--bg-color);
+        overflow: hidden;
+        color: #fff;
+        text-align: center;
+      }
+
+      .main-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2rem;
+      }
+
+      h1 {
+        font-size: 2.5rem;
+        font-weight: 300;
+        letter-spacing: 2px;
+        color: var(--nav-color);
+      }
+
+      .carousel-wrapper {
+        position: relative;
+      }
+
+      .carousel-container {
+        width: var(--carousel-width);
+        height: var(--carousel-height);
+        perspective: 1500px;
+        position: relative;
+      }
+
+      .cube {
+        width: 100%;
+        height: 100%;
+        position: relative;
+        transform-style: preserve-3d;
+        transition: transform 1s cubic-bezier(0.77, 0, 0.175, 1);
+      }
+
+      .face {
+        position: absolute;
+        width: var(--carousel-width);
+        height: var(--carousel-height);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 3rem;
+        font-weight: bold;
+        color: white;
+        background-size: cover;
+        background-position: center;
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        border-radius: 10px;
+        backface-visibility: hidden;
+      }
+
+      .nav-button {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        width: var(--nav-button-size);
+        height: var(--nav-button-size);
+        background-color: rgba(26, 26, 26, 0.5);
+        border: 1px solid var(--nav-color);
+        border-radius: 50%;
+        color: var(--nav-color);
+        cursor: pointer;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 2rem;
+        transition: all 0.3s ease;
+        z-index: 10;
+      }
+
+      .nav-button:hover {
+        background-color: var(--bg-color);
+        color: var(--nav-hover-color);
+        border-color: var(--nav-hover-color);
+        transform: translateY(-50%) scale(1.1);
+      }
+
+      .prev-button {
+        left: -80px;
+      }
+
+      .next-button {
+        right: -80px;
+      }
+
+      .autoplay-control {
+        position: absolute;
+        bottom: -60px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 8px 16px;
+        background-color: rgba(26, 26, 26, 0.7);
+        border: 1px solid var(--nav-color);
+        border-radius: 20px;
+        color: var(--nav-color);
+        cursor: pointer;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+      }
+
+      .autoplay-control:hover {
+        background-color: var(--bg-color);
+        color: var(--nav-hover-color);
+        border-color: var(--nav-hover-color);
+      }
+
+      @media (max-width: 800px) {
+        :root {
+          --carousel-width: 80vw;
+          --carousel-height: 53.33vw;
+          --translate-z: 40vw;
+        }
+
+        .nav-button {
+          bottom: -80px;
+          top: auto;
+          transform: translateY(0);
+        }
+        .prev-button {
+          left: 30%;
+          transform: translateX(-50%);
+        }
+        .next-button {
+          right: 30%;
+          transform: translateX(50%);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="main-container">
+      <div class="carousel-wrapper">
+        <div class="carousel-container">
+          <div class="cube" id="cube"></div>
+        </div>
+
+        <button class="nav-button prev-button">
+          <i class="ri-arrow-left-s-line"></i>
+        </button>
+        <button class="nav-button next-button">
+          <i class="ri-arrow-right-s-line"></i>
+        </button>
+
+        <button class="autoplay-control" id="autoplayControl">
+          暂停自动轮播
+        </button>
+      </div>
+    </div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        // 图片配置（可添加任意数量）
+        const images = [
+          "http://5b0988e595225.cdn.sohucs.com/images/20180130/24aecf0d680546ccbf6480badce389dc.jpeg",
+          "https://pic3.zhimg.com/v2-f1159536dc58af663e3955e774a7a13a_r.jpg",
+          "http://qqpublic.qpic.cn/qq_public_cover/0/0-2083471255-1DB77954D274653D98B57D000A686040_vsmcut/0",
+          "http://p6.itc.cn/q_70/images03/20210106/6cd651a28f9a46268205410dcc5cad4d.jpeg",
+          "http://5b0988e595225.cdn.sohucs.com/images/20180824/781646fe72fc4788b7dfc24c112b5bbb.png",
+        ];
+
+        // DOM 元素
+        const cube = document.getElementById("cube");
+        const prevButton = document.querySelector(".prev-button");
+        const nextButton = document.querySelector(".next-button");
+        const autoplayControl = document.getElementById("autoplayControl");
+
+        // 状态变量（核心优化点）
+        let totalRotationY = 0; // 累积旋转角度，而非归零
+        let currentIndex = 0;
+        let autoplayInterval;
+        const isAutoplay = true;
+        const autoplayDelay = 3000;
+        const faceCount = 4; // 立方体固定4个面（前后左右）
+
+        // 初始化立方体表面
+        function initCubeFaces() {
+          cube.innerHTML = "";
+          const facePositions = ["front", "right", "back", "left"];
+
+          images.forEach((imgUrl, index) => {
+            const face = document.createElement("div");
+            const positionIndex = index % faceCount; // 循环使用4个面的位置
+            face.className = `face ${facePositions[positionIndex]}`;
+            face.style.backgroundImage = `url(${imgUrl})`;
+
+            // 初始角度计算（按4个面布局）
+            const rotateY = positionIndex * 90;
+            face.style.transform = `rotateY(${rotateY}deg) translateZ(var(--translate-z))`;
+
+            cube.appendChild(face);
+          });
+        }
+
+        // 更新旋转（核心优化：使用累积角度）
+        function updateCubeRotation() {
+          cube.style.transform = `rotateY(${totalRotationY}deg)`;
+          const imgIndex =
+            ((totalRotationY / 90) % images.length) + images.length;
+          const rotateIndex = (totalRotationY % 360) / 90;
+          const facePositions = ["front", "right", "back", "left"];
+          for (let i = 0; i < 4; i++) {
+            const face = cube.querySelector(
+              `.face.${facePositions[(i + rotateIndex) % 4]}`
+            );
+            face.style.backgroundImage = `url(${
+              images[(imgIndex + i) % images.length]
+            })`;
+          }
+        }
+
+        // 下一张（核心优化：每次旋转-90度，持续累积）
+        function nextImage() {
+          currentIndex = (currentIndex + 1) % images.length;
+          totalRotationY -= 90; // 只做减法，不做取模归零
+          updateCubeRotation();
+        }
+
+        // 上一张（核心优化：每次旋转+90度，持续累积）
+        function prevImage() {
+          currentIndex = (currentIndex - 1 + images.length) % images.length;
+          totalRotationY += 90; // 只做加法，不做取模归零
+          updateCubeRotation();
+        }
+
+        // 自动轮播控制
+        function startAutoplay() {
+          if (autoplayInterval) clearInterval(autoplayInterval);
+          autoplayInterval = setInterval(nextImage, autoplayDelay);
+          autoplayControl.textContent = "暂停自动轮播";
+        }
+
+        function stopAutoplay() {
+          clearInterval(autoplayInterval);
+          autoplayControl.textContent = "开启自动轮播";
+        }
+
+        // 事件监听
+        prevButton.addEventListener("click", () => {
+          prevImage();
+          if (isAutoplay) {
+            stopAutoplay();
+            startAutoplay();
+          }
+        });
+
+        nextButton.addEventListener("click", () => {
+          nextImage();
+          if (isAutoplay) {
+            stopAutoplay();
+            startAutoplay();
+          }
+        });
+
+        autoplayControl.addEventListener("click", () => {
+          const isPlaying = autoplayControl.textContent === "暂停自动轮播";
+          isPlaying ? stopAutoplay() : startAutoplay();
+        });
+
+        document.addEventListener("keydown", (e) => {
+          if (e.key === "ArrowRight") nextButton.click();
+          else if (e.key === "ArrowLeft") prevButton.click();
+        });
+
+        // 初始化
+        initCubeFaces();
+        if (isAutoplay) startAutoplay();
+      });
+    </script>
+  </body>
+</html>
