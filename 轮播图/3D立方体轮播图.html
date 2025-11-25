@@ -2,7 +2,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>3D 立方体轮播图（优化版）</title>
+    <title>3D 立方体轮播图</title>
     <link
       href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css"
       rel="stylesheet"
@@ -189,13 +189,15 @@
 
     <script>
       document.addEventListener("DOMContentLoaded", () => {
-        // 图片配置（可添加任意数量）
+        // 图片配置
         const images = [
           "http://5b0988e595225.cdn.sohucs.com/images/20180130/24aecf0d680546ccbf6480badce389dc.jpeg",
           "https://pic3.zhimg.com/v2-f1159536dc58af663e3955e774a7a13a_r.jpg",
           "http://qqpublic.qpic.cn/qq_public_cover/0/0-2083471255-1DB77954D274653D98B57D000A686040_vsmcut/0",
           "http://p6.itc.cn/q_70/images03/20210106/6cd651a28f9a46268205410dcc5cad4d.jpeg",
           "http://5b0988e595225.cdn.sohucs.com/images/20180824/781646fe72fc4788b7dfc24c112b5bbb.png",
+          "http://5b0988e595225.cdn.sohucs.com/images/20171122/c839ec116c7e4853ac9d34a7abf8b4cc.jpeg",
+          "https://pic3.zhimg.com/v2-d0590fa634c9aae77339e820e185b75b_1440w.jpg?source=172ae18b",
         ];
 
         // DOM 元素
@@ -204,11 +206,11 @@
         const nextButton = document.querySelector(".next-button");
         const autoplayControl = document.getElementById("autoplayControl");
 
-        // 状态变量（核心优化点）
-        let totalRotationY = 0; // 累积旋转角度，而非归零
+        // 状态变量
+        let totalRotationY = 0; // 累积旋转角度
         let currentIndex = 0;
         let autoplayInterval;
-        const isAutoplay = true;
+        let isAutoplay = true;
         const autoplayDelay = 3000;
         const faceCount = 4; // 立方体固定4个面（前后左右）
 
@@ -217,7 +219,7 @@
           cube.innerHTML = "";
           const facePositions = ["front", "right", "back", "left"];
 
-          images.forEach((imgUrl, index) => {
+          images.slice(0, 4).forEach((imgUrl, index) => {
             const face = document.createElement("div");
             const positionIndex = index % faceCount; // 循环使用4个面的位置
             face.className = `face ${facePositions[positionIndex]}`;
@@ -231,34 +233,37 @@
           });
         }
 
-        // 更新旋转（核心优化：使用累积角度）
+        // 更新旋转
         function updateCubeRotation() {
           cube.style.transform = `rotateY(${totalRotationY}deg)`;
           const imgIndex =
-            ((totalRotationY / 90) % images.length) + images.length;
-          const rotateIndex = (totalRotationY % 360) / 90;
+            (Math.abs((totalRotationY / 90) % images.length) + images.length) %
+            images.length;
+          const rotateIndex = Math.abs((totalRotationY % 360) / 90);
           const facePositions = ["front", "right", "back", "left"];
           for (let i = 0; i < 4; i++) {
+            let rotateIndexT = i + rotateIndex - 1;
+            if (rotateIndexT < 0) rotateIndexT += 4;
             const face = cube.querySelector(
-              `.face.${facePositions[(i + rotateIndex) % 4]}`
+              `.face.${facePositions[rotateIndexT % 4]}`
             );
-            face.style.backgroundImage = `url(${
-              images[(imgIndex + i) % images.length]
-            })`;
+            if (!face) continue;
+            let imgIndexT = (imgIndex + i - 1) % images.length;
+            if (imgIndexT < 0) imgIndexT += images.length;
+            face.style.backgroundImage = `url(${images[imgIndexT]})`;
           }
         }
 
-        // 下一张（核心优化：每次旋转-90度，持续累积）
         function nextImage() {
           currentIndex = (currentIndex + 1) % images.length;
-          totalRotationY -= 90; // 只做减法，不做取模归零
+          totalRotationY -= 90;
           updateCubeRotation();
         }
 
-        // 上一张（核心优化：每次旋转+90度，持续累积）
+        // 上一张
         function prevImage() {
           currentIndex = (currentIndex - 1 + images.length) % images.length;
-          totalRotationY += 90; // 只做加法，不做取模归零
+          totalRotationY += 90;
           updateCubeRotation();
         }
 
@@ -267,17 +272,19 @@
           if (autoplayInterval) clearInterval(autoplayInterval);
           autoplayInterval = setInterval(nextImage, autoplayDelay);
           autoplayControl.textContent = "暂停自动轮播";
+          isAutoplay = true;
         }
 
         function stopAutoplay() {
           clearInterval(autoplayInterval);
           autoplayControl.textContent = "开启自动轮播";
+          isAutoplay = false;
         }
 
         // 事件监听
         prevButton.addEventListener("click", () => {
           prevImage();
-          if (isAutoplay) {
+          if (isAutoplay && autoplayInterval) {
             stopAutoplay();
             startAutoplay();
           }
@@ -285,7 +292,7 @@
 
         nextButton.addEventListener("click", () => {
           nextImage();
-          if (isAutoplay) {
+          if (isAutoplay && autoplayInterval) {
             stopAutoplay();
             startAutoplay();
           }
@@ -301,9 +308,33 @@
           else if (e.key === "ArrowLeft") prevButton.click();
         });
 
+        const isAutoplayTemp = isAutoplay;
+        function handleVisibilityChange() {
+          if (document.hidden) {
+            if (isAutoplayTemp) stopAutoplay();
+            console.log(
+              "%c Line:315 🍰 isAutoplayTemp",
+              "color:#ea7e5c",
+              isAutoplayTemp
+            );
+          } else {
+            if (isAutoplayTemp) startAutoplay();
+            console.log(
+              "%c Line:318 🥤 isAutoplayTemp",
+              "color:#fca650",
+              isAutoplayTemp
+            );
+          }
+        }
+
         // 初始化
         initCubeFaces();
         if (isAutoplay) startAutoplay();
+        document.addEventListener(
+          "visibilitychange",
+          handleVisibilityChange,
+          false
+        );
       });
     </script>
   </body>
