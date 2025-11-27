@@ -3,10 +3,6 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>3D 立方体轮播图</title>
-    <link
-      href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css"
-      rel="stylesheet"
-    />
     <style>
       :root {
         --carousel-width: 600px;
@@ -106,6 +102,32 @@
         font-size: 2rem;
         transition: all 0.3s ease;
         z-index: 10;
+        padding: 0;
+        /* 清除默认按钮样式 */
+        appearance: none;
+        -webkit-appearance: none;
+      }
+
+      /* 纯 CSS 左箭头 */
+      .prev-button::before {
+        content: "";
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border-top: 3px solid currentColor;
+        border-left: 3px solid currentColor;
+        transform: rotate(-45deg);
+      }
+
+      /* 纯 CSS 右箭头 */
+      .next-button::before {
+        content: "";
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border-top: 3px solid currentColor;
+        border-right: 3px solid currentColor;
+        transform: rotate(45deg);
       }
 
       .nav-button:hover {
@@ -136,6 +158,9 @@
         cursor: pointer;
         font-size: 1rem;
         transition: all 0.3s ease;
+        /* 清除默认按钮样式 */
+        appearance: none;
+        -webkit-appearance: none;
       }
 
       .autoplay-control:hover {
@@ -174,12 +199,9 @@
           <div class="cube" id="cube"></div>
         </div>
 
-        <button class="nav-button prev-button">
-          <i class="ri-arrow-left-s-line"></i>
-        </button>
-        <button class="nav-button next-button">
-          <i class="ri-arrow-right-s-line"></i>
-        </button>
+        <!-- 移除 remixicon 图标，使用 CSS 箭头 -->
+        <button class="nav-button prev-button"></button>
+        <button class="nav-button next-button"></button>
 
         <button class="autoplay-control" id="autoplayControl">
           暂停自动轮播
@@ -268,17 +290,17 @@
         }
 
         // 自动轮播控制
-        function startAutoplay() {
+        function startAutoplay(isSetIsAutoplay = true) {
           if (autoplayInterval) clearInterval(autoplayInterval);
           autoplayInterval = setInterval(nextImage, autoplayDelay);
           autoplayControl.textContent = "暂停自动轮播";
-          isAutoplay = true;
+          if (isSetIsAutoplay) isAutoplay = true;
         }
 
-        function stopAutoplay() {
+        function stopAutoplay(isSetIsAutoplay = true) {
           clearInterval(autoplayInterval);
           autoplayControl.textContent = "开启自动轮播";
-          isAutoplay = false;
+          if (isSetIsAutoplay) isAutoplay = false;
         }
 
         // 事件监听
@@ -308,22 +330,11 @@
           else if (e.key === "ArrowLeft") prevButton.click();
         });
 
-        const isAutoplayTemp = isAutoplay;
         function handleVisibilityChange() {
           if (document.hidden) {
-            if (isAutoplayTemp) stopAutoplay();
-            console.log(
-              "%c Line:315 🍰 isAutoplayTemp",
-              "color:#ea7e5c",
-              isAutoplayTemp
-            );
+            if (isAutoplay) stopAutoplay(false);
           } else {
-            if (isAutoplayTemp) startAutoplay();
-            console.log(
-              "%c Line:318 🥤 isAutoplayTemp",
-              "color:#fca650",
-              isAutoplayTemp
-            );
+            if (isAutoplay) startAutoplay(false);
           }
         }
 
