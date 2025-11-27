@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="zh">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>赛博·故障特效轮播图</title>
+    <style>
+      /* 样式部分保持不变 */
+      body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        background-color: #1a1a1a;
+        margin: 0;
+        font-family: sans-serif;
+        flex-direction: column;
+        padding: 20px;
+      }
+
+      h1 {
+        color: #e0e0e0;
+        margin-bottom: 20px;
+        text-shadow: 0 0 5px rgba(255, 0, 255, 0.5),
+          0 0 10px rgba(0, 255, 255, 0.5);
+        font-size: 2rem;
+        text-align: center;
+      }
+
+      .glitch-container {
+        width: 100%;
+        max-width: 600px;
+        height: 400px;
+        position: relative;
+        background-color: #000;
+        box-shadow: 0 0 20px rgba(0, 255, 255, 0.3),
+          0 0 30px rgba(255, 0, 255, 0.3);
+        border: 1px solid rgba(204, 204, 204, 0.2);
+        overflow: hidden;
+        border-radius: 4px;
+      }
+
+      canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      .controls button {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 10;
+
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        background-color: rgba(0, 0, 0, 0.4);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        cursor: pointer;
+
+        opacity: 0;
+        transition: all 0.3s ease;
+      }
+
+      .glitch-container:hover .controls button {
+        opacity: 1;
+      }
+
+      .controls button:hover {
+        background-color: rgba(0, 0, 0, 0.7);
+        border-color: rgba(255, 255, 255, 0.8);
+        transform: translateY(-50%) scale(1.05);
+      }
+
+      .controls .prev {
+        left: 20px;
+      }
+
+      .controls .next {
+        right: 20px;
+      }
+
+      .controls button::after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+      }
+
+      .controls .prev::after {
+        border-top: 8px solid transparent;
+        border-bottom: 8px solid transparent;
+        border-right: 10px solid #fff;
+        transform: translate(-50%, -50%) translateX(-2px);
+      }
+
+      .controls .next::after {
+        border-top: 8px solid transparent;
+        border-bottom: 8px solid transparent;
+        border-left: 10px solid #fff;
+        transform: translate(-50%, -50%) translateX(2px);
+      }
+
+      .autoplay-control {
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 10;
+        padding: 8px 16px;
+        background-color: rgba(0, 0, 0, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        color: #fff;
+        border-radius: 20px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+        opacity: 0.8;
+      }
+
+      .autoplay-control:hover {
+        background-color: rgba(0, 0, 0, 0.8);
+        border-color: rgba(255, 255, 255, 0.8);
+        opacity: 1;
+      }
+
+      .loading {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 1rem;
+        z-index: 5;
+      }
+
+      @media (max-width: 600px) {
+        .glitch-container {
+          height: 300px;
+        }
+        h1 {
+          font-size: 1.5rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="glitch-container">
+      <div class="loading">加载中...</div>
+      <canvas id="glitchCanvas"></canvas>
+
+      <div class="controls">
+        <button id="prevBtn" class="prev" disabled></button>
+        <button id="nextBtn" class="next" disabled></button>
+      </div>
+
+      <button class="autoplay-control" id="autoplayControl">
+        暂停自动轮播
+      </button>
+    </div>
+
+    <script>
+      const images = [
+        "http://5b0988e595225.cdn.sohucs.com/images/20180130/24aecf0d680546ccbf6480badce389dc.jpeg",
+        "https://pic3.zhimg.com/v2-f1159536dc58af663e3955e774a7a13a_r.jpg",
+        "http://qqpublic.qpic.cn/qq_public_cover/0/0-2083471255-1DB77954D274653D98B57D000A686040_vsmcut/0",
+        "http://p6.itc.cn/q_70/images03/20210106/6cd651a28f9a46268205410dcc5cad4d.jpeg",
+        "http://5b0988e595225.cdn.sohucs.com/images/20180824/781646fe72fc4788b7dfc24c112b5bbb.png",
+        "http://5b0988e595225.cdn.sohucs.com/images/20171122/c839ec116c7e4853ac9d34a7abf8b4cc.jpeg",
+        "https://pic3.zhimg.com/v2-d0590fa634c9aae77339e820e185b75b_1440w.jpg?source=172ae18b",
+      ];
+
+      const config = {
+        autoplayDelay: 3000,
+        transitionDuration: 800,
+        isAutoplay: true,
+      };
+
+      const canvas = document.getElementById("glitchCanvas");
+      const ctx = canvas.getContext("2d");
+      const container = document.querySelector(".glitch-container");
+      const prevBtn = document.getElementById("prevBtn");
+      const nextBtn = document.getElementById("nextBtn");
+      const autoplayControl = document.getElementById("autoplayControl");
+      const loadingIndicator = document.querySelector(".loading");
+
+      let currentIndex = 0;
+      let isAnimating = false;
+      let autoplayInterval = null;
+      const loadedImages = [];
+
+      function getRandomInt(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+      }
+
+      function preloadImages() {
+        let loadedCount = 0;
+        let errorCount = 0;
+
+        images.forEach((src, index) => {
+          const img = new Image();
+          img.crossOrigin = "Anonymous";
+          img.src = src;
+
+          img.onload = () => {
+            loadedCount++;
+            loadedImages[index] = img;
+            checkAllLoaded();
+          };
+
+          img.onerror = () => {
+            errorCount++;
+            const fallbackImg = new Image();
+            fallbackImg.src = `data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzAwMCIvPjx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjciIGZvbnQtZmFtaWx5PSJBcmlhbCIgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMCwgNTApIj7nlLXopoHvvIg8L3RleHQ+PC9zdmc+`;
+            loadedImages[index] = fallbackImg;
+            checkAllLoaded();
+          };
+        });
+
+        function checkAllLoaded() {
+          if (loadedCount + errorCount === images.length) {
+            loadingIndicator.style.display = "none";
+            init();
+          }
+        }
+      }
+
+      function init() {
+        canvas.width = container.offsetWidth;
+        canvas.height = container.offsetHeight;
+
+        if (loadedImages[currentIndex]) {
+          ctx.drawImage(
+            loadedImages[currentIndex],
+            0,
+            0,
+            canvas.width,
+            canvas.height
+          );
+        }
+
+        prevBtn.disabled = false;
+        nextBtn.disabled = false;
+
+        if (config.isAutoplay) {
+          startAutoplay();
+        } else {
+          autoplayControl.textContent = "开启自动轮播";
+        }
+
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+      }
+
+      function startGlitchTransition(fromImage, toImage) {
+        let startTime = Date.now();
+
+        function glitchLoop() {
+          const elapsedTime = Date.now() - startTime;
+          const progress = elapsedTime / config.transitionDuration;
+
+          if (progress >= 1) {
+            ctx.drawImage(toImage, 0, 0, canvas.width, canvas.height);
+            isAnimating = false;
+            prevBtn.disabled = false;
+            nextBtn.disabled = false;
+            return;
+          }
+
+          const baseImage =
+            progress > 0.5 && Math.random() > 0.5 ? toImage : fromImage;
+          ctx.drawImage(baseImage, 0, 0, canvas.width, canvas.height);
+
+          if (Math.random() > 0.6) {
+            const imageData = ctx.getImageData(
+              0,
+              0,
+              canvas.width,
+              canvas.height
+            );
+            const intensity = Math.sin(progress * Math.PI);
+
+            if (Math.random() > 0.7) {
+              applyRGBSplit(imageData, intensity * 20);
+              ctx.putImageData(imageData, 0, 0);
+            }
+
+            if (Math.random() > 0.5) {
+              applySlicing(canvas, intensity * 50);
+            }
+
+            if (Math.random() > 0.8) {
+              applyBlockScramble(canvas, 10);
+            }
+          }
+
+          applyScanLines(canvas);
+
+          requestAnimationFrame(glitchLoop);
+        }
+
+        glitchLoop();
+      }
+
+      function applyRGBSplit(imageData, offset) {
+        const data = imageData.data;
+        for (let i = 0; i < data.length; i += 4) {
+          const r_offset = getRandomInt(-offset, offset) * 4;
+          const b_offset = getRandomInt(-offset, offset) * 4;
+
+          const rIndex = Math.max(0, Math.min(data.length - 4, i + r_offset));
+          const bIndex = Math.max(0, Math.min(data.length - 4, i + b_offset));
+
+          data[i] = data[rIndex] || data[i];
+          data[i + 2] = data[bIndex + 2] || data[i + 2];
+        }
+      }
+
+      function applySlicing(canvas, maxOffset) {
+        const sliceCount = 10;
+        for (let i = 0; i < sliceCount; i++) {
+          const startY = getRandomInt(0, canvas.height);
+          const sliceHeight = getRandomInt(5, 20);
+          const offsetX = getRandomInt(-maxOffset, maxOffset);
+
+          ctx.save();
+          ctx.drawImage(
+            canvas,
+            0,
+            startY,
+            canvas.width,
+            sliceHeight,
+            offsetX,
+            startY,
+            canvas.width,
+            sliceHeight
+          );
+          ctx.restore();
+        }
+      }
+
+      function applyBlockScramble(canvas, count) {
+        for (let i = 0; i < count; i++) {
+          const sx = getRandomInt(0, canvas.width - 50);
+          const sy = getRandomInt(0, canvas.height - 50);
+          const sw = getRandomInt(20, 50);
+          const sh = getRandomInt(5, 20);
+          const dx = getRandomInt(0, canvas.width - 50);
+          const dy = getRandomInt(0, canvas.height - 50);
+
+          ctx.save();
+          ctx.drawImage(canvas, sx, sy, sw, sh, dx, dy, sw, sh);
+          ctx.restore();
+        }
+      }
+
+      function applyScanLines(canvas) {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
+        for (let i = 0; i < canvas.height; i += 3) {
+          ctx.fillRect(0, i, canvas.width, 1);
+        }
+      }
+
+      function goToSlide(newIndex) {
+        if (isAnimating || currentIndex === newIndex) return;
+
+        isAnimating = true;
+        prevBtn.disabled = true;
+        nextBtn.disabled = true;
+
+        const currentImage = loadedImages[currentIndex];
+        const nextImage = loadedImages[newIndex];
+
+        currentIndex = newIndex;
+
+        startGlitchTransition(currentImage, nextImage);
+
+        if (config.isAutoplay) {
+          resetAutoplay();
+        }
+      }
+
+      function startAutoplay() {
+        if (autoplayInterval) clearInterval(autoplayInterval);
+        autoplayInterval = setInterval(() => {
+          if (!isAnimating && document.visibilityState === "visible") {
+            goToSlide((currentIndex + 1) % images.length);
+          }
+        }, config.autoplayDelay);
+        autoplayControl.textContent = "暂停自动轮播";
+        config.isAutoplay = true;
+      }
+
+      function stopAutoplay() {
+        clearInterval(autoplayInterval);
+        autoplayInterval = null;
+        autoplayControl.textContent = "开启自动轮播";
+        config.isAutoplay = false;
+      }
+
+      function resetAutoplay() {
+        if (config.isAutoplay) {
+          stopAutoplay();
+          startAutoplay();
+        }
+      }
+
+      function handleVisibilityChange() {
+        if (document.hidden) {
+          if (config.isAutoplay && autoplayInterval) {
+            clearInterval(autoplayInterval);
+          }
+        } else {
+          if (config.isAutoplay) {
+            startAutoplay();
+          }
+        }
+      }
+
+      function bindEvents() {
+        nextBtn.addEventListener("click", () =>
+          goToSlide((currentIndex + 1) % images.length)
+        );
+
+        prevBtn.addEventListener("click", () =>
+          goToSlide((currentIndex - 1 + images.length) % images.length)
+        );
+
+        autoplayControl.addEventListener("click", () => {
+          if (config.isAutoplay) {
+            stopAutoplay();
+          } else {
+            startAutoplay();
+          }
+        });
+
+        document.addEventListener("keydown", (e) => {
+          if (e.key === "ArrowRight") {
+            nextBtn.click();
+          } else if (e.key === "ArrowLeft") {
+            prevBtn.click();
+          }
+        });
+
+        window.addEventListener("resize", () => {
+          if (!isAnimating) {
+            init();
+          }
+        });
+
+        // 添加鼠标悬停暂停轮播的事件监听
+        container.addEventListener("mouseenter", () => {
+          if (config.isAutoplay) {
+            clearInterval(autoplayInterval); // 暂停自动轮播
+          }
+        });
+
+        container.addEventListener("mouseleave", () => {
+          if (config.isAutoplay) {
+            startAutoplay(); // 恢复自动轮播
+          }
+        });
+      }
+
+      bindEvents();
+      preloadImages();
+    </script>
+  </body>
+</html>
