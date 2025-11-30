@@ -4,6 +4,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>3D 立方体轮播图</title>
     <style>
+      /*css样式*/
       :root {
         --carousel-width: 600px;
         --carousel-height: 400px;
@@ -23,8 +24,6 @@
       }
 
       body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-          Helvetica, Arial, sans-serif;
         display: flex;
         justify-content: center;
         align-items: center;
@@ -40,13 +39,6 @@
         flex-direction: column;
         align-items: center;
         gap: 2rem;
-      }
-
-      h1 {
-        font-size: 2.5rem;
-        font-weight: 300;
-        letter-spacing: 2px;
-        color: var(--nav-color);
       }
 
       .carousel-wrapper {
@@ -103,12 +95,10 @@
         transition: all 0.3s ease;
         z-index: 10;
         padding: 0;
-        /* 清除默认按钮样式 */
         appearance: none;
         -webkit-appearance: none;
       }
 
-      /* 纯 CSS 左箭头 */
       .prev-button::before {
         content: "";
         display: inline-block;
@@ -119,7 +109,6 @@
         transform: rotate(-45deg);
       }
 
-      /* 纯 CSS 右箭头 */
       .next-button::before {
         content: "";
         display: inline-block;
@@ -158,7 +147,6 @@
         cursor: pointer;
         font-size: 1rem;
         transition: all 0.3s ease;
-        /* 清除默认按钮样式 */
         appearance: none;
         -webkit-appearance: none;
       }
@@ -199,7 +187,6 @@
           <div class="cube" id="cube"></div>
         </div>
 
-        <!-- 移除 remixicon 图标，使用 CSS 箭头 -->
         <button class="nav-button prev-button"></button>
         <button class="nav-button next-button"></button>
 
@@ -210,6 +197,7 @@
     </div>
 
     <script>
+      //js逻辑
       document.addEventListener("DOMContentLoaded", () => {
         // 图片配置
         const images = [
