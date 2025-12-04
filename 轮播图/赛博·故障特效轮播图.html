@@ -149,6 +149,7 @@
     </style>
   </head>
   <body>
+    <h1>赛博·故障特效轮播图</h1>
     <div class="glitch-container">
       <div class="loading">加载中...</div>
       <canvas id="glitchCanvas"></canvas>
@@ -164,22 +165,63 @@
     </div>
 
     <script>
-      const images = [
-        "http://5b0988e595225.cdn.sohucs.com/images/20180130/24aecf0d680546ccbf6480badce389dc.jpeg",
-        "https://pic3.zhimg.com/v2-f1159536dc58af663e3955e774a7a13a_r.jpg",
-        "http://qqpublic.qpic.cn/qq_public_cover/0/0-2083471255-1DB77954D274653D98B57D000A686040_vsmcut/0",
-        "http://p6.itc.cn/q_70/images03/20210106/6cd651a28f9a46268205410dcc5cad4d.jpeg",
-        "http://5b0988e595225.cdn.sohucs.com/images/20180824/781646fe72fc4788b7dfc24c112b5bbb.png",
-        "http://5b0988e595225.cdn.sohucs.com/images/20171122/c839ec116c7e4853ac9d34a7abf8b4cc.jpeg",
-        "https://pic3.zhimg.com/v2-d0590fa634c9aae77339e820e185b75b_1440w.jpg?source=172ae18b",
-      ];
-
-      const config = {
-        autoplayDelay: 3000,
-        transitionDuration: 800,
-        isAutoplay: true,
+      // ===================== 统一配置管理 =====================
+      const glitchConfig = {
+        // 轮播基础配置
+        carousel: {
+          autoplayDelay: 3000, // 自动轮播间隔(ms)
+          transitionDuration: 800, // 故障切换动画时长(ms)
+          isAutoplay: true, // 是否默认开启自动轮播
+        },
+        // RGB分离特效配置
+        rgbSplit: {
+          offsetBase: 20, // RGB通道最大偏移量基数
+          triggerProbability: 0.7, // 触发概率(0-1，值越大越难触发)
+        },
+        // 切片偏移特效配置
+        slicing: {
+          count: 10, // 切片数量
+          minHeight: 5, // 切片最小高度(px)
+          maxHeight: 20, // 切片最大高度(px)
+          offsetBase: 50, // 切片最大水平偏移基数
+          triggerProbability: 0.5, // 触发概率(0-1，值越大越难触发)
+        },
+        // 区块打乱特效配置
+        blockScramble: {
+          count: 10, // 打乱区块数量
+          minWidth: 20, // 区块最小宽度(px)
+          maxWidth: 50, // 区块最大宽度(px)
+          minHeight: 5, // 区块最小高度(px)
+          maxHeight: 20, // 区块最大高度(px)
+          triggerProbability: 0.8, // 触发概率(0-1，值越大越难触发)
+        },
+        // 扫描线特效配置
+        scanLine: {
+          spacing: 3, // 扫描线间距(px)
+          opacity: 0.1, // 扫描线透明度(0-1)
+        },
+        // 图片列表
+        images: [
+          "http://5b0988e595225.cdn.sohucs.com/images/20180130/24aecf0d680546ccbf6480badce389dc.jpeg",
+          "https://pic3.zhimg.com/v2-f1159536dc58af663e3955e774a7a13a_r.jpg",
+          "http://qqpublic.qpic.cn/qq_public_cover/0/0-2083471255-1DB77954D274653D98B57D000A686040_vsmcut/0",
+          "http://p6.itc.cn/q_70/images03/20210106/6cd651a28f9a46268205410dcc5cad4d.jpeg",
+          "http://5b0988e595225.cdn.sohucs.com/images/20180824/781646fe72fc4788b7dfc24c112b5bbb.png",
+          "http://5b0988e595225.cdn.sohucs.com/images/20171122/c839ec116c7e4853ac9d34a7abf8b4cc.jpeg",
+          "https://pic3.zhimg.com/v2-d0590fa634c9aae77339e820e185b75b_1440w.jpg?source=172ae18b",
+        ],
+        // 兜底图片(Base64)
+        fallbackImage: `data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzAwMCIvPjx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjciIGZvbnQtZmFtaWx5PSJBcmlhbCIgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMCwgNTApIj7nlLXopoHvvIg8L3RleHQ+PC9zdmc+`,
       };
 
+      glitchConfig.rgbSplit.offsetBase = 12; // 降低RGB分离强度
+      glitchConfig.slicing.offsetBase = 30; // 降低切片偏移强度
+      glitchConfig.blockScramble.count = 6; // 减少打乱区块数量
+      glitchConfig.scanLine.opacity = 0.08; // 降低扫描线透明度
+      glitchConfig.rgbSplit.triggerProbability = 0.8; // 减少RGB分离触发频率
+      glitchConfig.carousel.transitionDuration = 1000; // 延长动画时长，更平缓
+
+      // ===================== 全局变量 =====================
       const canvas = document.getElementById("glitchCanvas");
       const ctx = canvas.getContext("2d");
       const container = document.querySelector(".glitch-container");
@@ -193,15 +235,17 @@
       let autoplayInterval = null;
       const loadedImages = [];
 
+      // ===================== 工具函数 =====================
       function getRandomInt(min, max) {
         return Math.floor(Math.random() * (max - min + 1)) + min;
       }
 
+      // ===================== 图片预加载 =====================
       function preloadImages() {
         let loadedCount = 0;
         let errorCount = 0;
 
-        images.forEach((src, index) => {
+        glitchConfig.images.forEach((src, index) => {
           const img = new Image();
           img.crossOrigin = "Anonymous";
           img.src = src;
@@ -215,20 +259,21 @@
           img.onerror = () => {
             errorCount++;
             const fallbackImg = new Image();
-            fallbackImg.src = `data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzAwMCIvPjx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjciIGZvbnQtZmFtaWx5PSJBcmlhbCIgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMCwgNTApIj7nlLXopoHvvIg8L3RleHQ+PC9zdmc+`;
+            fallbackImg.src = glitchConfig.fallbackImage;
             loadedImages[index] = fallbackImg;
             checkAllLoaded();
           };
         });
 
         function checkAllLoaded() {
-          if (loadedCount + errorCount === images.length) {
+          if (loadedCount + errorCount === glitchConfig.images.length) {
             loadingIndicator.style.display = "none";
             init();
           }
         }
       }
 
+      // ===================== 初始化 =====================
       function init() {
         canvas.width = container.offsetWidth;
         canvas.height = container.offsetHeight;
@@ -246,7 +291,7 @@
         prevBtn.disabled = false;
         nextBtn.disabled = false;
 
-        if (config.isAutoplay) {
+        if (glitchConfig.carousel.isAutoplay) {
           startAutoplay();
         } else {
           autoplayControl.textContent = "开启自动轮播";
@@ -255,58 +300,16 @@
         document.addEventListener("visibilitychange", handleVisibilityChange);
       }
 
-      function startGlitchTransition(fromImage, toImage) {
-        let startTime = Date.now();
-
-        function glitchLoop() {
-          const elapsedTime = Date.now() - startTime;
-          const progress = elapsedTime / config.transitionDuration;
-
-          if (progress >= 1) {
-            ctx.drawImage(toImage, 0, 0, canvas.width, canvas.height);
-            isAnimating = false;
-            prevBtn.disabled = false;
-            nextBtn.disabled = false;
-            return;
-          }
-
-          const baseImage =
-            progress > 0.5 && Math.random() > 0.5 ? toImage : fromImage;
-          ctx.drawImage(baseImage, 0, 0, canvas.width, canvas.height);
-
-          if (Math.random() > 0.6) {
-            const imageData = ctx.getImageData(
-              0,
-              0,
-              canvas.width,
-              canvas.height
-            );
-            const intensity = Math.sin(progress * Math.PI);
-
-            if (Math.random() > 0.7) {
-              applyRGBSplit(imageData, intensity * 20);
-              ctx.putImageData(imageData, 0, 0);
-            }
-
-            if (Math.random() > 0.5) {
-              applySlicing(canvas, intensity * 50);
-            }
-
-            if (Math.random() > 0.8) {
-              applyBlockScramble(canvas, 10);
-            }
-          }
-
-          applyScanLines(canvas);
-
-          requestAnimationFrame(glitchLoop);
-        }
-
-        glitchLoop();
-      }
-
-      function applyRGBSplit(imageData, offset) {
+      // ===================== 故障特效函数 =====================
+      /**
+       * RGB色彩分离特效
+       * @param {ImageData} imageData - 画布像素数据
+       * @param {number} intensity - 特效强度
+       */
+      function applyRGBSplit(imageData, intensity) {
         const data = imageData.data;
+        const offset = intensity * glitchConfig.rgbSplit.offsetBase;
+
         for (let i = 0; i < data.length; i += 4) {
           const r_offset = getRandomInt(-offset, offset) * 4;
           const b_offset = getRandomInt(-offset, offset) * 4;
@@ -319,11 +322,21 @@
         }
       }
 
-      function applySlicing(canvas, maxOffset) {
-        const sliceCount = 10;
+      /**
+       * 切片偏移特效
+       * @param {HTMLCanvasElement} canvas - 画布元素
+       * @param {number} intensity - 特效强度
+       */
+      function applySlicing(canvas, intensity) {
+        const sliceCount = glitchConfig.slicing.count;
+        const maxOffset = intensity * glitchConfig.slicing.offsetBase;
+
         for (let i = 0; i < sliceCount; i++) {
           const startY = getRandomInt(0, canvas.height);
-          const sliceHeight = getRandomInt(5, 20);
+          const sliceHeight = getRandomInt(
+            glitchConfig.slicing.minHeight,
+            glitchConfig.slicing.maxHeight
+          );
           const offsetX = getRandomInt(-maxOffset, maxOffset);
 
           ctx.save();
@@ -342,12 +355,24 @@
         }
       }
 
-      function applyBlockScramble(canvas, count) {
+      /**
+       * 区块打乱特效
+       * @param {HTMLCanvasElement} canvas - 画布元素
+       */
+      function applyBlockScramble(canvas) {
+        const count = glitchConfig.blockScramble.count;
+
         for (let i = 0; i < count; i++) {
           const sx = getRandomInt(0, canvas.width - 50);
           const sy = getRandomInt(0, canvas.height - 50);
-          const sw = getRandomInt(20, 50);
-          const sh = getRandomInt(5, 20);
+          const sw = getRandomInt(
+            glitchConfig.blockScramble.minWidth,
+            glitchConfig.blockScramble.maxWidth
+          );
+          const sh = getRandomInt(
+            glitchConfig.blockScramble.minHeight,
+            glitchConfig.blockScramble.maxHeight
+          );
           const dx = getRandomInt(0, canvas.width - 50);
           const dy = getRandomInt(0, canvas.height - 50);
 
@@ -357,13 +382,69 @@
         }
       }
 
+      /**
+       * 扫描线特效
+       * @param {HTMLCanvasElement} canvas - 画布元素
+       */
       function applyScanLines(canvas) {
-        ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
-        for (let i = 0; i < canvas.height; i += 3) {
+        ctx.fillStyle = `rgba(0, 0, 0, ${glitchConfig.scanLine.opacity})`;
+        for (let i = 0; i < canvas.height; i += glitchConfig.scanLine.spacing) {
           ctx.fillRect(0, i, canvas.width, 1);
         }
       }
 
+      // ===================== 切换动画 =====================
+      function startGlitchTransition(fromImage, toImage) {
+        let startTime = Date.now();
+
+        function glitchLoop() {
+          const elapsedTime = Date.now() - startTime;
+          const progress =
+            elapsedTime / glitchConfig.carousel.transitionDuration;
+
+          if (progress >= 1) {
+            ctx.drawImage(toImage, 0, 0, canvas.width, canvas.height);
+            isAnimating = false;
+            prevBtn.disabled = false;
+            nextBtn.disabled = false;
+            return;
+          }
+
+          const baseImage =
+            progress > 0.5 && Math.random() > 0.5 ? toImage : fromImage;
+          ctx.drawImage(baseImage, 0, 0, canvas.width, canvas.height);
+
+          if (Math.random() > glitchConfig.rgbSplit.triggerProbability) {
+            const imageData = ctx.getImageData(
+              0,
+              0,
+              canvas.width,
+              canvas.height
+            );
+            const intensity = Math.sin(progress * Math.PI);
+
+            applyRGBSplit(imageData, intensity);
+            ctx.putImageData(imageData, 0, 0);
+          }
+
+          if (Math.random() > glitchConfig.slicing.triggerProbability) {
+            const intensity = Math.sin(progress * Math.PI);
+            applySlicing(canvas, intensity);
+          }
+
+          if (Math.random() > glitchConfig.blockScramble.triggerProbability) {
+            applyBlockScramble(canvas);
+          }
+
+          applyScanLines(canvas);
+
+          requestAnimationFrame(glitchLoop);
+        }
+
+        glitchLoop();
+      }
+
+      // ===================== 轮播控制 =====================
       function goToSlide(newIndex) {
         if (isAnimating || currentIndex === newIndex) return;
 
@@ -378,31 +459,33 @@
 
         startGlitchTransition(currentImage, nextImage);
 
-        if (config.isAutoplay) {
+        if (glitchConfig.carousel.isAutoplay) {
           resetAutoplay();
         }
       }
 
       function startAutoplay() {
         if (autoplayInterval) clearInterval(autoplayInterval);
+
         autoplayInterval = setInterval(() => {
           if (!isAnimating && document.visibilityState === "visible") {
-            goToSlide((currentIndex + 1) % images.length);
+            goToSlide((currentIndex + 1) % glitchConfig.images.length);
           }
-        }, config.autoplayDelay);
+        }, glitchConfig.carousel.autoplayDelay);
+
         autoplayControl.textContent = "暂停自动轮播";
-        config.isAutoplay = true;
+        glitchConfig.carousel.isAutoplay = true;
       }
 
       function stopAutoplay() {
         clearInterval(autoplayInterval);
         autoplayInterval = null;
         autoplayControl.textContent = "开启自动轮播";
-        config.isAutoplay = false;
+        glitchConfig.carousel.isAutoplay = false;
       }
 
       function resetAutoplay() {
-        if (config.isAutoplay) {
+        if (glitchConfig.carousel.isAutoplay) {
           stopAutoplay();
           startAutoplay();
         }
@@ -410,33 +493,40 @@
 
       function handleVisibilityChange() {
         if (document.hidden) {
-          if (config.isAutoplay && autoplayInterval) {
+          if (glitchConfig.carousel.isAutoplay && autoplayInterval) {
             clearInterval(autoplayInterval);
           }
         } else {
-          if (config.isAutoplay) {
+          if (glitchConfig.carousel.isAutoplay) {
             startAutoplay();
           }
         }
       }
 
+      // ===================== 事件绑定 =====================
       function bindEvents() {
+        // 下一张/上一张按钮
         nextBtn.addEventListener("click", () =>
-          goToSlide((currentIndex + 1) % images.length)
+          goToSlide((currentIndex + 1) % glitchConfig.images.length)
         );
 
         prevBtn.addEventListener("click", () =>
-          goToSlide((currentIndex - 1 + images.length) % images.length)
+          goToSlide(
+            (currentIndex - 1 + glitchConfig.images.length) %
+              glitchConfig.images.length
+          )
         );
 
+        // 自动轮播控制
         autoplayControl.addEventListener("click", () => {
-          if (config.isAutoplay) {
+          if (glitchConfig.carousel.isAutoplay) {
             stopAutoplay();
           } else {
             startAutoplay();
           }
         });
 
+        // 键盘方向键控制
         document.addEventListener("keydown", (e) => {
           if (e.key === "ArrowRight") {
             nextBtn.click();
@@ -445,26 +535,28 @@
           }
         });
 
+        // 窗口大小调整
         window.addEventListener("resize", () => {
           if (!isAnimating) {
             init();
           }
         });
 
-        // 添加鼠标悬停暂停轮播的事件监听
+        // 鼠标悬停暂停/恢复轮播
         container.addEventListener("mouseenter", () => {
-          if (config.isAutoplay) {
-            clearInterval(autoplayInterval); // 暂停自动轮播
+          if (glitchConfig.carousel.isAutoplay) {
+            clearInterval(autoplayInterval);
           }
         });
 
         container.addEventListener("mouseleave", () => {
-          if (config.isAutoplay) {
-            startAutoplay(); // 恢复自动轮播
+          if (glitchConfig.carousel.isAutoplay) {
+            startAutoplay();
           }
         });
       }
 
+      // ===================== 初始化执行 =====================
       bindEvents();
       preloadImages();
     </script>
