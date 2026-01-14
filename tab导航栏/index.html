@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tab 导航栏</title>
+    <style>
+      /*css样式*/
+      :root {
+        --tab-bg-inactive: #d4e4ff;
+        --tab-bg-active: #c6d6ef;
+        --tab-bg-border: #eaf2ff;
+        --tab-color-inactive: #899dbd;
+        --tab-color-active: #325da7;
+        --tab-border-color: rgba(50, 93, 167, 0.6);
+        --tab-border-color-dark: rgba(50, 93, 167, 0.8);
+        --tab-border-color-light: rgba(50, 93, 167, 0.4);
+        --tab-container-bg: #d4e4ff;
+        --tab-skew-width: 40px;
+        --tab-skew-angle: 20deg;
+        --tab-border-radius: 8px;
+        --tab-height: 60px;
+        --tab-border-width: 1px;
+        --tab-border-offset: 12px;
+        --border-soft-blue: rgba(173, 216, 255, 0.5);
+        --border-soft-white: rgba(255, 255, 255, 0.6);
+        --border-soft-light: rgba(230, 245, 255, 0.4);
+      }
+
+      body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+      }
+
+      .tab-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 1000px;
+        height: var(--tab-height);
+        background-color: var(--tab-container-bg);
+        border-top-left-radius: var(--tab-border-radius);
+        border-top-right-radius: var(--tab-border-radius);
+        padding: 0 4px;
+        overflow: hidden;
+      }
+
+      .tab-item {
+        flex: 1;
+        text-align: center;
+        background: var(--tab-bg-inactive);
+        height: 100%;
+        line-height: calc(var(--tab-height) - 4px);
+        color: var(--tab-color-inactive);
+        position: relative;
+        border-radius: var(--tab-border-radius) var(--tab-border-radius) 0 0;
+        margin-right: -20px;
+        z-index: 1;
+        cursor: pointer;
+        box-sizing: border-box;
+        border-top: 4px solid transparent;
+      }
+
+      .tab-item:not(:last-child) {
+        border-right: var(--tab-skew-width) solid transparent;
+      }
+
+      .tab-item:last-child {
+        margin-right: 0;
+        z-index: 1;
+      }
+
+      .tab-item.active {
+        z-index: 3;
+        background: var(--tab-bg-active);
+        color: var(--tab-color-active);
+        border-top: 4px solid var(--tab-bg-inactive);
+      }
+
+      .tab-item.active:not(:last-child) {
+        border-right: var(--tab-skew-width) solid var(--tab-bg-inactive);
+      }
+
+      .tab-item:not(:last-child)::after {
+        content: "";
+        position: absolute;
+        right: 0;
+        top: 0;
+        width: var(--tab-skew-width);
+        height: 100%;
+        background: var(--tab-bg-inactive);
+        transform: skewX(var(--tab-skew-angle));
+        transform-origin: top;
+        z-index: 2;
+      }
+
+      .tab-item.active:not(:last-child)::after {
+        background: var(--tab-bg-active);
+        border-top-right-radius: var(--tab-border-radius);
+      }
+
+      .tab-item.active:not(:first-child)::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: var(--tab-skew-width);
+        height: 100%;
+        background: var(--tab-bg-active);
+        transform: skewX(calc(-1 * var(--tab-skew-angle)));
+        transform-origin: top;
+        z-index: 2;
+      }
+
+      .tab-item:not(:last-child):not(.active):not(.hide-border)::after {
+        background: #ebf3ff;
+        border-top-left-radius: var(--tab-border-radius);
+        width: 2px;
+        right: var(--tab-border-offset);
+        box-shadow: 5px 1px 6px 5px rgb(191 214 252),
+          inset 0px 0px 3px 0px rgb(187 209 252),
+          6px 0 15px -1px rgb(185 209 252), 8px 0 20px -2px rgb(185 210 252),
+          10px 0px 30px 2px rgb(188 212 252);
+        opacity: 0.9;
+        filter: blur(0.5px);
+      }
+
+      .tab-item.hide-border::after {
+        display: none !important;
+      }
+
+      .tab-item.show-right-border:not(.show-left-border)::after {
+        display: block !important;
+        background: linear-gradient(
+          135deg,
+          var(--border-soft-white) 0%,
+          var(--border-soft-blue) 50%,
+          var(--border-soft-light) 100%
+        );
+        border-top-left-radius: var(--tab-border-radius);
+        width: 2px;
+        right: var(--tab-border-offset);
+        box-shadow: 5px 1px 6px 5px rgb(191 214 252),
+          inset 0px 0px 3px 0px rgb(187 209 252),
+          6px 0 15px -1px rgb(185 209 252), 8px 0 20px -2px rgb(185 210 252),
+          10px 0px 30px 2px rgb(188 212 252);
+        opacity: 0.9;
+        filter: blur(0.5px);
+      }
+
+      .tab-item.show-left-border::after {
+        display: none !important;
+      }
+
+      .tab-item.show-left-border::before {
+        content: "" !important;
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 2px;
+        height: 100%;
+        background: #ebf3ff;
+        transform: skewX(calc(-1 * var(--tab-skew-angle)));
+        transform-origin: top;
+        z-index: 2;
+        box-shadow: -5px 1px 6px 5px rgb(191 214 252),
+          inset 0px 0px 3px 0px rgb(187 209 252),
+          -6px 0 15px -1px rgb(185 209 252), -8px 0 20px -2px rgb(185 210 252),
+          -10px 0px 30px 2px rgb(188 212 252);
+        opacity: 0.9;
+        filter: blur(0.5px);
+      }
+
+      .tab-item-text {
+        font-size: 16px;
+        font-weight: bold;
+        position: relative;
+        z-index: 2;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="tab-container">
+      <div class="tab-item active">
+        <span class="tab-item-text">Tab 1</span>
+      </div>
+      <div class="tab-item">
+        <span class="tab-item-text">Tab 2</span>
+      </div>
+      <div class="tab-item">
+        <span class="tab-item-text">Tab 3</span>
+      </div>
+      <div class="tab-item">
+        <span class="tab-item-text">Tab 4</span>
+      </div>
+    </div>
+    <script>
+      // js代码
+      const BORDER_CLASSES = {
+        RIGHT: "show-right-border",
+        LEFT: "show-left-border",
+        HIDE: "hide-border",
+      };
+
+      const tabItems = document.querySelectorAll(".tab-item");
+
+      const BORDER_RULES = {
+        0: {
+          borders: [
+            { index: 1, type: "right" },
+            { index: 2, type: "right" },
+          ],
+        },
+        1: {
+          borders: [{ index: 2, type: "right" }],
+        },
+        2: {
+          borders: [{ index: 1, type: "left" }],
+        },
+        3: {
+          borders: [
+            { index: 1, type: "left" },
+            { index: 2, type: "left" },
+          ],
+        },
+      };
+
+      function removeAllBorders() {
+        tabItems.forEach((item) => {
+          item.classList.remove(
+            BORDER_CLASSES.RIGHT,
+            BORDER_CLASSES.LEFT,
+            BORDER_CLASSES.HIDE
+          );
+        });
+      }
+
+      function updateBorders(activeIndex) {
+        removeAllBorders();
+
+        const rule = BORDER_RULES[activeIndex];
+        if (!rule) return;
+
+        const borderIndexes = new Set(rule.borders.map(({ index }) => index));
+
+        rule.borders.forEach(({ index, type }) => {
+          const tabItem = tabItems[index];
+          if (!tabItem) return;
+
+          const oppositeType = type === "left" ? "right" : "left";
+          tabItem.classList.remove(`show-${oppositeType}-border`);
+
+          tabItem.classList.add(`show-${type}-border`);
+        });
+
+        tabItems.forEach((tabItem, index) => {
+          const isLastTab = index === tabItems.length - 1;
+          const isActiveTab = index === activeIndex;
+          const hasBorder = borderIndexes.has(index);
+
+          if (!isLastTab && !isActiveTab && !hasBorder) {
+            tabItem.classList.add(BORDER_CLASSES.HIDE);
+          }
+        });
+      }
+
+      function switchTab(index) {
+        tabItems.forEach((item) => {
+          item.classList.remove("active");
+        });
+        tabItems[index].classList.add("active");
+        updateBorders(index);
+      }
+
+      tabItems.forEach((tabItem, index) => {
+        tabItem.addEventListener("click", () => switchTab(index));
+      });
+
+      updateBorders(0);
+    </script>
+  </body>
+</html>
