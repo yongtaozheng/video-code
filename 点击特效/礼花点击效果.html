@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>点击礼花绽放效果</title>
+    <style>
+      /*css样式*/
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        min-height: 100vh;
+        background-color: #0a0a14;
+        overflow: hidden;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        color: #ffffff;
+        font-family: "Courier New", monospace;
+      }
+
+      /* 礼花粒子样式 */
+      .firework-particle {
+        position: absolute;
+        border-radius: 50%;
+        pointer-events: none;
+        opacity: 1;
+        transition: opacity 0.2s ease-out;
+        /* 粒子拖尾核心：通过box-shadow实现，初始无拖尾，运动中动态更新 */
+        box-shadow: 0 0 0 transparent;
+      }
+
+      /* 拖尾容器（单独的拖尾元素，更自然） */
+      .particle-trail {
+        position: absolute;
+        pointer-events: none;
+        background: linear-gradient(to right, currentColor, transparent);
+        border-radius: 50%;
+        opacity: 0.8;
+        transition: opacity 0.2s ease-out, width 0.1s ease-out;
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+      //js逻辑
+      // 全局配置参数
+      const FIREWORK_CONFIG = {
+        particleCount: 50, // 每发礼花的粒子数量
+        particleMinSize: 2, // 粒子最小尺寸
+        particleMaxSize: 6, // 粒子最大尺寸
+        particleMaxSpeed: 2, // 粒子最大扩散速度
+        fireworkDuration: 500, // 礼花总持续时间（毫秒）
+        trailLength: 8, // 拖尾长度（px）
+        trailWidth: 2, // 拖尾宽度（px）
+        fireworkColors: [
+          "#ff0043",
+          "#ff9d00",
+          "#fff300",
+          "#00ff66",
+          "#00d9ff",
+          "#9d00ff",
+          "#ff00c8",
+          "#ffffff",
+        ],
+      };
+
+      // 生成随机数工具函数
+      function getRandom(min, max) {
+        return Math.random() * (max - min) + min;
+      }
+
+      // 生成随机颜色
+      function getRandomColor() {
+        const { fireworkColors } = FIREWORK_CONFIG;
+        return fireworkColors[Math.floor(getRandom(0, fireworkColors.length))];
+      }
+
+      // 创建粒子拖尾
+      function createParticleTrail(particle, color, angle) {
+        const { trailLength, trailWidth } = FIREWORK_CONFIG;
+        const trail = document.createElement("div");
+        trail.className = "particle-trail";
+
+        // 设置拖尾样式
+        trail.style.width = `${trailLength}px`;
+        trail.style.height = `${trailWidth}px`;
+        trail.style.backgroundColor = color;
+        trail.style.opacity = 0.6;
+        trail.style.transform = `rotate(${(angle * 180) / Math.PI}deg)`;
+
+        // 初始位置与粒子重合
+        trail.style.left = particle.style.left;
+        trail.style.top = particle.style.top;
+
+        document.body.appendChild(trail);
+        return trail;
+      }
+
+      // 创建礼花粒子（带拖尾）
+      function createFireworkParticles(clickX, clickY) {
+        const {
+          particleCount,
+          particleMinSize,
+          particleMaxSize,
+          particleMaxSpeed,
+          fireworkDuration,
+        } = FIREWORK_CONFIG;
+
+        for (let i = 0; i < particleCount; i++) {
+          // 创建粒子元素
+          const particle = document.createElement("div");
+          const size = getRandom(particleMinSize, particleMaxSize);
+          const color = getRandomColor();
+
+          // 粒子基础样式
+          particle.className = "firework-particle";
+          particle.style.width = `${size}px`;
+          particle.style.height = `${size}px`;
+          particle.style.backgroundColor = color;
+          particle.style.left = `${clickX - size / 2}px`;
+          particle.style.top = `${clickY - size / 2}px`;
+
+          document.body.appendChild(particle);
+
+          // 计算粒子运动参数
+          const angle = getRandom(0, Math.PI * 2); // 扩散角度
+          const speed = getRandom(1, particleMaxSpeed); // 扩散速度
+          const vx = Math.cos(angle) * speed;
+          const vy = Math.sin(angle) * speed;
+
+          // 创建粒子拖尾
+          const trail = createParticleTrail(particle, color, angle);
+
+          // 粒子运动动画（含拖尾同步更新）
+          let startTime = Date.now();
+          const animateParticle = () => {
+            const elapsedTime = Date.now() - startTime;
+            const progress = elapsedTime / fireworkDuration;
+
+            if (progress > 1) {
+              // 动画结束，隐藏粒子和拖尾
+              particle.style.opacity = 0;
+              trail.style.opacity = 0;
+
+              // 移除DOM元素
+              setTimeout(() => {
+                if (document.body.contains(particle)) particle.remove();
+                if (document.body.contains(trail)) trail.remove();
+              }, 200);
+              return;
+            }
+
+            // 计算粒子新位置
+            const currentX = clickX - size / 2 + (vx * elapsedTime) / 15;
+            const currentY = clickY - size / 2 + (vy * elapsedTime) / 15;
+
+            // 更新粒子位置
+            particle.style.left = `${currentX}px`;
+            particle.style.top = `${currentY}px`;
+
+            // 更新拖尾位置和样式（随粒子运动，拖尾逐渐变细、变短）
+            trail.style.left = `${currentX}px`;
+            trail.style.top = `${currentY}px`;
+            trail.style.width = `${
+              FIREWORK_CONFIG.trailLength * (1 - progress)
+            }px`;
+            trail.style.opacity = 0.6 * (1 - progress);
+
+            // 继续下一帧动画
+            requestAnimationFrame(animateParticle);
+          };
+
+          // 启动动画
+          requestAnimationFrame(animateParticle);
+        }
+      }
+
+      // 触发礼花
+      function launchFirework(e) {
+        const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+        const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+        createFireworkParticles(clientX, clientY);
+      }
+
+      // 绑定事件
+      document.addEventListener("click", launchFirework);
+      document.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        launchFirework(e);
+      });
+    </script>
+  </body>
+</html>
