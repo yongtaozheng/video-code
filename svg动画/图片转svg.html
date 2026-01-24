@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>图片转真实 SVG (带加载提示)</title>
+
+    <!-- 
+  最终功能:
+  1. 新增：生成过程中显示加载动画，并禁用相关按钮。
+  2. JS改造：移除SVG的width/height，替换为viewBox，实现完美缩放。
+  3. CSS配合：强制SVG撑满容器，与原图视觉大小完全一致。
+-->
+    <script src="imagetracer.js" defer></script>
+
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        padding: 20px;
+        background-color: #f0f2f5;
+        margin: 0;
+      }
+      .main-layout {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 20px;
+      }
+      .container {
+        border: 1px solid #ccc;
+        padding: 20px;
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        display: flex;
+        flex-direction: column;
+      }
+      h2 {
+        margin-top: 0;
+        color: #333;
+      }
+      .header-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+      }
+      .action-btn {
+        background-color: #007bff;
+        color: white;
+        border: none;
+        padding: 8px 15px;
+        border-radius: 5px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: background-color 0.2s ease, color 0.2s ease;
+      }
+      .action-btn:hover:not(:disabled) {
+        background-color: #0056b3;
+      }
+      .action-btn:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+      }
+      #generate-btn {
+        background-color: #28a745;
+      }
+      #generate-btn:hover:not(:disabled) {
+        background-color: #218838;
+      }
+      .controls {
+        display: grid;
+        grid-template-columns: 100px 1fr 50px;
+        gap: 10px 15px;
+        align-items: center;
+        margin-bottom: 15px;
+      }
+      .controls label {
+        font-weight: bold;
+      }
+
+      .display-box {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-grow: 1;
+        min-height: 200px;
+        border: 2px dashed #ddd;
+        border-radius: 8px;
+        padding: 10px;
+        box-sizing: border-box;
+        overflow: hidden;
+      }
+      #source-image,
+      .display-box > svg {
+        display: block;
+        width: 100%;
+        height: auto;
+        max-height: 60vh;
+        object-fit: contain;
+      }
+      .placeholder-text {
+        color: #888;
+        text-align: center;
+      }
+
+      /* --- 新增：加载动画样式 --- */
+      .loader {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #3498db;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 20px auto 0;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="main-layout">
+      <div class="container">
+        <div class="header-actions">
+          <h2>原始图片</h2>
+          <label for="upload-input" class="action-btn">上传图片</label>
+          <input
+            type="file"
+            id="upload-input"
+            accept="image/*"
+            style="display: none"
+          />
+        </div>
+        <div class="display-box">
+          <p id="image-placeholder" class="placeholder-text">
+            请点击右上角按钮上传图片
+          </p>
+          <img id="source-image" style="display: none" alt="Uploaded Image" />
+        </div>
+      </div>
+
+      <div class="container">
+        <div class="header-actions">
+          <h2>生成的 SVG</h2>
+          <button id="download-btn" class="action-btn" disabled>
+            下载 SVG
+          </button>
+        </div>
+        <div id="svg-output-box" class="display-box">
+          <p id="svg-placeholder" class="placeholder-text">等待上传图片...</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="container">
+      <h2>参数调整</h2>
+      <div class="controls">
+        <label for="colors-slider">颜色数量:</label>
+        <input type="range" id="colors-slider" min="2" max="128" value="64" />
+        <span id="colors-value">64</span>
+        <label for="ltres-slider">线条阈值:</label>
+        <input
+          type="range"
+          id="ltres-slider"
+          min="0.1"
+          max="10"
+          step="0.1"
+          value="0.1"
+        />
+        <span id="ltres-value">0.1</span>
+        <label for="qtres-slider">曲线阈值:</label>
+        <input
+          type="range"
+          id="qtres-slider"
+          min="0.1"
+          max="10"
+          step="0.1"
+          value="0.1"
+        />
+        <span id="qtres-value">0.1</span>
+      </div>
+      <button
+        id="generate-btn"
+        class="action-btn"
+        style="align-self: flex-start"
+        disabled
+      >
+        重新生成
+      </button>
+    </div>
+
+    <script>
+      function initializeApp() {
+        if (typeof ImageTracer === "undefined") {
+          setTimeout(initializeApp, 100);
+          return;
+        }
+
+        const uploadInput = document.getElementById("upload-input");
+        const imagePlaceholder = document.getElementById("image-placeholder");
+        const svgPlaceholder = document.getElementById("svg-placeholder");
+        const imageEl = document.getElementById("source-image");
+        const svgOutputBox = document.getElementById("svg-output-box");
+        const downloadBtn = document.getElementById("download-btn");
+        const generateBtn = document.getElementById("generate-btn");
+        const controls = {
+          colors: {
+            slider: document.getElementById("colors-slider"),
+            valueEl: document.getElementById("colors-value"),
+          },
+          ltres: {
+            slider: document.getElementById("ltres-slider"),
+            valueEl: document.getElementById("ltres-value"),
+          },
+          qtres: {
+            slider: document.getElementById("qtres-slider"),
+            valueEl: document.getElementById("qtres-value"),
+          },
+        };
+        let currentSvgString = "";
+
+        function handleFileUpload(event) {
+          const file = event.target.files[0];
+          if (!file || !file.type.startsWith("image/")) {
+            return;
+          }
+
+          const reader = new FileReader();
+          reader.onload = function (e) {
+            imageEl.src = e.target.result;
+            imagePlaceholder.style.display = "none";
+            imageEl.style.display = "block";
+
+            imageEl.onload = function () {
+              generateTracing();
+            };
+          };
+          reader.readAsDataURL(file);
+        }
+
+        function generateTracing() {
+          // --- 核心改动 1：设置“加载中”状态 ---
+          svgPlaceholder.style.display = "none";
+          svgOutputBox.innerHTML = `<div><p class="placeholder-text">正在生成中...</p><div class="loader"></div></div>`;
+          generateBtn.disabled = true;
+          downloadBtn.disabled = true;
+
+          // 使用setTimeout让UI有机会先渲染加载动画
+          setTimeout(() => {
+            try {
+              const canvas = document.createElement("canvas");
+              canvas.width = imageEl.naturalWidth;
+              canvas.height = imageEl.naturalHeight;
+
+              const ctx = canvas.getContext("2d");
+              ctx.drawImage(imageEl, 0, 0);
+              const imageData = ctx.getImageData(
+                0,
+                0,
+                canvas.width,
+                canvas.height
+              );
+
+              const options = {
+                numberofcolors: parseInt(controls.colors.slider.value, 10),
+                ltres: parseFloat(controls.ltres.slider.value),
+                qtres: parseFloat(controls.qtres.slider.value),
+                pathomit: 1,
+                mincolorratio: 0,
+                blurradius: 0,
+              };
+
+              controls.colors.valueEl.textContent = options.numberofcolors;
+              controls.ltres.valueEl.textContent = options.ltres.toFixed(1);
+              controls.qtres.valueEl.textContent = options.qtres.toFixed(1);
+
+              const tracedata = ImageTracer.imagedataToTracedata(
+                imageData,
+                options
+              );
+              const svgstr = ImageTracer.getsvgstring(tracedata, options);
+
+              currentSvgString = `<svg viewBox="0 0 ${tracedata.width} ${tracedata.height}" xmlns="http://www.w3.org/2000/svg" version="1.1">${svgstr}</svg>`;
+              svgOutputBox.innerHTML = currentSvgString;
+            } catch (e) {
+              console.error("生成SVG时发生错误:", e);
+              svgOutputBox.innerHTML = `<p class="placeholder-text" style="color:red;">生成失败！错误：${e.message}</p>`;
+              currentSvgString = "";
+            } finally {
+              // --- 核心改动 2：恢复最终状态 ---
+              generateBtn.disabled = false;
+              if (currentSvgString) {
+                downloadBtn.disabled = false;
+              }
+            }
+          }, 50);
+        }
+
+        function downloadSVG() {
+          if (!currentSvgString) {
+            return;
+          }
+          const blob = new Blob([currentSvgString], {
+            type: "image/svg+xml;charset=utf-8",
+          });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `traced-image-${Date.now()}.svg`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }
+
+        uploadInput.addEventListener("change", handleFileUpload);
+        generateBtn.addEventListener("click", generateTracing);
+        downloadBtn.addEventListener("click", downloadSVG);
+
+        for (let key in controls) {
+          controls[key].slider.addEventListener("input", () => {
+            controls[key].valueEl.textContent = parseFloat(
+              controls[key].slider.value
+            ).toFixed(key === "colors" ? 0 : 1);
+          });
+        }
+      }
+
+      initializeApp();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>图片转 SVG 像素马赛克 (优化版)</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+        display: flex;
+        flex-direction: column; /* 改为flex纵向布局 */
+        gap: 20px;
+        padding: 20px;
+        background-color: #f4f4f9;
+        margin: 0;
+      }
+      .top-section {
+        display: grid;
+        grid-template-columns: repeat(
+          auto-fit,
+          minmax(300px, 1fr)
+        ); /* 响应式布局 */
+        gap: 20px;
+      }
+      .container {
+        border: 1px solid #ccc;
+        padding: 15px;
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        display: flex;
+        flex-direction: column;
+      }
+      h2 {
+        margin-top: 0;
+        color: #333;
+      }
+      img,
+      #svg-output {
+        max-width: 100%;
+        height: auto;
+        display: block;
+        border: 1px dashed #ddd;
+        margin-top: auto; /* 让图片在容器内底部对齐，更整洁 */
+      }
+      .controls {
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+      }
+      label {
+        font-weight: bold;
+      }
+      input[type="range"] {
+        flex-grow: 1;
+      }
+
+      /* --- 新增和优化的样式 --- */
+      .code-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+      }
+      #download-btn {
+        background-color: #007bff;
+        color: white;
+        border: none;
+        padding: 8px 15px;
+        border-radius: 5px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+      }
+      #download-btn:hover {
+        background-color: #0056b3;
+      }
+      #svg-code-container {
+        width: 100%; /* 确保代码容器占满可用宽度 */
+        box-sizing: border-box;
+      }
+      #svg-code {
+        white-space: pre-wrap; /* 自动换行 */
+        word-break: break-all; /* 强制断词，避免超长字符串撑开容器 */
+        background-color: #2d2d2d;
+        color: #9cdcfe;
+        padding: 15px;
+        border-radius: 5px;
+        max-height: 400px;
+        overflow-y: auto;
+        font-size: 14px;
+        line-height: 1.5;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="top-section">
+      <div class="container">
+        <h2>原始图片</h2>
+        <img
+          id="source-image"
+          src="https://picsum.photos/400/300"
+          crossorigin="anonymous"
+          alt="随机图片"
+        />
+      </div>
+
+      <div class="container">
+        <h2>生成的 SVG</h2>
+        <div class="controls">
+          <label for="size-slider">像素尺寸:</label>
+          <input type="range" id="size-slider" min="2" max="50" value="10" />
+          <span id="size-value">10px</span>
+        </div>
+        <div id="svg-output"></div>
+      </div>
+    </div>
+
+    <div id="svg-code-container" class="container">
+      <div class="code-header">
+        <h2>生成的 SVG 源代码</h2>
+        <button id="download-btn">下载 SVG</button>
+      </div>
+      <pre><code id="svg-code">加载中...</code></pre>
+    </div>
+
+    <script>
+      const imageEl = document.getElementById("source-image");
+      const slider = document.getElementById("size-slider");
+      const sizeValueEl = document.getElementById("size-value");
+      const svgOutputEl = document.getElementById("svg-output");
+      const svgCodeEl = document.getElementById("svg-code");
+      const downloadBtn = document.getElementById("download-btn");
+
+      // 用于存储当前生成的SVG字符串，方便下载函数调用
+      let currentSvgString = "";
+
+      /**
+       * 核心函数：将图片转为SVG马赛克
+       * @param {HTMLImageElement} img - 已加载的图片元素
+       * @param {number} sampleSize - 采样的像素块大小
+       */
+      function imageToSvgMosaic(img, sampleSize) {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        ctx.drawImage(img, 0, 0);
+
+        const imageData = ctx.getImageData(
+          0,
+          0,
+          canvas.width,
+          canvas.height
+        ).data;
+        let svgElements = "";
+
+        for (let y = 0; y < canvas.height; y += sampleSize) {
+          for (let x = 0; x < canvas.width; x += sampleSize) {
+            let r = 0,
+              g = 0,
+              b = 0;
+            let pixelCount = 0;
+
+            for (let blockY = 0; blockY < sampleSize; blockY++) {
+              for (let blockX = 0; blockX < sampleSize; blockX++) {
+                const currentX = x + blockX;
+                const currentY = y + blockY;
+                if (currentX < canvas.width && currentY < canvas.height) {
+                  const pixelIndex = (currentY * canvas.width + currentX) * 4;
+                  r += imageData[pixelIndex];
+                  g += imageData[pixelIndex + 1];
+                  b += imageData[pixelIndex + 2];
+                  pixelCount++;
+                }
+              }
+            }
+
+            if (pixelCount === 0) continue; // 避免除以0
+
+            const avgR = Math.round(r / pixelCount);
+            const avgG = Math.round(g / pixelCount);
+            const avgB = Math.round(b / pixelCount);
+            const fillColor = `rgb(${avgR},${avgG},${avgB})`;
+
+            svgElements += `<rect x="${x}" y="${y}" width="${sampleSize}" height="${sampleSize}" fill="${fillColor}" />\n`;
+          }
+        }
+
+        const finalSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${canvas.width}" height="${canvas.height}">\n${svgElements}</svg>`;
+
+        // 更新全局变量和页面显示
+        currentSvgString = finalSvg;
+        svgOutputEl.innerHTML = finalSvg;
+        svgCodeEl.textContent = finalSvg;
+      }
+
+      /**
+       * 新增：下载SVG文件的函数
+       */
+      function downloadSVG() {
+        if (!currentSvgString) {
+          alert("还没有生成SVG，请稍等！");
+          return;
+        }
+        // 1. 创建一个 Blob 对象
+        const blob = new Blob([currentSvgString], {
+          type: "image/svg+xml;charset=utf-8",
+        });
+
+        // 2. 创建一个临时的URL指向这个Blob
+        const url = URL.createObjectURL(blob);
+
+        // 3. 创建一个隐藏的<a>标签并设置属性
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `pixel-mosaic-${Date.now()}.svg`; // 添加时间戳以保证文件名唯一
+
+        // 4. 触发点击下载
+        document.body.appendChild(a);
+        a.click();
+
+        // 5. 清理：移除<a>标签和临时的URL
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+
+      function generate() {
+        const sampleSize = parseInt(slider.value, 10);
+        sizeValueEl.textContent = `${sampleSize}px`;
+        imageToSvgMosaic(imageEl, sampleSize);
+      }
+
+      // --- 事件监听 ---
+      imageEl.onload = generate;
+      if (imageEl.complete) {
+        imageEl.onload();
+      }
+      slider.addEventListener("input", generate);
+      downloadBtn.addEventListener("click", downloadSVG); // 为下载按钮绑定事件
+    </script>
+  </body>
+</html>
