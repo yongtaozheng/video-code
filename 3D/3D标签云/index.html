@@ -6,6 +6,100 @@
     <title>3D 标签云</title>
     <style>
       /*css样式*/
+      :root {
+        --tag-bg-color: #2c3e50;
+        --tag-text-color: #ecf0f1;
+        --tag-hover-bg-color: #3498db;
+        --tag-hover-text-color: #ffffff;
+        --bg-color: #1a1a1a;
+      }
+      body {
+        background-color: var(--bg-color);
+        color: var(--tag-text-color);
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        overflow: hidden;
+        text-align: center;
+      }
+      .tagcloud-wrapper {
+        position: relative;
+        width: 80vmin;
+        height: 80vmin;
+        perspective: 1000px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        cursor: grab;
+      }
+      .tagcloud {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        transform-style: preserve-3d;
+        will-change: transform;
+      }
+      .tagcloud__item {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        margin: -20px -50px;
+        font-size: 2.5vmin;
+        font-weight: 500;
+        white-space: nowrap;
+        cursor: pointer;
+        user-select: none;
+        will-change: transform;
+        transform-style: preserve-3d;
+      }
+      .tagcloud__item .tag-face {
+        display: inline-block;
+        background-color: var(--tag-bg-color);
+        color: var(--tag-text-color);
+        padding: 8px 16px;
+        border-radius: 20px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        transition: background-color 0.3s ease, color 0.3s ease,
+          transform 0.3s ease;
+        backface-visibility: hidden;
+        -webkit-backface-visibility: hidden;
+        transform-style: preserve-3d;
+        transform: translateZ(1px);
+      }
+      .tagcloud__item .tag-face--back {
+        position: absolute;
+        top: 0;
+        left: 0;
+        transform: rotateY(180deg) translateZ(1px);
+      }
+      .tagcloud__item:hover .tag-face {
+        background-color: var(--tag-hover-bg-color);
+        color: var(--tag-hover-text-color);
+      }
+      .tagcloud__item:hover .tag-face--front {
+        transform: translateZ(1px) scale(1.15);
+      }
+      .tagcloud__item:hover .tag-face--back {
+        transform: rotateY(180deg) translateZ(1px) scale(1.15);
+      }
+      .info-panel {
+        position: absolute;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.3);
+        padding: 10px 15px;
+        border-radius: 8px;
+        font-size: 14px;
+        text-align: center;
+        z-index: 100;
+      }
+      .info-panel p {
+        margin: 0;
+      }
     </style>
   </head>
   <body>
