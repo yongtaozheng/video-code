@@ -1,10 +1,10 @@
-<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>3D 标签球</title>
     <style>
+      /*css样式*/
       :root {
         --tag-bg-color: #2c3e50;
         --tag-text-color: #ecf0f1;
@@ -21,18 +21,19 @@
         color: var(--tag-text-color);
         margin: 0;
         padding: 0;
+        min-height: 100vh;
         display: flex;
         justify-content: center;
         align-items: center;
-        height: 100vh;
         overflow: hidden;
         text-align: center;
       }
 
       .tagcloud-wrapper {
         position: relative;
-        width: 80vmin;
-        height: 80vmin;
+        width: 80vh;
+        height: 80vh;
+        max-width: 100vw;
         perspective: 1000px;
         display: flex;
         justify-content: center;
@@ -53,33 +54,41 @@
         top: 50%;
         left: 50%;
         margin: 0;
-        font-size: 2.5vmin;
+        font-size: 1.85vmin;
         font-weight: 500;
         white-space: nowrap;
         user-select: none;
         will-change: transform;
         transform-style: preserve-3d;
+        transition: opacity 0.2s ease, z-index 0s;
+      }
+
+      .tagcloud__item.tagcloud__item--back {
+        opacity: 0.4;
+        pointer-events: none;
       }
 
       .tagcloud__item span {
-        display: block;
+        display: inline-block;
         transform: translate(-50%, -50%);
-        padding: 8px 16px;
-        background-color: var(--tag-bg-color);
+        padding: 5px 12px;
         color: var(--tag-text-color);
+        background: rgba(44, 62, 80, 0.75);
         border-radius: 20px;
         box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-        transition:
-          background-color 0.3s ease,
-          color 0.3s ease,
-          transform 0.3s ease;
-        backface-visibility: hidden;
+        transition: background-color 0.3s ease, color 0.3s ease, transform 0.3s ease;
+        backface-visibility: visible;
+      }
+
+      .tagcloud__item:hover {
+        opacity: 1 !important;
+        z-index: 100;
       }
 
       .tagcloud__item:hover span {
-        background-color: var(--tag-hover-bg-color);
+        transform: translate(-50%, -50%) scale(1.15);
         color: var(--tag-hover-text-color);
-        transform: translate(-50%, -50%) scale(1.1);
+        background: var(--tag-hover-bg-color);
       }
 
       .info-panel {
@@ -94,9 +103,11 @@
         text-align: center;
         z-index: 100;
       }
+
       .info-panel p {
         margin: 0;
       }
+
     </style>
   </head>
   <body>
@@ -105,105 +116,53 @@
     </div>
 
     <script>
+      // js 代码
       const tagCloud = document.querySelector(".tagcloud");
       const wrapper = document.querySelector(".tagcloud-wrapper");
 
       const tagsData = [
-        "HTML5",
-        "CSS3",
-        "JavaScript",
-        "React",
-        "Vue.js",
-        "Angular",
-        "Node.js",
-        "Express",
-        "Python",
-        "Django",
-        "Flask",
-        "SQL",
-        "MongoDB",
-        "Git",
-        "Docker",
-        "Kubernetes",
-        "AWS",
-        "Azure",
-        "GCP",
-        "CI/CD",
-        "Jest",
-        "Cypress",
-        "Webpack",
-        "Vite",
-        "SASS",
-        "TypeScript",
-        "GraphQL",
-        "REST API",
-        "Figma",
-        "UI/UX",
-        "Tailwind CSS",
-        "Bootstrap",
-        "Material UI",
-        "Ant Design",
-        "Chakra UI",
-        "Redux",
-        "React Router",
-        "React Hook Form",
-        "React Native",
-        "Expo",
-        "Firebase",
-        "Supabase",
-        "PostgreSQL",
-        "MySQL",
-        "SQLite",
-        "Redis",
-        "Elasticsearch",
-        "Kibana",
-        "Logstash",
-        "Kubernetes",
-        "Docker",
-        "Git",
-        "GitHub",
-        "GitLab",
-        "Bitbucket",
-        "Jira",
-        "Trello",
-        "Asana",
-        "Notion",
-        "Microsoft 365",
-        "Figma",
-        "Sketch",
-        "Photoshop",
-        "Illustrator",
-        "InDesign",
-        "Premiere Pro",
-        "After Effects",
-        "Lightroom",
-        "Audition",
+        "HTML5", "CSS3", "JavaScript", "React", "Vue.js", "Angular", "Node.js", "Express",
+        "Python", "Django", "Flask", "SQL", "MongoDB", "Git", "Docker", "Kubernetes", "AWS",
+        "Azure", "GCP", "CI/CD", "Jest", "Cypress", "Webpack", "Vite", "SASS", "TypeScript",
+        "GraphQL", "REST API", "Figma", "UI/UX", "Tailwind CSS", "Bootstrap", "Material UI",
+        "Ant Design", "Chakra UI", "Redux", "React Router", "React Hook Form", "React Native",
+        "Expo", "Firebase", "Supabase", "PostgreSQL", "MySQL", "SQLite", "Redis",
+        "Elasticsearch", "Kibana", "Logstash", "GitHub", "GitLab", "Bitbucket", "Jira", "Trello",
+        "Asana", "Notion", "Microsoft 365", "Sketch", "Photoshop", "Illustrator",
+        "InDesign", "Premiere Pro", "After Effects", "Lightroom", "Audition",
       ];
 
-      let radius = Math.min(wrapper.offsetWidth, wrapper.offsetHeight) / 2.5;
+      const uniqueTags = [...new Set(tagsData)];
+      const MAX_TAGS = 36;
+      let radius = Math.min(wrapper.offsetWidth, wrapper.offsetHeight) / 2.4;
 
-      let angleX = 0,
-        angleY = 0;
-      let velX = 0,
-        velY = 0.05;
+      let angleX = 0, angleY = 0;
+      let velX = 0, velY = 0.05;
       let isDragging = false;
       let lastMouseX, lastMouseY;
       const friction = 0.98;
 
+      const tagElements = [];
+
       function createTags() {
         tagCloud.innerHTML = "";
-        const totalTags = tagsData.length;
+        tagElements.length = 0;
+        const totalTags = Math.min(MAX_TAGS, uniqueTags.length);
+        /* 黄金角弧度，使经度方向均匀分散 */
         const goldenAngle = Math.PI * (3 - Math.sqrt(5));
 
-        tagsData.forEach((text, i) => {
+        for (let i = 0; i < totalTags; i++) {
+          const text = uniqueTags[i];
           const tagEl = document.createElement("div");
           tagEl.className = "tagcloud__item";
 
           const spanEl = document.createElement("span");
           spanEl.innerText = text;
           tagEl.appendChild(spanEl);
-          const y = 1 - (2 * i) / (totalTags - 1);
-          const radiusAtY = Math.sqrt(1 - y * y);
+
+          /* 对称 Fibonacci 球面：高度用 (i+0.5)/n 避免两极过密，分布更均匀 */
+          const y = 1 - (2 * (i + 0.5)) / totalTags;
+          const radiusAtY = Math.sqrt(Math.max(1 - y * y, 0.01));
           const theta = goldenAngle * i;
           const x = Math.cos(theta) * radiusAtY;
           const z = Math.sin(theta) * radiusAtY;
@@ -214,14 +173,33 @@
 
           const yaw = Math.atan2(x, z);
           const pitch = Math.atan2(y, Math.sqrt(x * x + z * z));
-
           const yaw_deg = (yaw * 180) / Math.PI;
           const pitch_deg = (pitch * 180) / Math.PI;
           const transform = `translate3d(${finalX}px, ${finalY}px, ${finalZ}px) rotateY(${yaw_deg}deg) rotateX(${-pitch_deg}deg)`;
-
           tagEl.style.transform = transform;
 
+          tagEl.dataset.x = String(x);
+          tagEl.dataset.y = String(y);
+          tagEl.dataset.z = String(z);
+          tagElements.push(tagEl);
           tagCloud.appendChild(tagEl);
+        }
+      }
+
+      /* 背面判断：CSS 3D 中正 Z 指向观察者，背面为 viewZ < 0；与 MDN rotateX 矩阵一致 */
+      function updateBackfaceVisibility() {
+        const ax = (-angleX * Math.PI) / 180;
+        const ay = (angleY * Math.PI) / 180;
+        const cosX = Math.cos(ax), sinX = Math.sin(ax);
+        const cosY = Math.cos(ay), sinY = Math.sin(ay);
+        tagElements.forEach((el) => {
+          const x = parseFloat(el.dataset.x);
+          const y = parseFloat(el.dataset.y);
+          const z = parseFloat(el.dataset.z);
+          /* 先 rotateX(-angleX)：z' = y*sin(ax)+z*cos(ax)；再 rotateY(angleY)：viewZ = -x*sin(ay)+z'*cos(ay) */
+          const zAfterX = y * sinX + z * cosX;
+          const viewZ = -x * sinY + zAfterX * cosY;
+          el.classList.toggle("tagcloud__item--back", viewZ < 0);
         });
       }
 
@@ -239,6 +217,7 @@
         const rotateXTransform = `rotateX(${-angleX}deg)`;
         const rotateYTransform = `rotateY(${angleY}deg)`;
         tagCloud.style.transform = `${rotateYTransform} ${rotateXTransform}`;
+        updateBackfaceVisibility();
 
         requestAnimationFrame(animate);
       }
@@ -311,7 +290,7 @@
         window.addEventListener("resize", () => {
           clearTimeout(resizeTimeout);
           resizeTimeout = setTimeout(() => {
-            radius = Math.min(wrapper.offsetWidth, wrapper.offsetHeight) / 2.5;
+            radius = Math.min(wrapper.offsetWidth, wrapper.offsetHeight) / 2.4;
             createTags();
           }, 200);
         });
@@ -320,6 +299,7 @@
       createTags();
       animate();
       setupEventListeners();
+
     </script>
   </body>
 </html>
