@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>3D 标签云</title>
+    <style>
+      /*css样式*/
+      :root {
+        --tag-bg-color: #2c3e50;
+        --tag-text-color: #ecf0f1;
+        --tag-hover-bg-color: #3498db;
+        --tag-hover-text-color: #ffffff;
+        --bg-color: #1a1a1a;
+      }
+      body {
+        background-color: var(--bg-color);
+        color: var(--tag-text-color);
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        overflow: hidden;
+        text-align: center;
+      }
+      .tagcloud-wrapper {
+        position: relative;
+        width: 80vmin;
+        height: 80vmin;
+        perspective: 1000px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        cursor: grab;
+      }
+      .tagcloud {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        transform-style: preserve-3d;
+        will-change: transform;
+      }
+      .tagcloud__item {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        margin: -20px -50px;
+        font-size: 2.5vmin;
+        font-weight: 500;
+        white-space: nowrap;
+        cursor: pointer;
+        user-select: none;
+        will-change: transform;
+        transform-style: preserve-3d;
+      }
+      .tagcloud__item .tag-face {
+        display: inline-block;
+        background-color: var(--tag-bg-color);
+        color: var(--tag-text-color);
+        padding: 8px 16px;
+        border-radius: 20px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        transition: background-color 0.3s ease, color 0.3s ease,
+          transform 0.3s ease;
+        backface-visibility: hidden;
+        -webkit-backface-visibility: hidden;
+        transform-style: preserve-3d;
+        transform: translateZ(1px);
+      }
+      .tagcloud__item .tag-face--back {
+        position: absolute;
+        top: 0;
+        left: 0;
+        transform: rotateY(180deg) translateZ(1px);
+      }
+      .tagcloud__item:hover .tag-face {
+        background-color: var(--tag-hover-bg-color);
+        color: var(--tag-hover-text-color);
+      }
+      .tagcloud__item:hover .tag-face--front {
+        transform: translateZ(1px) scale(1.15);
+      }
+      .tagcloud__item:hover .tag-face--back {
+        transform: rotateY(180deg) translateZ(1px) scale(1.15);
+      }
+      .info-panel {
+        position: absolute;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.3);
+        padding: 10px 15px;
+        border-radius: 8px;
+        font-size: 14px;
+        text-align: center;
+        z-index: 100;
+      }
+      .info-panel p {
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="tagcloud-wrapper">
+      <div class="tagcloud"></div>
+    </div>
+    <script>
+      // js代码
+      const tagCloud = document.querySelector(".tagcloud");
+      const wrapper = document.querySelector(".tagcloud-wrapper");
+
+      const tagsData = [
+        "HTML5",
+        "CSS3",
+        "JavaScript",
+        "React",
+        "Vue.js",
+        "Angular",
+        "Node.js",
+        "Express",
+        "Python",
+        "Django",
+        "Flask",
+        "SQL",
+        "MongoDB",
+        "Git",
+        "Docker",
+        "前端也能这么有趣",
+        "AWS",
+        "Azure",
+        "GCP",
+        "CI/CD",
+        "Jest",
+        "Cypress",
+        "Webpack",
+        "Vite",
+        "SASS",
+        "TypeScript",
+        "GraphQL",
+        "REST API",
+        "JYeontu",
+        "UI/UX",
+      ];
+
+      const radius = Math.min(wrapper.offsetWidth, wrapper.offsetHeight) / 2.5;
+      const totalTags = tagsData.length;
+
+      let angleX = 0;
+      let angleY = 0;
+
+      let velX = 0;
+      let velY = 0.05;
+
+      let isDragging = false;
+      let lastMouseX, lastMouseY;
+      const friction = 0.98;
+
+      function createTags() {
+        tagCloud.innerHTML = "";
+        tagsData.forEach((text, i) => {
+          const tagEl = document.createElement("div");
+          tagEl.className = "tagcloud__item";
+
+          // 双面文字：背面旋转 180°，云转到背面时显示背面文字，避免镜像/倒向
+          const frontEl = document.createElement("span");
+          frontEl.className = "tag-face tag-face--front";
+          frontEl.innerText = text;
+
+          const backEl = document.createElement("span");
+          backEl.className = "tag-face tag-face--back";
+          backEl.innerText = text;
+
+          tagEl.appendChild(frontEl);
+          tagEl.appendChild(backEl);
+
+          const phi = Math.acos(-1 + (2 * i + 1) / totalTags);
+          const theta = Math.sqrt(totalTags * Math.PI) * phi;
+
+          const x = radius * Math.cos(theta) * Math.sin(phi);
+          const y = radius * Math.sin(theta) * Math.sin(phi);
+          const z = radius * Math.cos(phi);
+
+          tagEl.style.transform = `translate3d(${x}px, ${y}px, ${z}px)`;
+
+          tagCloud.appendChild(tagEl);
+        });
+      }
+
+      function animate() {
+        if (!isDragging) {
+          angleY += velY;
+          angleX += velX;
+
+          velY *= friction;
+          velX *= friction;
+
+          if (Math.abs(velY) < 0.0001)
+            velY = 0.01 * (Math.random() > 0.5 ? 1 : -1);
+          if (Math.abs(velX) < 0.0001) velX = 0;
+        }
+
+        const rotateX = `rotateX(${angleX}deg)`;
+        const rotateY = `rotateY(${angleY}deg)`;
+        tagCloud.style.transform = `${rotateY} ${rotateX}`;
+
+        requestAnimationFrame(animate);
+      }
+      wrapper.addEventListener("mousedown", (e) => {
+        isDragging = true;
+        lastMouseX = e.clientX;
+        lastMouseY = e.clientY;
+        wrapper.style.cursor = "grabbing";
+      });
+
+      globalThis.addEventListener("mousemove", (e) => {
+        if (!isDragging) return;
+
+        const dx = e.clientX - lastMouseX;
+        const dy = e.clientY - lastMouseY;
+
+        angleY += dx * 0.2;
+        angleX -= dy * 0.2;
+
+        velY = dx * 0.2;
+        velX = -dy * 0.2;
+
+        lastMouseX = e.clientX;
+        lastMouseY = e.clientY;
+      });
+
+      globalThis.addEventListener("mouseup", () => {
+        isDragging = false;
+        wrapper.style.cursor = "grab";
+      });
+
+      wrapper.addEventListener("mouseleave", () => {
+        isDragging = false;
+        wrapper.style.cursor = "grab";
+      });
+
+      wrapper.addEventListener(
+        "touchstart",
+        (e) => {
+          isDragging = true;
+          lastMouseX = e.touches[0].clientX;
+          lastMouseY = e.touches[0].clientY;
+        },
+        { passive: true },
+      );
+
+      globalThis.addEventListener(
+        "touchmove",
+        (e) => {
+          if (!isDragging) return;
+
+          const dx = e.touches[0].clientX - lastMouseX;
+          const dy = e.touches[0].clientY - lastMouseY;
+
+          angleY += dx * 0.2;
+          angleX -= dy * 0.2;
+
+          velY = dx * 0.2;
+          velX = -dy * 0.2;
+
+          lastMouseX = e.touches[0].clientX;
+          lastMouseY = e.touches[0].clientY;
+        },
+        { passive: true },
+      );
+
+      globalThis.addEventListener("touchend", () => {
+        isDragging = false;
+      });
+
+      createTags();
+      animate();
+
+      let resizeTimeout;
+      globalThis.addEventListener("resize", () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+          location.reload();
+        }, 200);
+      });
+    </script>
+  </body>
+</html>

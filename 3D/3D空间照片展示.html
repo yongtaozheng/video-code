@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>3D 空间照片展示</title>
+    <style>
+      /*css样式*/
+      :root {
+        --photo-border-color: #3498db;
+        --photo-hover-border-color: #ecf0f1;
+        --bg-color: #1a1a1a;
+      }
+      body {
+        background-color: var(--bg-color);
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        overflow: hidden;
+        text-align: center;
+      }
+      .tagcloud-wrapper {
+        position: relative;
+        width: 80vmin;
+        height: 80vmin;
+        perspective: 1000px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        cursor: grab;
+      }
+      .tagcloud {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        transform-style: preserve-3d;
+        will-change: transform;
+      }
+      .tagcloud__item {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        margin: -60px -80px;
+        font-size: 2.5vmin;
+        white-space: nowrap;
+        cursor: pointer;
+        user-select: none;
+        will-change: transform;
+        transform-style: preserve-3d;
+      }
+      .tagcloud__item .photo-face {
+        display: inline-block;
+        width: 160px;
+        height: 120px;
+        border: 3px solid var(--photo-border-color);
+        border-radius: 8px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+        transition: border-color 0.3s ease, transform 0.3s ease;
+        backface-visibility: hidden;
+        -webkit-backface-visibility: hidden;
+        transform-style: preserve-3d;
+        transform: translateZ(1px);
+        overflow: hidden;
+      }
+      .tagcloud__item .photo-face img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+        pointer-events: none;
+        user-drag: none;
+        -webkit-user-drag: none;
+      }
+      .tagcloud__item .photo-face--back {
+        position: absolute;
+        top: 0;
+        left: 0;
+        transform: rotateY(180deg) translateZ(1px);
+      }
+      .tagcloud__item:hover .photo-face {
+        border-color: var(--photo-hover-border-color);
+      }
+      .tagcloud__item:hover .photo-face--front {
+        transform: translateZ(1px) scale(1.15);
+      }
+      .tagcloud__item:hover .photo-face--back {
+        transform: rotateY(180deg) translateZ(1px) scale(1.15);
+      }
+      .info-panel {
+        position: absolute;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.3);
+        color: #ecf0f1;
+        padding: 10px 15px;
+        border-radius: 8px;
+        font-size: 14px;
+        text-align: center;
+        z-index: 100;
+      }
+      .info-panel p {
+        margin: 0;
+      }
+
+    </style>
+  </head>
+  <body>
+    <div class="tagcloud-wrapper">
+      <div class="tagcloud"></div>
+    </div>
+    <script>
+      // js 代码
+      const tagCloud = document.querySelector(".tagcloud");
+      const wrapper = document.querySelector(".tagcloud-wrapper");
+      const photosData = [
+        {
+          src: "http://5b0988e595225.cdn.sohucs.com/images/20180130/24aecf0d680546ccbf6480badce389dc.jpeg",
+          alt: "千与千寻",
+        },
+        {
+          src: "https://pic3.zhimg.com/v2-f1159536dc58af663e3955e774a7a13a_r.jpg",
+          alt: "龙猫",
+        },
+        {
+          src: "http://qqpublic.qpic.cn/qq_public_cover/0/0-2083471255-1DB77954D274653D98B57D000A686040_vsmcut/0",
+          alt: "天空之城",
+        },
+        {
+          src: "https://nimg.ws.126.net/?url=http%3A%2F%2Fdingyue.ws.126.net%2F2022%2F1101%2F9be4344ej00rkno8n00y7d200u000g6g00zk00j5.jpg",
+          alt: "借东西的小人阿莉埃蒂",
+        },
+        {
+          src: "http://5b0988e595225.cdn.sohucs.com/images/20180824/781646fe72fc4788b7dfc24c112b5bbb.png",
+          alt: "悬崖上的金鱼姬",
+        },
+        {
+          src: "http://p6.itc.cn/q_70/images03/20210106/6cd651a28f9a46268205410dcc5cad4d.jpeg",
+          alt: "魔女宅急便",
+        },
+        {
+          src: "https://wenhui.whb.cn/u/cms/www/201907/04234229c951.jpg",
+          alt: "幽灵公主",
+        },
+      ];
+
+      const radius = Math.min(wrapper.offsetWidth, wrapper.offsetHeight) / 2.5;
+      const totalPhotos = photosData.length;
+
+      let angleX = 0;
+      let angleY = 0;
+
+      let velX = 0;
+      let velY = 0.05;
+
+      let isDragging = false;
+      let lastMouseX, lastMouseY;
+      const friction = 0.98;
+
+      function createPhotos() {
+        tagCloud.innerHTML = "";
+        photosData.forEach((photoObj, i) => {
+          const { src, alt } = photoObj;
+          const photoEl = document.createElement("div");
+          photoEl.className = "tagcloud__item";
+
+          const frontEl = document.createElement("div");
+          frontEl.className = "photo-face photo-face--front";
+          const frontImg = document.createElement("img");
+          frontImg.src = src;
+          frontImg.alt = alt;
+          frontEl.appendChild(frontImg);
+
+          const backEl = document.createElement("div");
+          backEl.className = "photo-face photo-face--back";
+          const backImg = document.createElement("img");
+          backImg.src = src;
+          backImg.alt = `${alt}（背面）`;
+          backEl.appendChild(backImg);
+
+          photoEl.appendChild(frontEl);
+          photoEl.appendChild(backEl);
+
+          const phi = Math.acos(-1 + (2 * i + 1) / totalPhotos);
+          const theta = Math.sqrt(totalPhotos * Math.PI) * phi;
+
+          const x = radius * Math.cos(theta) * Math.sin(phi);
+          const y = radius * Math.sin(theta) * Math.sin(phi);
+          const z = radius * Math.cos(phi);
+
+          photoEl.style.transform = `translate3d(${x}px, ${y}px, ${z}px)`;
+
+          tagCloud.appendChild(photoEl);
+        });
+      }
+
+      function animate() {
+        if (!isDragging) {
+          angleY += velY;
+          angleX += velX;
+
+          velY *= friction;
+          velX *= friction;
+
+          if (Math.abs(velY) < 0.0001)
+            velY = 0.01 * (Math.random() > 0.5 ? 1 : -1);
+          if (Math.abs(velX) < 0.0001) velX = 0;
+        }
+
+        const rotateX = `rotateX(${angleX}deg)`;
+        const rotateY = `rotateY(${angleY}deg)`;
+        tagCloud.style.transform = `${rotateY} ${rotateX}`;
+
+        requestAnimationFrame(animate);
+      }
+
+      wrapper.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        isDragging = true;
+        lastMouseX = e.clientX;
+        lastMouseY = e.clientY;
+        wrapper.style.cursor = "grabbing";
+      });
+
+      globalThis.addEventListener("mousemove", (e) => {
+        if (!isDragging) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+        const dx = e.clientX - lastMouseX;
+        const dy = e.clientY - lastMouseY;
+
+        angleY += dx * 0.2;
+        angleX -= dy * 0.2;
+
+        velY = dx * 0.2;
+        velX = -dy * 0.2;
+
+        lastMouseX = e.clientX;
+        lastMouseY = e.clientY;
+      });
+
+      globalThis.addEventListener("mouseup", () => {
+        isDragging = false;
+        wrapper.style.cursor = "grab";
+      });
+
+      wrapper.addEventListener("mouseleave", () => {
+        isDragging = false;
+        wrapper.style.cursor = "grab";
+      });
+
+      wrapper.addEventListener(
+        "touchstart",
+        (e) => {
+          isDragging = true;
+          lastMouseX = e.touches[0].clientX;
+          lastMouseY = e.touches[0].clientY;
+        },
+        { passive: false }
+      );
+
+      globalThis.addEventListener(
+        "touchmove",
+        (e) => {
+          if (!isDragging) return;
+          e.preventDefault();
+          const dx = e.touches[0].clientX - lastMouseX;
+          const dy = e.touches[0].clientY - lastMouseY;
+
+          angleY += dx * 0.2;
+          angleX -= dy * 0.2;
+
+          velY = dx * 0.2;
+          velX = -dy * 0.2;
+
+          lastMouseX = e.touches[0].clientX;
+          lastMouseY = e.touches[0].clientY;
+        },
+        { passive: false }
+      );
+
+      globalThis.addEventListener("touchend", () => {
+        isDragging = false;
+      });
+
+      tagCloud.addEventListener("dragstart", (e) => {
+        e.preventDefault();
+      });
+
+      createPhotos();
+      animate();
+
+      let resizeTimeout;
+      globalThis.addEventListener("resize", () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+          location.reload();
+        }, 200);
+      });
+
+    </script>
+  </body>
+</html>
