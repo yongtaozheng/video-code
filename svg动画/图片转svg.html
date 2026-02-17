@@ -2,14 +2,7 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <title>图片转真实 SVG (带加载提示)</title>
-
-    <!-- 
-  最终功能:
-  1. 新增：生成过程中显示加载动画，并禁用相关按钮。
-  2. JS改造：移除SVG的width/height，替换为viewBox，实现完美缩放。
-  3. CSS配合：强制SVG撑满容器，与原图视觉大小完全一致。
--->
+    <title>图片转 SVG</title>
     <script src="imagetracer.js" defer></script>
 
     <style>
@@ -106,7 +99,6 @@
         text-align: center;
       }
 
-      /* --- 新增：加载动画样式 --- */
       .loader {
         width: 40px;
         height: 40px;
@@ -248,13 +240,11 @@
         }
 
         function generateTracing() {
-          // --- 核心改动 1：设置“加载中”状态 ---
           svgPlaceholder.style.display = "none";
           svgOutputBox.innerHTML = `<div><p class="placeholder-text">正在生成中...</p><div class="loader"></div></div>`;
           generateBtn.disabled = true;
           downloadBtn.disabled = true;
 
-          // 使用setTimeout让UI有机会先渲染加载动画
           setTimeout(() => {
             try {
               const canvas = document.createElement("canvas");
@@ -296,7 +286,6 @@
               svgOutputBox.innerHTML = `<p class="placeholder-text" style="color:red;">生成失败！错误：${e.message}</p>`;
               currentSvgString = "";
             } finally {
-              // --- 核心改动 2：恢复最终状态 ---
               generateBtn.disabled = false;
               if (currentSvgString) {
                 downloadBtn.disabled = false;
