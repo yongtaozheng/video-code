@@ -638,17 +638,47 @@
         });
       });
 
-      // 导出 HTML：生成包含当前图片列表（含 base64）的新 HTML 文件
+      // 导出 HTML：生成包含当前图片列表（含 base64）的新 HTML 文件，导出后只保留全屏按钮
       const exportBtn = document.getElementById("exportBtn");
       exportBtn.addEventListener("click", () => {
-        const fullHtml =
-          "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+        // 克隆整个文档
+        const clone = document.documentElement.cloneNode(true);
+
+        // 移除控制面板中的上传、导出按钮和提示文字，保留全屏按钮
+        const panel = clone.querySelector(".control-panel");
+        if (panel) {
+          const fileInput = panel.querySelector("#imageInput");
+          const uploadButton = panel.querySelector("#uploadBtn");
+          const exportButton = panel.querySelector("#exportBtn");
+          const hint = panel.querySelector(".hint");
+          if (fileInput) fileInput.remove();
+          if (uploadButton) uploadButton.remove();
+          if (exportButton) exportButton.remove();
+          if (hint) hint.remove();
+        }
+
+        // 清理 script 内容：替换图片数据 & 移除上传/导出相关 JS（保留全屏）
+        const scripts = clone.querySelectorAll("script");
+        const mainScript = scripts[scripts.length - 1];
+        let scriptContent = mainScript.textContent;
+
+        // 替换 tagsData 为当前展示的图片列表
         const newTagsStr =
           "const tagsData = " + JSON.stringify(currentImageList) + ";";
-        const exportedHtml = fullHtml.replace(
+        scriptContent = scriptContent.replace(
           /const tagsData = \[[\s\S]*?\];/,
           newTagsStr,
         );
+
+        // 移除「上传图片 → 导出 HTML」的 JS，保留「全屏展示」部分
+        scriptContent = scriptContent.replace(
+          /\n\s*\/\/ 上传图片：点击按钮触发文件选择[\s\S]*?(?=\n\s*\/\/ 全屏展示)/,
+          "",
+        );
+
+        mainScript.textContent = scriptContent;
+
+        const exportedHtml = "<!DOCTYPE html>\n" + clone.outerHTML;
         const blob = new Blob([exportedHtml], {
           type: "text/html;charset=utf-8",
         });
