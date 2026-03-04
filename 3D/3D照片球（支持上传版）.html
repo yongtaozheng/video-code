@@ -192,11 +192,58 @@
       .image-modal-close:hover {
         background: rgba(255, 255, 255, 0.2);
       }
+
+      /* 上传与导出控制面板 */
+      .control-panel {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        padding: 10px 16px;
+        background: rgba(0, 0, 0, 0.5);
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        z-index: 1000;
+        backdrop-filter: blur(8px);
+      }
+      .control-panel button {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        cursor: pointer;
+        transition: background 0.2s, color 0.2s;
+        color: var(--tag-text-color);
+        background: var(--tag-bg-color);
+      }
+      .control-panel button:hover {
+        background: var(--tag-hover-bg-color);
+        color: var(--tag-hover-text-color);
+      }
+      .control-panel input[type="file"] {
+        display: none;
+      }
+      .control-panel .hint {
+        font-size: 12px;
+        color: rgba(236, 240, 241, 0.7);
+        margin: 0;
+      }
     </style>
   </head>
   <body>
     <div class="tagcloud-wrapper">
       <div class="tagcloud"></div>
+    </div>
+
+    <!-- 上传与导出控制面板 -->
+    <div class="control-panel">
+      <input type="file" id="imageInput" accept="image/*" multiple />
+      <button type="button" id="uploadBtn">上传图片</button>
+      <button type="button" id="exportBtn">导出 HTML</button>
+      <p class="hint">支持多选，上传后将覆盖并只展示所选图片，最多 36 张</p>
     </div>
 
     <!-- 图片放大查看模态框 -->
@@ -212,7 +259,7 @@
       const tagCloud = document.querySelector(".tagcloud");
       const wrapper = document.querySelector(".tagcloud-wrapper");
 
-      // 图片URL数组 - 可以替换为您自己的图片链接
+      // 图片URL数组 - 可以替换为您自己的图片链接（默认展示用）
       const tagsData = [
         "http://5b0988e595225.cdn.sohucs.com/images/20180130/24aecf0d680546ccbf6480badce389dc.jpeg",
         "https://pic3.zhimg.com/v2-f1159536dc58af663e3955e774a7a13a_r.jpg",
@@ -241,7 +288,8 @@
         "https://i01piccdn.sogoucdn.com/02d7be0c66ee7eae",
       ];
 
-      const uniqueTags = [...new Set(tagsData)];
+      // 当前展示的图片列表（默认=tagsData，上传后会追加 base64）
+      let currentImageList = [...tagsData];
       const MAX_TAGS = 36;
       let radius = Math.min(wrapper.offsetWidth, wrapper.offsetHeight) / 2.4;
 
@@ -284,12 +332,13 @@
       function createTags() {
         tagCloud.innerHTML = "";
         tagElements.length = 0;
-        const totalTags = Math.min(MAX_TAGS, uniqueTags.length);
+        const uniqueList = [...new Set(currentImageList)];
+        const totalTags = Math.min(MAX_TAGS, uniqueList.length);
         /* 黄金角弧度，使经度方向均匀分散 */
         const goldenAngle = Math.PI * (3 - Math.sqrt(5));
 
         for (let i = 0; i < totalTags; i++) {
-          const imageUrl = uniqueTags[i];
+          const imageUrl = uniqueList[i];
           const tagEl = document.createElement("div");
           tagEl.className = "tagcloud__item";
 
@@ -536,6 +585,54 @@
         if (e.key === "Escape" && imageModal.classList.contains("show")) {
           closeImageModal();
         }
+      });
+
+      // 上传图片：点击按钮触发文件选择
+      const imageInput = document.getElementById("imageInput");
+      const uploadBtn = document.getElementById("uploadBtn");
+      uploadBtn.addEventListener("click", () => imageInput.click());
+
+      imageInput.addEventListener("change", (e) => {
+        const files = Array.from(e.target.files || []);
+        const imageFiles = files.filter((f) => f.type.startsWith("image/"));
+        if (imageFiles.length === 0) {
+          e.target.value = "";
+          return;
+        }
+        const newUrls = [];
+        let loaded = 0;
+        imageFiles.forEach((file) => {
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            newUrls.push(ev.target.result);
+            loaded++;
+            if (loaded === imageFiles.length) {
+              currentImageList = newUrls;
+              createTags();
+              e.target.value = "";
+            }
+          };
+          reader.readAsDataURL(file);
+        });
+      });
+
+      // 导出 HTML：生成包含当前图片列表（含 base64）的新 HTML 文件
+      const exportBtn = document.getElementById("exportBtn");
+      exportBtn.addEventListener("click", () => {
+        const fullHtml =
+          "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+        const newTagsStr =
+          "const tagsData = " + JSON.stringify(currentImageList) + ";";
+        const exportedHtml = fullHtml.replace(
+          /const tagsData = \[[\s\S]*?\];/,
+          newTagsStr
+        );
+        const blob = new Blob([exportedHtml], { type: "text/html;charset=utf-8" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "3D照片球-导出.html";
+        a.click();
+        URL.revokeObjectURL(a.href);
       });
 
       createTags();
