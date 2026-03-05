@@ -252,6 +252,34 @@
         max-width: 100vw;
         max-height: 100vh;
       }
+
+      /* 自动播放：item 居中摆正动画 */
+      .tagcloud__item.autoplay-highlight {
+        opacity: 1 !important;
+        z-index: 200;
+        /* opacity 0s：立即全不透明，不走过渡 */
+        transition:
+          transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+          opacity 0s !important;
+      }
+      /* img 过渡始终生效，但默认不缩放 */
+      .tagcloud__item.autoplay-highlight img {
+        transition:
+          transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+          box-shadow 0.5s ease;
+      }
+      /* 居中摆正后再放大 */
+      .tagcloud__item.autoplay-zoomed img {
+        transform: translate(-50%, -50%) scale(4);
+        box-shadow: 0 10px 40px rgba(52, 152, 219, 0.6);
+        border-color: var(--tag-hover-bg-color);
+      }
+
+      /* 自动播放时，非高亮图片进一步暗淡 */
+      .tagcloud.autoplay-dimmed .tagcloud__item:not(.autoplay-highlight) {
+        opacity: 0.15 !important;
+        transition: opacity 0.4s ease;
+      }
     </style>
   </head>
   <body>
@@ -264,6 +292,7 @@
       <input type="file" id="imageInput" accept="image/*" multiple />
       <button type="button" id="uploadBtn">上传图片</button>
       <button type="button" id="exportBtn">导出 HTML</button>
+      <button type="button" id="autoPlayBtn">自动播放</button>
       <button type="button" id="fullscreenBtn">全屏展示</button>
       <p class="hint">支持多选，上传后将覆盖并只展示所选图片，最多 36 张</p>
     </div>
@@ -333,6 +362,21 @@
       const DRAG_THRESHOLD_PX = 4;
       /** 相对按下点移动超过该像素数才开始旋转，确保「按下不转、移动才转」 */
       const MOVE_THRESHOLD_PX = 2;
+
+      /** 自动播放状态 */
+      let isAutoPlaying = false;
+      let autoPlayIndex = 0;
+      let autoPlayPhase = "idle"; // 'idle' | 'rotating' | 'showing'
+      let autoPlayTargetX = 0;
+      let autoPlayTargetY = 0;
+      let autoPlayShowTimer = null;
+
+      function normalizeAngle(a) {
+        a = a % 360;
+        if (a > 180) a -= 360;
+        if (a < -180) a += 360;
+        return a;
+      }
 
       /** 直接映射：屏幕位移 → 角度增量。背面时对上下方向做符号翻转，不引入雅可比，避免闪动 */
       function screenDeltaToAngleDelta(dx, dy) {
@@ -432,6 +476,8 @@
         const cosY = Math.cos(ay),
           sinY = Math.sin(ay);
         tagElements.forEach((el) => {
+          // 自动播放高亮中的元素始终保持正面可见，跳过背面判断
+          if (el.classList.contains("autoplay-highlight")) return;
           const x = parseFloat(el.dataset.x);
           const y = parseFloat(el.dataset.y);
           const z = parseFloat(el.dataset.z);
@@ -443,7 +489,67 @@
       }
 
       function animate() {
-        if (!isDragging) {
+        if (isAutoPlaying) {
+          if (autoPlayPhase === "rotating") {
+            // 平滑插值旋转到目标角度
+            const lerpFactor = 0.05;
+            const dx = autoPlayTargetX - angleX;
+            const dy = autoPlayTargetY - angleY;
+            angleX += dx * lerpFactor;
+            angleY += dy * lerpFactor;
+            // 接近目标时切换到展示阶段
+            if (Math.abs(dx) < 0.3 && Math.abs(dy) < 0.3) {
+              angleX = autoPlayTargetX;
+              angleY = autoPlayTargetY;
+              autoPlayPhase = "showing";
+              const highlightEl = tagElements[autoPlayIndex];
+              highlightEl._origTransform = highlightEl.style.transform;
+              // 确保图片不带背面透明度
+              highlightEl.classList.remove("tagcloud__item--back");
+
+              // ① 球面正面停顿 0.5s，让用户看清图片已面朝自己
+              autoPlayShowTimer = setTimeout(() => {
+                if (!isAutoPlaying) return;
+
+                // ② 飞到中央摆正（0.6s CSS transition）
+                tagCloud.classList.add("autoplay-dimmed");
+                highlightEl.classList.add("autoplay-highlight");
+                highlightEl.style.transform = `rotateX(${angleX}deg) rotateY(${-angleY}deg) translate3d(0, 0, ${radius * 0.5}px)`;
+
+                // ③ 居中完成后 → 放大（0.5s CSS transition）
+                autoPlayShowTimer = setTimeout(() => {
+                  if (!isAutoPlaying) return;
+                  highlightEl.classList.add("autoplay-zoomed");
+
+                  // ④ 放大展示 1s
+                  autoPlayShowTimer = setTimeout(() => {
+                    if (!isAutoPlaying) return;
+
+                    // ⑤ 缩小（0.5s）
+                    highlightEl.classList.remove("autoplay-zoomed");
+                    autoPlayShowTimer = setTimeout(() => {
+                      if (!isAutoPlaying) return;
+
+                      // ⑥ 飞回球面原位（0.6s）
+                      highlightEl.style.transform =
+                        highlightEl._origTransform;
+                      tagCloud.classList.remove("autoplay-dimmed");
+                      autoPlayShowTimer = setTimeout(() => {
+                        highlightEl.classList.remove("autoplay-highlight");
+                        delete highlightEl._origTransform;
+                        if (!isAutoPlaying) return;
+                        autoPlayIndex =
+                          (autoPlayIndex + 1) % tagElements.length;
+                        autoPlayRotateTo(autoPlayIndex);
+                      }, 700);
+                    }, 500);
+                  }, 1000);
+                }, 650);
+              }, 500);
+            }
+          }
+          // 'showing' 阶段保持静止
+        } else if (!isDragging) {
           angleY += velY;
           angleX += velX;
           velY *= friction;
@@ -470,6 +576,11 @@
       function setupEventListeners() {
         wrapper.addEventListener("mousedown", (e) => {
           if (e.target.tagName === "IMG") return;
+          // 自动播放中点击停止
+          if (isAutoPlaying) {
+            stopAutoPlay();
+            return;
+          }
           // 按下时只计算并记录坐标偏移量和当前角度，不旋转小球
           isDragging = true;
           userHasInteracted = true;
@@ -517,6 +628,11 @@
         wrapper.addEventListener(
           "touchstart",
           (e) => {
+            // 自动播放中触摸停止
+            if (isAutoPlaying) {
+              stopAutoPlay();
+              return;
+            }
             // 按下时只记录坐标偏移量和当前角度，不旋转
             isDragging = true;
             userHasInteracted = true;
@@ -638,13 +754,13 @@
         });
       });
 
-      // 导出 HTML：生成包含当前图片列表（含 base64）的新 HTML 文件，导出后只保留全屏按钮
+      // 导出 HTML：生成包含当前图片列表（含 base64）的新 HTML 文件，导出后保留全屏和自动播放按钮
       const exportBtn = document.getElementById("exportBtn");
       exportBtn.addEventListener("click", () => {
         // 克隆整个文档
         const clone = document.documentElement.cloneNode(true);
 
-        // 移除控制面板中的上传、导出按钮和提示文字，保留全屏按钮
+        // 移除控制面板中的上传、导出按钮和提示文字，保留自动播放和全屏按钮
         const panel = clone.querySelector(".control-panel");
         if (panel) {
           const fileInput = panel.querySelector("#imageInput");
@@ -670,7 +786,7 @@
           newTagsStr,
         );
 
-        // 移除「上传图片 → 导出 HTML」的 JS，保留「全屏展示」部分
+        // 移除「上传图片 → 导出 HTML」的 JS，保留「全屏展示」和「自动播放」部分
         scriptContent = scriptContent.replace(
           /\n\s*\/\/ 上传图片：点击按钮触发文件选择[\s\S]*?(?=\n\s*\/\/ 全屏展示)/,
           "",
@@ -705,10 +821,104 @@
         }
       });
       document.addEventListener("fullscreenchange", () => {
-        if (!document.fullscreenElement) document.body.classList.remove("fullscreen-mode");
+        if (!document.fullscreenElement) {
+          document.body.classList.remove("fullscreen-mode");
+          if (isAutoPlaying) stopAutoPlay();
+        }
       });
       document.addEventListener("webkitfullscreenchange", () => {
-        if (!document.webkitFullscreenElement) document.body.classList.remove("fullscreen-mode");
+        if (!document.webkitFullscreenElement) {
+          document.body.classList.remove("fullscreen-mode");
+          if (isAutoPlaying) stopAutoPlay();
+        }
+      });
+
+      // 自动播放：按顺序将每张图片旋转到正面放大展示，循环播放
+      const autoPlayBtn = document.getElementById("autoPlayBtn");
+
+      function startAutoPlay() {
+        if (tagElements.length === 0) return;
+        isAutoPlaying = true;
+        autoPlayIndex = 0;
+        autoPlayBtn.textContent = "停止播放";
+        // 进入全屏
+        document.body.requestFullscreen?.() ||
+          document.body.webkitRequestFullscreen?.() ||
+          document.body.msRequestFullscreen?.();
+        document.body.classList.add("fullscreen-mode");
+        // 停止手动惯性
+        velX = 0;
+        velY = 0;
+        isDragging = false;
+        // 开始旋转到第一张图片
+        autoPlayRotateTo(autoPlayIndex);
+      }
+
+      function stopAutoPlay() {
+        isAutoPlaying = false;
+        autoPlayPhase = "idle";
+        autoPlayBtn.textContent = "自动播放";
+        if (autoPlayShowTimer) {
+          clearTimeout(autoPlayShowTimer);
+          autoPlayShowTimer = null;
+        }
+        // 清除高亮、放大和暗淡效果，恢复原始 transform
+        tagElements.forEach((el) => {
+          el.classList.remove("autoplay-highlight", "autoplay-zoomed");
+          if (el._origTransform !== undefined) {
+            el.style.transform = el._origTransform;
+            delete el._origTransform;
+          }
+        });
+        tagCloud.classList.remove("autoplay-dimmed");
+      }
+
+      function autoPlayRotateTo(index) {
+        if (!isAutoPlaying || tagElements.length === 0) return;
+        const el = tagElements[index];
+        const px = parseFloat(el.dataset.x);
+        const py = parseFloat(el.dataset.y);
+        const pz = parseFloat(el.dataset.z);
+
+        // 计算将该点旋转到正面 (0,0,1) 所需的目标角度
+        // CSS transform: rotateY(angleY) rotateX(-angleX)
+        // 实际 CSS 旋转角 ax = -angleX·π/180
+        // 要让 viewZ = 1，需 ax = atan2(py, pz) → angleX = -atan2(py, pz)·180/π
+        const r = Math.sqrt(py * py + pz * pz);
+        let targetX = -Math.atan2(py, pz) * (180 / Math.PI);
+        let targetY = Math.atan2(-px, r) * (180 / Math.PI);
+
+        // 规范化当前角度，找最短旋转路径
+        angleX = normalizeAngle(angleX);
+        angleY = normalizeAngle(angleY);
+        targetX = normalizeAngle(targetX);
+        targetY = normalizeAngle(targetY);
+
+        let diffX = targetX - angleX;
+        let diffY = targetY - angleY;
+        while (diffX > 180) diffX -= 360;
+        while (diffX < -180) diffX += 360;
+        while (diffY > 180) diffY -= 360;
+        while (diffY < -180) diffY += 360;
+
+        autoPlayTargetX = angleX + diffX;
+        autoPlayTargetY = angleY + diffY;
+        autoPlayPhase = "rotating";
+      }
+
+      autoPlayBtn.addEventListener("click", () => {
+        if (isAutoPlaying) {
+          stopAutoPlay();
+          // 退出全屏
+          if (document.fullscreenElement) {
+            (document.exitFullscreen?.() ||
+              document.webkitExitFullscreen?.() ||
+              document.msExitFullscreen?.())?.();
+          }
+          document.body.classList.remove("fullscreen-mode");
+        } else {
+          startAutoPlay();
+        }
       });
 
       createTags();
