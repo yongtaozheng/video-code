@@ -31,11 +31,12 @@
 
       .tagcloud-wrapper {
         position: relative;
-        width: 80vh;
-        height: 80vh;
+        width: 80vmin;
+        height: 80vmin;
         max-width: 100vw;
         perspective: 1000px;
         cursor: grab;
+        touch-action: none;
       }
 
       .tagcloud {
@@ -303,6 +304,67 @@
       .autoplay-overlay.show img {
         opacity: 1;
       }
+
+      /* ====== 移动端适配 ====== */
+      @media (max-width: 768px) {
+        .tagcloud-wrapper {
+          width: 95vmin;
+          height: 95vmin;
+        }
+        .tagcloud__item img {
+          width: 50px;
+          height: 50px;
+          border-radius: 6px;
+          border-width: 1.5px;
+        }
+
+        /* 控制面板：允许换行，紧凑布局 */
+        .control-panel {
+          flex-wrap: wrap;
+          justify-content: center;
+          bottom: 12px;
+          padding: 8px 12px;
+          gap: 8px;
+          max-width: 95vw;
+        }
+        .control-panel button {
+          padding: 6px 12px;
+          font-size: 13px;
+        }
+        .control-panel .hint {
+          width: 100%;
+          text-align: center;
+          font-size: 11px;
+        }
+
+        /* 模态框关闭按钮加大触控区域 */
+        .image-modal-close {
+          top: 12px;
+          right: 12px;
+          width: 44px;
+          height: 44px;
+          font-size: 32px;
+        }
+
+        /* 全屏模式下球体撑满 */
+        body.fullscreen-mode .tagcloud-wrapper {
+          width: 100vmin;
+          height: 100vmin;
+        }
+      }
+
+      /* 超小屏（≤ 400px）进一步缩小缩略图 */
+      @media (max-width: 400px) {
+        .tagcloud__item img {
+          width: 40px;
+          height: 40px;
+          border-radius: 4px;
+        }
+        .control-panel button {
+          padding: 5px 10px;
+          font-size: 12px;
+        }
+      }
     </style>
   </head>
   <body>
@@ -459,6 +521,23 @@
               }
             }
           });
+
+          // 移动端触摸：追踪���点，判断是否拖拽
+          imgEl.addEventListener("touchstart", (e) => {
+            clickStartX = e.touches[0].clientX;
+            clickStartY = e.touches[0].clientY;
+            hasDragged = false;
+          }, { passive: true });
+
+          imgEl.addEventListener("touchmove", (e) => {
+            if (clickStartX !== undefined && clickStartY !== undefined) {
+              const dx = Math.abs(e.touches[0].clientX - clickStartX);
+              const dy = Math.abs(e.touches[0].clientY - clickStartY);
+              if (dx > 5 || dy > 5) {
+                hasDragged = true;
+              }
+            }
+          }, { passive: true });
 
           imgEl.addEventListener("click", (e) => {
             e.stopPropagation();
