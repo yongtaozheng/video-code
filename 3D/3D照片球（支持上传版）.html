@@ -271,21 +271,37 @@
           height 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94),
           box-shadow 0.5s ease;
       }
-      /* 居中摆正后放大：使用实际尺寸而非 scale，浏览器会用原图高清渲染 */
-      .tagcloud__item.autoplay-zoomed img {
-        width: 60vmin;
-        height: 60vmin;
-        object-fit: contain;
-        transform: translate(-50%, -50%);
-        box-shadow: none;
-        border: none;
-        border-radius: 0;
-      }
-
       /* 自动播放时，非高亮图片进一步暗淡 */
       .tagcloud.autoplay-dimmed .tagcloud__item:not(.autoplay-highlight) {
         opacity: 0.15 !important;
         transition: opacity 0.4s ease;
+      }
+
+      /* 自动播放全分辨率覆盖层：独立 img 元素，从一开始就按大尺寸渲染，确保清晰 */
+      .autoplay-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 10000;
+        justify-content: center;
+        align-items: center;
+        pointer-events: none;
+      }
+      .autoplay-overlay.show {
+        display: flex;
+      }
+      .autoplay-overlay img {
+        max-width: 90%;
+        max-height: 90vh;
+        object-fit: contain;
+        opacity: 0;
+        transition: opacity 0.4s ease;
+      }
+      .autoplay-overlay.show img {
+        opacity: 1;
       }
     </style>
   </head>
@@ -302,6 +318,11 @@
       <button type="button" id="autoPlayBtn">自动播放</button>
       <button type="button" id="fullscreenBtn">全屏展示</button>
       <p class="hint">支持多选，上传后将覆盖并只展示所选图片，最多 36 张</p>
+    </div>
+
+    <!-- 自动播放全分辨率覆盖层 -->
+    <div class="autoplay-overlay" id="autoplayOverlay">
+      <img id="autoplayOverlayImg" src="" alt="自动播放展示" />
     </div>
 
     <!-- 图片放大查看模态框 -->
@@ -523,19 +544,25 @@
                 highlightEl.classList.add("autoplay-highlight");
                 highlightEl.style.transform = `rotateX(${angleX}deg) rotateY(${-angleY}deg) translate3d(0, 0, ${radius * 1.2}px)`;
 
-                // ③ 居中完成后 → 放大（0.5s CSS transition）
+                // ③ 居中完成后 → 用全分辨率覆盖层展示清晰大图
                 autoPlayShowTimer = setTimeout(() => {
                   if (!isAutoPlaying) return;
-                  highlightEl.classList.add("autoplay-zoomed");
+                  const overlay = document.getElementById("autoplayOverlay");
+                  const overlayImg = document.getElementById("autoplayOverlayImg");
+                  overlayImg.src = highlightEl.querySelector("img").src;
+                  overlay.classList.add("show");
 
-                  // ④ 放大展示 1s
+                  // ④ 清晰大图展示 1.5s
                   autoPlayShowTimer = setTimeout(() => {
                     if (!isAutoPlaying) return;
 
-                    // ⑤ 缩小（0.5s）
-                    highlightEl.classList.remove("autoplay-zoomed");
+                    // ⑤ 淡出覆盖层（0.4s CSS transition）
+                    overlayImg.style.opacity = "0";
                     autoPlayShowTimer = setTimeout(() => {
                       if (!isAutoPlaying) return;
+                      overlay.classList.remove("show");
+                      overlayImg.style.opacity = "";
+                      overlayImg.src = "";
 
                       // ⑥ 飞回球面原位（0.6s）
                       highlightEl.style.transform =
@@ -549,10 +576,9 @@
                           (autoPlayIndex + 1) % tagElements.length;
                         autoPlayRotateTo(autoPlayIndex);
                       }, 700);
-                    }, 500);
-                  }, 1000);
-                }, 650);
-              }, 500);
+                    }, 450);
+                }, 1500);
+              }, 650);
             }
           }
           // 'showing' 阶段保持静止
@@ -897,15 +923,21 @@
           clearTimeout(autoPlayShowTimer);
           autoPlayShowTimer = null;
         }
-        // 清除高亮、放大和暗淡效果，恢复原始 transform
+        // 清除高亮和暗淡效果，恢复原始 transform
         tagElements.forEach((el) => {
-          el.classList.remove("autoplay-highlight", "autoplay-zoomed");
+          el.classList.remove("autoplay-highlight");
           if (el._origTransform !== undefined) {
             el.style.transform = el._origTransform;
             delete el._origTransform;
           }
         });
         tagCloud.classList.remove("autoplay-dimmed");
+        // 清除全分辨率覆盖层
+        const overlay = document.getElementById("autoplayOverlay");
+        const overlayImg = document.getElementById("autoplayOverlayImg");
+        overlay.classList.remove("show");
+        overlayImg.style.opacity = "";
+        overlayImg.src = "";
       }
 
       function autoPlayRotateTo(index) {
