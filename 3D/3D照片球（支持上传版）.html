@@ -262,17 +262,24 @@
           transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94),
           opacity 0s !important;
       }
-      /* img 过渡始终生效，但默认不缩放 */
+      /* img 过渡始终生效，包含 width/height 以实现高清放大 */
       .tagcloud__item.autoplay-highlight img {
+        will-change: transform, width, height;
         transition:
           transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+          width 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+          height 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94),
           box-shadow 0.5s ease;
       }
-      /* 居中摆正后再放大 */
+      /* 居中摆正后放大：使用实际尺寸而非 scale，浏览器会用原图高清渲染 */
       .tagcloud__item.autoplay-zoomed img {
-        transform: translate(-50%, -50%) scale(4);
-        box-shadow: 0 10px 40px rgba(52, 152, 219, 0.6);
-        border-color: var(--tag-hover-bg-color);
+        width: 60vmin;
+        height: 60vmin;
+        object-fit: contain;
+        transform: translate(-50%, -50%);
+        box-shadow: none;
+        border: none;
+        border-radius: 0;
       }
 
       /* 自动播放时，非高亮图片进一步暗淡 */
@@ -514,7 +521,7 @@
                 // ② 飞到中央摆正（0.6s CSS transition）
                 tagCloud.classList.add("autoplay-dimmed");
                 highlightEl.classList.add("autoplay-highlight");
-                highlightEl.style.transform = `rotateX(${angleX}deg) rotateY(${-angleY}deg) translate3d(0, 0, ${radius * 0.5}px)`;
+                highlightEl.style.transform = `rotateX(${angleX}deg) rotateY(${-angleY}deg) translate3d(0, 0, ${radius * 1.2}px)`;
 
                 // ③ 居中完成后 → 放大（0.5s CSS transition）
                 autoPlayShowTimer = setTimeout(() => {
@@ -725,33 +732,61 @@
         }
       });
 
+      // 图片压缩：使用 Canvas 缩放 + JPEG 压缩，大幅减小内存占用，消除自���播放卡顿
+      function compressImage(file, maxSize, quality) {
+        return new Promise((resolve) => {
+          const img = new Image();
+          const url = URL.createObjectURL(file);
+          img.onload = () => {
+            URL.revokeObjectURL(url);
+            let { width, height } = img;
+            // 仅在超出最大尺寸时缩放，保持宽高比
+            if (width > maxSize || height > maxSize) {
+              if (width > height) {
+                height = Math.round((height * maxSize) / width);
+                width = maxSize;
+              } else {
+                width = Math.round((width * maxSize) / height);
+                height = maxSize;
+              }
+            }
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL("image/jpeg", quality));
+          };
+          img.onerror = () => {
+            URL.revokeObjectURL(url);
+            // 压缩失败时回退到原始 base64
+            const reader = new FileReader();
+            reader.onload = (ev) => resolve(ev.target.result);
+            reader.readAsDataURL(file);
+          };
+          img.src = url;
+        });
+      }
+
       // 上传图片：点击按钮触发文件选择
       const imageInput = document.getElementById("imageInput");
       const uploadBtn = document.getElementById("uploadBtn");
       uploadBtn.addEventListener("click", () => imageInput.click());
 
-      imageInput.addEventListener("change", (e) => {
+      imageInput.addEventListener("change", async (e) => {
         const files = Array.from(e.target.files || []);
         const imageFiles = files.filter((f) => f.type.startsWith("image/"));
         if (imageFiles.length === 0) {
           e.target.value = "";
           return;
         }
-        const newUrls = [];
-        let loaded = 0;
-        imageFiles.forEach((file) => {
-          const reader = new FileReader();
-          reader.onload = (ev) => {
-            newUrls.push(ev.target.result);
-            loaded++;
-            if (loaded === imageFiles.length) {
-              currentImageList = newUrls;
-              createTags();
-              e.target.value = "";
-            }
-          };
-          reader.readAsDataURL(file);
-        });
+        // 并行压缩所有图片：最大 1200px，JPEG 质量 0.85
+        const newUrls = await Promise.all(
+          imageFiles.map((file) => compressImage(file, 1200, 0.85)),
+        );
+        currentImageList = newUrls;
+        createTags();
+        e.target.value = "";
       });
 
       // 导出 HTML：生成包含当前图片列表（含 base64）的新 HTML 文件，导出后保留全屏和自动播放按钮
