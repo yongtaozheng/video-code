@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>马赛克翻转轮播图</title>
+    <style>
+      /*css样式*/
+      :root {
+        --image-width: 60%;
+        --image-height: 60%;
+      }
+
+      body {
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0;
+        overflow: hidden;
+        background: #0e0e1a;
+      }
+
+      .container {
+        width: var(--image-width);
+        height: var(--image-height);
+      }
+
+      .carousel-container {
+        position: relative;
+        border-radius: 0.75rem;
+        overflow: hidden;
+        box-shadow: 0 10px 40px -5px rgba(0, 0, 0, 0.5);
+      }
+
+      .carousel {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 16/9;
+        background: #000;
+        /* 3D 透视 */
+        perspective: 1200px;
+      }
+
+      /* 网格容器 */
+      .tile-grid {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        z-index: 2;
+      }
+
+      .tile {
+        position: relative;
+        transform-style: preserve-3d;
+        transition: transform 0.8s cubic-bezier(0.4, 0.2, 0.2, 1);
+      }
+
+      .tile.flipped {
+        transform: rotateY(180deg);
+      }
+
+      .tile-face {
+        position: absolute;
+        inset: 0;
+        backface-visibility: hidden;
+        overflow: hidden;
+      }
+
+      .tile-face img {
+        position: absolute;
+        object-fit: cover;
+      }
+
+      .tile-back {
+        transform: rotateY(180deg);
+      }
+
+      /* 底层完整图（翻转完毕后显示） */
+      .base-layer {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+      }
+
+      .base-layer img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      /* 控制按钮 */
+      .nav-btn {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 10;
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: rgba(0, 0, 0, 0.35);
+        backdrop-filter: blur(4px);
+        border: 1px solid rgba(255, 180, 50, 0.2);
+        color: #fff;
+        font-size: 20px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+      }
+
+      .nav-btn:hover {
+        background: rgba(255, 150, 0, 0.15);
+        border-color: rgba(255, 180, 50, 0.5);
+        box-shadow: 0 0 20px rgba(255, 150, 0, 0.15);
+      }
+
+      .nav-btn.prev { left: 16px; }
+      .nav-btn.next { right: 16px; }
+
+      /* 指示器 */
+      .indicators {
+        position: absolute;
+        bottom: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 8px;
+        z-index: 10;
+      }
+
+      .indicator {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.3);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: none;
+      }
+
+      .indicator.active {
+        background: rgba(255, 180, 50, 0.9);
+        box-shadow: 0 0 8px rgba(255, 150, 0, 0.5);
+        width: 24px;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="carousel-container">
+        <div class="carousel" id="carousel">
+          <div class="base-layer">
+            <img id="baseImage" />
+          </div>
+          <div class="tile-grid" id="tileGrid"></div>
+        </div>
+        <button class="nav-btn prev" id="prevBtn">◂</button>
+        <button class="nav-btn next" id="nextBtn">▸</button>
+        <div class="indicators" id="indicators"></div>
+      </div>
+    </div>
+
+    <script>
+      //js逻辑
+      const images = [
+        {
+          src: "http://5b0988e595225.cdn.sohucs.com/images/20180130/24aecf0d680546ccbf6480badce389dc.jpeg",
+          alt: "千与千寻",
+        },
+        {
+          src: "https://pic3.zhimg.com/v2-f1159536dc58af663e3955e774a7a13a_r.jpg",
+          alt: "龙猫",
+        },
+        {
+          src: "http://qqpublic.qpic.cn/qq_public_cover/0/0-2083471255-1DB77954D274653D98B57D000A686040_vsmcut/0",
+          alt: "天空之城",
+        },
+        {
+          src: "http://5b0988e595225.cdn.sohucs.com/images/20180824/781646fe72fc4788b7dfc24c112b5bbb.png",
+          alt: "悬崖上的金鱼姬",
+        },
+        {
+          src: "http://p6.itc.cn/q_70/images03/20210106/6cd651a28f9a46268205410dcc5cad4d.jpeg",
+          alt: "魔女宅急便",
+        },
+        {
+          src: "https://x0.ifengimg.com/ucms/2024_13/88635184EFC2FFE43710A5DF199B7067DF336C0F_size489_w1000_h1423.jpg",
+          alt: "你想活出怎样的人生",
+        },
+      ];
+
+      const COLS = 8;
+      const ROWS = 5;
+
+      const tileGrid = document.getElementById("tileGrid");
+      const baseImage = document.getElementById("baseImage");
+      const indicatorsEl = document.getElementById("indicators");
+
+      let currentIndex = 0;
+      let isTransitioning = false;
+      let autoPlayTimer = null;
+
+      function init() {
+        // 设置网格
+        tileGrid.style.gridTemplateColumns = `repeat(${COLS}, 1fr)`;
+        tileGrid.style.gridTemplateRows = `repeat(${ROWS}, 1fr)`;
+
+        // 设置初始底层图
+        baseImage.src = images[0].src;
+        baseImage.alt = images[0].alt;
+
+        // 创建指示器
+        images.forEach((_, index) => {
+          const dot = document.createElement("button");
+          dot.className = `indicator ${index === 0 ? "active" : ""}`;
+          dot.addEventListener("click", () => goTo(index));
+          indicatorsEl.appendChild(dot);
+        });
+
+        // 创建初始瓦片（显示第一张图）
+        buildTiles(images[0].src, images[0].src);
+
+        startAutoPlay();
+      }
+
+      // 构建翻转瓦片网格
+      function buildTiles(frontSrc, backSrc) {
+        tileGrid.innerHTML = "";
+
+        const carousel = document.getElementById("carousel");
+        const totalWidth = carousel.offsetWidth;
+        const totalHeight = carousel.offsetHeight;
+        const tileW = totalWidth / COLS;
+        const tileH = totalHeight / ROWS;
+
+        for (let row = 0; row < ROWS; row++) {
+          for (let col = 0; col < COLS; col++) {
+            const tile = document.createElement("div");
+            tile.className = "tile";
+            tile.dataset.row = row;
+            tile.dataset.col = col;
+
+            // 正面（当前图片）
+            const front = document.createElement("div");
+            front.className = "tile-face tile-front";
+            const frontImg = document.createElement("img");
+            frontImg.src = frontSrc;
+            frontImg.style.width = `${totalWidth}px`;
+            frontImg.style.height = `${totalHeight}px`;
+            frontImg.style.left = `-${col * tileW}px`;
+            frontImg.style.top = `-${row * tileH}px`;
+            front.appendChild(frontImg);
+
+            // 背面（新图片）
+            const back = document.createElement("div");
+            back.className = "tile-face tile-back";
+            const backImg = document.createElement("img");
+            backImg.src = backSrc;
+            backImg.style.width = `${totalWidth}px`;
+            backImg.style.height = `${totalHeight}px`;
+            backImg.style.left = `-${col * tileW}px`;
+            backImg.style.top = `-${row * tileH}px`;
+            back.appendChild(backImg);
+
+            tile.appendChild(front);
+            tile.appendChild(back);
+            tileGrid.appendChild(tile);
+          }
+        }
+      }
+
+      // 波浪式翻转
+      function flipTilesWave(pattern, callback) {
+        const tiles = tileGrid.querySelectorAll(".tile");
+        let maxDelay = 0;
+
+        tiles.forEach((tile) => {
+          const row = parseInt(tile.dataset.row);
+          const col = parseInt(tile.dataset.col);
+          let delay;
+
+          switch (pattern) {
+            case "diagonal":
+              // 对角线波浪
+              delay = (row + col) * 80;
+              break;
+            case "center":
+              // 从中心扩散
+              const centerR = (ROWS - 1) / 2;
+              const centerC = (COLS - 1) / 2;
+              const dist = Math.sqrt((row - centerR) ** 2 + (col - centerC) ** 2);
+              delay = dist * 100;
+              break;
+            case "spiral":
+              // 螺旋
+              delay = getSpiralOrder(row, col) * 60;
+              break;
+            case "random":
+              // 随机
+              delay = Math.random() * 800;
+              break;
+            case "row-wave":
+              // 行波浪（正弦偏移）
+              delay = row * 120 + Math.sin(col / COLS * Math.PI) * 200;
+              break;
+            default:
+              delay = (row + col) * 80;
+          }
+
+          maxDelay = Math.max(maxDelay, delay);
+
+          // 设置个性化 transition 时间
+          const flipDuration = 0.6 + Math.random() * 0.3;
+          tile.style.transition = `transform ${flipDuration}s cubic-bezier(0.4, 0.2, 0.2, 1) ${delay}ms`;
+
+          setTimeout(() => {
+            tile.classList.add("flipped");
+          }, 10); // 微延迟确保 transition 生效
+        });
+
+        // 动画结束后回调
+        const totalTime = maxDelay + 1000; // 最大延迟 + 翻转时间
+        setTimeout(callback, totalTime);
+      }
+
+      // 计算螺旋顺序
+      function getSpiralOrder(row, col) {
+        const order = [];
+        let top = 0, bottom = ROWS - 1, left = 0, right = COLS - 1;
+        let idx = 0;
+        const matrix = Array.from({ length: ROWS }, () => new Array(COLS).fill(0));
+
+        while (top <= bottom && left <= right) {
+          for (let c = left; c <= right; c++) matrix[top][c] = idx++;
+          top++;
+          for (let r = top; r <= bottom; r++) matrix[r][right] = idx++;
+          right--;
+          if (top <= bottom) {
+            for (let c = right; c >= left; c--) matrix[bottom][c] = idx++;
+            bottom--;
+          }
+          if (left <= right) {
+            for (let r = bottom; r >= top; r--) matrix[r][left] = idx++;
+            left++;
+          }
+        }
+
+        return matrix[row][col];
+      }
+
+      // 翻转模式列表
+      const patterns = ["diagonal", "center", "spiral", "random", "row-wave"];
+      let patternIndex = 0;
+
+      function goTo(targetIndex) {
+        if (isTransitioning || targetIndex === currentIndex) return;
+        isTransitioning = true;
+
+        const dots = indicatorsEl.querySelectorAll(".indicator");
+        dots[currentIndex].classList.remove("active");
+        dots[targetIndex].classList.add("active");
+
+        // 构建瓦片：正面=旧图，背面=新图
+        buildTiles(images[currentIndex].src, images[targetIndex].src);
+
+        // 设置底层为新图
+        baseImage.src = images[targetIndex].src;
+        baseImage.alt = images[targetIndex].alt;
+
+        // 选择波浪模式（轮换使用）
+        const pattern = patterns[patternIndex % patterns.length];
+        patternIndex++;
+
+        // 执行翻转
+        flipTilesWave(pattern, () => {
+          // 翻转完成 - 重建瓦片为新图（无翻转状态）
+          buildTiles(images[targetIndex].src, images[targetIndex].src);
+          currentIndex = targetIndex;
+          isTransitioning = false;
+        });
+      }
+
+      function next() {
+        goTo((currentIndex + 1) % images.length);
+      }
+
+      function prev() {
+        goTo((currentIndex - 1 + images.length) % images.length);
+      }
+
+      function startAutoPlay() {
+        stopAutoPlay();
+        autoPlayTimer = setInterval(next, 4500);
+      }
+
+      function stopAutoPlay() {
+        if (autoPlayTimer) {
+          clearInterval(autoPlayTimer);
+          autoPlayTimer = null;
+        }
+      }
+
+      // 事件绑定
+      document.getElementById("prevBtn").addEventListener("click", () => {
+        prev();
+        startAutoPlay();
+      });
+
+      document.getElementById("nextBtn").addEventListener("click", () => {
+        next();
+        startAutoPlay();
+      });
+
+      document.querySelector(".carousel-container").addEventListener("mouseenter", stopAutoPlay);
+      document.querySelector(".carousel-container").addEventListener("mouseleave", startAutoPlay);
+
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowLeft") { prev(); startAutoPlay(); }
+        if (e.key === "ArrowRight") { next(); startAutoPlay(); }
+      });
+
+      document.addEventListener("visibilitychange", () => {
+        document.hidden ? stopAutoPlay() : startAutoPlay();
+      });
+
+      init();
+    </script>
+  </body>
+</html>

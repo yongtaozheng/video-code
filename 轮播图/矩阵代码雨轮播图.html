@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>矩阵代码雨轮播图</title>
+    <style>
+      /*css样式*/
+      :root {
+        --image-width: 60%;
+        --image-height: 60%;
+      }
+
+      body {
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0;
+        overflow: hidden;
+        background: #0a0a0a;
+      }
+
+      .container {
+        width: var(--image-width);
+        height: var(--image-height);
+      }
+
+      .carousel-container {
+        position: relative;
+        border-radius: 0.75rem;
+        overflow: hidden;
+        box-shadow: 0 0 40px rgba(0, 255, 70, 0.1);
+      }
+
+      .carousel {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 16/9;
+        background: #000;
+      }
+
+      canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      /* 控制按钮 */
+      .nav-btn {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 10;
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: rgba(0, 0, 0, 0.4);
+        backdrop-filter: blur(4px);
+        border: 1px solid rgba(0, 255, 70, 0.2);
+        color: #0f0;
+        font-size: 20px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+        font-family: monospace;
+      }
+
+      .nav-btn:hover {
+        background: rgba(0, 255, 70, 0.1);
+        border-color: rgba(0, 255, 70, 0.5);
+        box-shadow: 0 0 20px rgba(0, 255, 70, 0.2);
+      }
+
+      .nav-btn.prev { left: 16px; }
+      .nav-btn.next { right: 16px; }
+
+      /* 指示器 */
+      .indicators {
+        position: absolute;
+        bottom: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 8px;
+        z-index: 10;
+      }
+
+      .indicator {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: rgba(0, 255, 70, 0.25);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: none;
+      }
+
+      .indicator.active {
+        background: rgba(0, 255, 70, 0.9);
+        box-shadow: 0 0 8px rgba(0, 255, 70, 0.5);
+        width: 24px;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="carousel-container">
+        <div class="carousel" id="carousel">
+          <canvas id="canvas"></canvas>
+        </div>
+        <button class="nav-btn prev" id="prevBtn">◂</button>
+        <button class="nav-btn next" id="nextBtn">▸</button>
+        <div class="indicators" id="indicators"></div>
+      </div>
+    </div>
+
+    <script>
+      //js逻辑
+      const images = [
+        {
+          src: "http://5b0988e595225.cdn.sohucs.com/images/20180130/24aecf0d680546ccbf6480badce389dc.jpeg",
+          alt: "千与千寻",
+        },
+        {
+          src: "https://pic3.zhimg.com/v2-f1159536dc58af663e3955e774a7a13a_r.jpg",
+          alt: "龙猫",
+        },
+        {
+          src: "http://qqpublic.qpic.cn/qq_public_cover/0/0-2083471255-1DB77954D274653D98B57D000A686040_vsmcut/0",
+          alt: "天空之城",
+        },
+        {
+          src: "http://5b0988e595225.cdn.sohucs.com/images/20180824/781646fe72fc4788b7dfc24c112b5bbb.png",
+          alt: "悬崖上的金鱼姬",
+        },
+        {
+          src: "http://p6.itc.cn/q_70/images03/20210106/6cd651a28f9a46268205410dcc5cad4d.jpeg",
+          alt: "魔女宅急便",
+        },
+        {
+          src: "https://x0.ifengimg.com/ucms/2024_13/88635184EFC2FFE43710A5DF199B7067DF336C0F_size489_w1000_h1423.jpg",
+          alt: "你想活出怎样的人生",
+        },
+      ];
+
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d");
+      const indicatorsEl = document.getElementById("indicators");
+
+      let currentIndex = 0;
+      let isTransitioning = false;
+      let autoPlayTimer = null;
+      let animationFrame = null;
+      const loadedImages = [];
+
+      // 矩阵字符集（中文 + 英文 + 符号）
+      const MATRIX_CHARS = "天地玄黄宇宙洪荒日月盈昃辰宿列张寒来暑往秋收冬藏闰余成岁律吕调阳云腾致雨露结为霜金生丽水玉出昆冈剑号巨阙珠称夜光ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<>{}[]|/\\=+*@#$%";
+      const CHAR_SIZE = 14;
+
+      function resizeCanvas() {
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = rect.width * devicePixelRatio;
+        canvas.height = rect.height * devicePixelRatio;
+        ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+        if (!isTransitioning && loadedImages[currentIndex]) {
+          drawImageCover(loadedImages[currentIndex]);
+        }
+      }
+
+      function drawImageCover(img, targetCtx, targetCanvas) {
+        const c = targetCtx || ctx;
+        const cvs = targetCanvas || canvas;
+        const cw = cvs.width / devicePixelRatio;
+        const ch = cvs.height / devicePixelRatio;
+        const imgW = img.naturalWidth || img.width;
+        const imgH = img.naturalHeight || img.height;
+        const imgRatio = imgW / imgH;
+        const canvasRatio = cw / ch;
+        let sx, sy, sw, sh;
+
+        if (imgRatio > canvasRatio) {
+          sh = imgH;
+          sw = sh * canvasRatio;
+          sx = (imgW - sw) / 2;
+          sy = 0;
+        } else {
+          sw = imgW;
+          sh = sw / canvasRatio;
+          sx = 0;
+          sy = (imgH - sh) / 2;
+        }
+
+        c.drawImage(img, sx, sy, sw, sh, 0, 0, cw, ch);
+      }
+
+      // 以 cover 模式绘制到指定尺寸（不带 DPR，用于离屏 canvas）
+      function drawCoverRaw(img, targetCtx, w, h) {
+        const imgW = img.naturalWidth || img.width;
+        const imgH = img.naturalHeight || img.height;
+        const imgRatio = imgW / imgH;
+        const canvasRatio = w / h;
+        let sx, sy, sw, sh;
+        if (imgRatio > canvasRatio) {
+          sh = imgH; sw = sh * canvasRatio;
+          sx = (imgW - sw) / 2; sy = 0;
+        } else {
+          sw = imgW; sh = sw / canvasRatio;
+          sx = 0; sy = (imgH - sh) / 2;
+        }
+        targetCtx.drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
+      }
+
+      // 矩阵代码雨过渡
+      function matrixTransition(fromImg, toImg, callback) {
+        const cw = canvas.width / devicePixelRatio;
+        const ch = canvas.height / devicePixelRatio;
+        const pw = Math.floor(cw);
+        const ph = Math.floor(ch);
+        const cols = Math.ceil(pw / CHAR_SIZE);
+        const rows = Math.ceil(ph / CHAR_SIZE);
+
+        // 为新图获取像素采样（逻辑像素尺寸，不带 DPR）
+        const sampleCanvas = document.createElement("canvas");
+        sampleCanvas.width = pw;
+        sampleCanvas.height = ph;
+        const sampleCtx = sampleCanvas.getContext("2d");
+        drawCoverRaw(toImg, sampleCtx, pw, ph);
+        const sampleData = sampleCtx.getImageData(0, 0, pw, ph);
+
+        // 离屏 canvas 缓存旧图（整张，用于绘制未到达区域）
+        const fromCanvas = document.createElement("canvas");
+        fromCanvas.width = canvas.width;
+        fromCanvas.height = canvas.height;
+        const fromCtx = fromCanvas.getContext("2d");
+        fromCtx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+        drawImageCover(fromImg, fromCtx, fromCanvas);
+
+        // 离屏 canvas 缓存新图
+        const toCanvas = document.createElement("canvas");
+        toCanvas.width = canvas.width;
+        toCanvas.height = canvas.height;
+        const toCtx = toCanvas.getContext("2d");
+        toCtx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+        drawImageCover(toImg, toCtx, toCanvas);
+
+        // 每列的雨滴配置（trailLength 在初始化时固定，避免逐帧抖动）
+        const columns = [];
+        for (let col = 0; col < cols; col++) {
+          const trailLen = 15 + Math.floor(Math.random() * 5);
+          columns.push({
+            head: -Math.floor(Math.random() * rows * 1.5),
+            speed: 0.3 + Math.random() * 0.5,
+            trailLength: trailLen,
+            chars: [],
+            revealed: new Array(rows).fill(false),
+          });
+          for (let row = 0; row < rows; row++) {
+            columns[col].chars.push(
+              MATRIX_CHARS[Math.floor(Math.random() * MATRIX_CHARS.length)]
+            );
+          }
+        }
+
+        const duration = 3000;
+        const startTime = performance.now();
+
+        function animate(currentTime) {
+          const elapsed = currentTime - startTime;
+          const progress = Math.min(elapsed / duration, 1);
+
+          ctx.clearRect(0, 0, cw, ch);
+
+          // 1. 未到达区域显示旧图（整张绘制，不逐格 clip）
+          if (progress < 0.5) {
+            ctx.globalAlpha = 1 - progress * 2;
+            ctx.drawImage(fromCanvas, 0, 0, cw, ch);
+            ctx.globalAlpha = 1;
+          }
+
+          // 2. 绘制已揭示的新图区域（黑色背景 + 新图块）
+          for (let col = 0; col < cols; col++) {
+            const column = columns[col];
+            for (let row = 0; row < rows; row++) {
+              if (column.revealed[row]) {
+                const x = col * CHAR_SIZE;
+                const y = row * CHAR_SIZE;
+                ctx.drawImage(
+                  toCanvas,
+                  x * devicePixelRatio, y * devicePixelRatio,
+                  CHAR_SIZE * devicePixelRatio, CHAR_SIZE * devicePixelRatio,
+                  x, y, CHAR_SIZE, CHAR_SIZE
+                );
+              }
+            }
+          }
+
+          // 3. 更新并绘制代码雨
+          ctx.font = `${CHAR_SIZE}px monospace`;
+          ctx.textBaseline = "top";
+
+          for (let col = 0; col < cols; col++) {
+            const column = columns[col];
+            column.head += column.speed;
+
+            const headRow = Math.floor(column.head);
+            const trailLength = column.trailLength;
+
+            for (let i = 0; i < trailLength; i++) {
+              const row = headRow - i;
+              if (row < 0 || row >= rows) continue;
+
+              const x = col * CHAR_SIZE;
+              const y = row * CHAR_SIZE;
+
+              // 偶尔变换字符
+              if (Math.random() < 0.05) {
+                column.chars[row] =
+                  MATRIX_CHARS[Math.floor(Math.random() * MATRIX_CHARS.length)];
+              }
+
+              const brightness = i === 0 ? 1.0 : Math.max(0, 1 - i / trailLength);
+
+              if (i === 0) {
+                ctx.fillStyle = `rgba(200, 255, 200, ${brightness})`;
+              } else if (i < 3) {
+                ctx.fillStyle = `rgba(0, 255, 70, ${brightness * 0.9})`;
+              } else {
+                // 从采样数据取颜色（已修正 DPR）
+                const sx = Math.min(Math.floor(x + CHAR_SIZE / 2), pw - 1);
+                const sy = Math.min(Math.floor(y + CHAR_SIZE / 2), ph - 1);
+                const idx = (sy * pw + sx) * 4;
+                const r = sampleData.data[idx] || 0;
+                const g = sampleData.data[idx + 1] || 0;
+                const b = sampleData.data[idx + 2] || 0;
+
+                const mix = Math.min(1, i / trailLength + 0.3);
+                const mr = Math.floor(r * (1 - mix));
+                const mg = Math.floor(g * (1 - mix) + 255 * mix);
+                const mb = Math.floor(b * (1 - mix) + 70 * mix);
+
+                ctx.fillStyle = `rgba(${mr}, ${mg}, ${mb}, ${brightness * 0.7})`;
+              }
+
+              ctx.fillText(column.chars[row], x, y);
+            }
+
+            // 雨滴尾部经过后揭示新图
+            const revealRow = headRow - trailLength - 3;
+            if (revealRow >= 0 && revealRow < rows) {
+              column.revealed[revealRow] = true;
+            }
+          }
+
+          // 检查是否全部揭示
+          let allRevealed = true;
+          if (progress > 0.7) {
+            outer:
+            for (let col = 0; col < cols; col++) {
+              for (let row = 0; row < rows; row++) {
+                if (!columns[col].revealed[row]) {
+                  allRevealed = false;
+                  break outer;
+                }
+              }
+            }
+          } else {
+            allRevealed = false;
+          }
+
+          if (progress < 1 && !allRevealed) {
+            animationFrame = requestAnimationFrame(animate);
+          } else {
+            ctx.clearRect(0, 0, cw, ch);
+            drawImageCover(toImg);
+            callback();
+          }
+        }
+
+        animationFrame = requestAnimationFrame(animate);
+      }
+
+      function goTo(targetIndex) {
+        if (isTransitioning || targetIndex === currentIndex) return;
+        isTransitioning = true;
+
+        const dots = indicatorsEl.querySelectorAll(".indicator");
+        dots[currentIndex].classList.remove("active");
+        dots[targetIndex].classList.add("active");
+
+        matrixTransition(loadedImages[currentIndex], loadedImages[targetIndex], () => {
+          currentIndex = targetIndex;
+          isTransitioning = false;
+        });
+      }
+
+      function next() {
+        goTo((currentIndex + 1) % images.length);
+      }
+
+      function prev() {
+        goTo((currentIndex - 1 + images.length) % images.length);
+      }
+
+      function startAutoPlay() {
+        stopAutoPlay();
+        autoPlayTimer = setInterval(next, 5000);
+      }
+
+      function stopAutoPlay() {
+        if (autoPlayTimer) {
+          clearInterval(autoPlayTimer);
+          autoPlayTimer = null;
+        }
+      }
+
+      function preloadImages() {
+        let loaded = 0;
+        return new Promise((resolve) => {
+          images.forEach((imgData, index) => {
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            img.onload = () => {
+              loadedImages[index] = img;
+              loaded++;
+              if (loaded === images.length) resolve();
+            };
+            img.onerror = () => {
+              const placeholder = document.createElement("canvas");
+              placeholder.width = 1920;
+              placeholder.height = 1080;
+              const pCtx = placeholder.getContext("2d");
+              const gradient = pCtx.createLinearGradient(0, 0, 1920, 1080);
+              gradient.addColorStop(0, `hsl(${120 + index * 15}, 60%, 15%)`);
+              gradient.addColorStop(1, `hsl(${120 + index * 15}, 60%, 8%)`);
+              pCtx.fillStyle = gradient;
+              pCtx.fillRect(0, 0, 1920, 1080);
+              pCtx.fillStyle = "#0f0";
+              pCtx.font = "48px monospace";
+              pCtx.textAlign = "center";
+              pCtx.fillText(imgData.alt, 960, 540);
+              loadedImages[index] = placeholder;
+              loaded++;
+              if (loaded === images.length) resolve();
+            };
+            img.src = imgData.src;
+          });
+        });
+      }
+
+      async function init() {
+        resizeCanvas();
+        window.addEventListener("resize", resizeCanvas);
+
+        images.forEach((_, index) => {
+          const dot = document.createElement("button");
+          dot.className = `indicator ${index === 0 ? "active" : ""}`;
+          dot.addEventListener("click", () => goTo(index));
+          indicatorsEl.appendChild(dot);
+        });
+
+        await preloadImages();
+        drawImageCover(loadedImages[0]);
+        startAutoPlay();
+      }
+
+      document.getElementById("prevBtn").addEventListener("click", () => {
+        prev();
+        startAutoPlay();
+      });
+
+      document.getElementById("nextBtn").addEventListener("click", () => {
+        next();
+        startAutoPlay();
+      });
+
+      document.querySelector(".carousel-container").addEventListener("mouseenter", stopAutoPlay);
+      document.querySelector(".carousel-container").addEventListener("mouseleave", startAutoPlay);
+
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowLeft") { prev(); startAutoPlay(); }
+        if (e.key === "ArrowRight") { next(); startAutoPlay(); }
+      });
+
+      document.addEventListener("visibilitychange", () => {
+        document.hidden ? stopAutoPlay() : startAutoPlay();
+      });
+
+      init();
+    </script>
+  </body>
+</html>
