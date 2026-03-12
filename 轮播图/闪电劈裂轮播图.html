@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>闪电劈裂轮播图</title>
+    <style>
+      /*css样式*/
+      :root {
+        --image-width: 60%;
+        --image-height: 60%;
+      }
+
+      body {
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0;
+        overflow: hidden;
+        background: #07070f;
+      }
+
+      .container {
+        width: var(--image-width);
+        height: var(--image-height);
+      }
+
+      .carousel-container {
+        position: relative;
+        border-radius: 0.75rem;
+        overflow: hidden;
+        box-shadow: 0 10px 40px -5px rgba(0, 0, 0, 0.5);
+      }
+
+      .carousel {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 16/9;
+        background: #000;
+      }
+
+      canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      .nav-btn {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 10;
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: rgba(0, 0, 0, 0.35);
+        backdrop-filter: blur(4px);
+        border: 1px solid rgba(120, 180, 255, 0.2);
+        color: #fff;
+        font-size: 20px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+      }
+
+      .nav-btn:hover {
+        background: rgba(60, 120, 255, 0.15);
+        border-color: rgba(120, 180, 255, 0.5);
+        box-shadow: 0 0 20px rgba(80, 150, 255, 0.2);
+      }
+
+      .nav-btn.prev { left: 16px; }
+      .nav-btn.next { right: 16px; }
+
+      .indicators {
+        position: absolute;
+        bottom: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 8px;
+        z-index: 10;
+      }
+
+      .indicator {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.3);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: none;
+      }
+
+      .indicator.active {
+        background: rgba(140, 200, 255, 0.9);
+        box-shadow: 0 0 8px rgba(100, 180, 255, 0.6);
+        width: 24px;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="carousel-container">
+        <div class="carousel" id="carousel">
+          <canvas id="canvas"></canvas>
+        </div>
+        <button class="nav-btn prev" id="prevBtn">◂</button>
+        <button class="nav-btn next" id="nextBtn">▸</button>
+        <div class="indicators" id="indicators"></div>
+      </div>
+    </div>
+
+    <script>
+      //js逻辑
+      const images = [
+        { src: "http://5b0988e595225.cdn.sohucs.com/images/20180130/24aecf0d680546ccbf6480badce389dc.jpeg", alt: "千与千寻" },
+        { src: "https://pic3.zhimg.com/v2-f1159536dc58af663e3955e774a7a13a_r.jpg", alt: "龙猫" },
+        { src: "http://qqpublic.qpic.cn/qq_public_cover/0/0-2083471255-1DB77954D274653D98B57D000A686040_vsmcut/0", alt: "天空之城" },
+        { src: "http://5b0988e595225.cdn.sohucs.com/images/20180824/781646fe72fc4788b7dfc24c112b5bbb.png", alt: "悬崖上的金鱼姬" },
+        { src: "http://p6.itc.cn/q_70/images03/20210106/6cd651a28f9a46268205410dcc5cad4d.jpeg", alt: "魔女宅急便" },
+        { src: "https://x0.ifengimg.com/ucms/2024_13/88635184EFC2FFE43710A5DF199B7067DF336C0F_size489_w1000_h1423.jpg", alt: "你想活出怎样的人生" },
+      ];
+
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d");
+      const indicatorsEl = document.getElementById("indicators");
+
+      let currentIndex = 0;
+      let isTransitioning = false;
+      let autoPlayTimer = null;
+      let animationFrame = null;
+      const loadedImages = [];
+
+      function resizeCanvas() {
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = rect.width * devicePixelRatio;
+        canvas.height = rect.height * devicePixelRatio;
+        ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+        if (!isTransitioning && loadedImages[currentIndex]) {
+          drawImageCover(loadedImages[currentIndex]);
+        }
+      }
+
+      function drawImageCover(img, targetCtx, targetCanvas) {
+        const c = targetCtx || ctx;
+        const cvs = targetCanvas || canvas;
+        const cw = cvs.width / devicePixelRatio;
+        const ch = cvs.height / devicePixelRatio;
+        const imgW = img.naturalWidth || img.width;
+        const imgH = img.naturalHeight || img.height;
+        const imgRatio = imgW / imgH;
+        const canvasRatio = cw / ch;
+        let sx, sy, sw, sh;
+        if (imgRatio > canvasRatio) {
+          sh = imgH; sw = sh * canvasRatio;
+          sx = (imgW - sw) / 2; sy = 0;
+        } else {
+          sw = imgW; sh = sw / canvasRatio;
+          sx = 0; sy = (imgH - sh) / 2;
+        }
+        c.drawImage(img, sx, sy, sw, sh, 0, 0, cw, ch);
+      }
+
+      // 生成闪电路径（折线）
+      function generateLightningPath(cw, ch) {
+        const points = [];
+        const segments = 25 + Math.floor(Math.random() * 15);
+        const segHeight = ch / segments;
+        // 闪电从顶部中间区域开始
+        let x = cw * (0.35 + Math.random() * 0.3);
+        points.push({ x, y: 0 });
+
+        for (let i = 1; i <= segments; i++) {
+          // 随机水平偏移，但不超出边界太多
+          x += (Math.random() - 0.5) * cw * 0.12;
+          x = Math.max(cw * 0.15, Math.min(cw * 0.85, x));
+          points.push({ x, y: i * segHeight });
+        }
+
+        return points;
+      }
+
+      // 生成分支闪电
+      function generateBranches(mainPath, cw) {
+        const branches = [];
+        for (let i = 0; i < mainPath.length - 1; i++) {
+          if (Math.random() < 0.25) {
+            const start = mainPath[i];
+            const dir = Math.random() > 0.5 ? 1 : -1;
+            const branchPoints = [{ x: start.x, y: start.y }];
+            let bx = start.x;
+            let by = start.y;
+            const len = 3 + Math.floor(Math.random() * 4);
+            for (let j = 0; j < len; j++) {
+              bx += dir * (10 + Math.random() * 25);
+              by += 8 + Math.random() * 15;
+              bx = Math.max(0, Math.min(cw, bx));
+              branchPoints.push({ x: bx, y: by });
+            }
+            branches.push(branchPoints);
+          }
+        }
+        return branches;
+      }
+
+      // 绘制闪电路径
+      function drawLightning(points, alpha, width, glow) {
+        if (points.length < 2) return;
+        ctx.save();
+        ctx.globalAlpha = alpha;
+
+        // 外发光
+        if (glow) {
+          ctx.shadowColor = "rgba(140, 200, 255, 0.8)";
+          ctx.shadowBlur = glow;
+        }
+
+        ctx.strokeStyle = `rgba(200, 230, 255, ${alpha})`;
+        ctx.lineWidth = width;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) {
+          ctx.lineTo(points[i].x, points[i].y);
+        }
+        ctx.stroke();
+
+        // 内芯（更亮更细）
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.9})`;
+        ctx.lineWidth = Math.max(1, width * 0.4);
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) {
+          ctx.lineTo(points[i].x, points[i].y);
+        }
+        ctx.stroke();
+
+        ctx.restore();
+      }
+
+      // 电火花粒子
+      class Spark {
+        constructor(x, y) {
+          this.x = x;
+          this.y = y;
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 1 + Math.random() * 4;
+          this.vx = Math.cos(angle) * speed;
+          this.vy = Math.sin(angle) * speed;
+          this.life = 1;
+          this.decay = 0.02 + Math.random() * 0.04;
+          this.size = 1 + Math.random() * 2;
+        }
+        update() {
+          this.x += this.vx;
+          this.y += this.vy;
+          this.vy += 0.08; // 微重力
+          this.life -= this.decay;
+        }
+        draw() {
+          if (this.life <= 0) return;
+          ctx.globalAlpha = this.life;
+          ctx.fillStyle = `rgba(180, 220, 255, ${this.life})`;
+          ctx.fillRect(this.x - this.size / 2, this.y - this.size / 2, this.size, this.size);
+        }
+      }
+
+      // 闪电劈裂过渡
+      function lightningTransition(fromImg, toImg, callback) {
+        const cw = canvas.width / devicePixelRatio;
+        const ch = canvas.height / devicePixelRatio;
+
+        // 缓存新旧图
+        const fromCanvas = document.createElement("canvas");
+        fromCanvas.width = canvas.width; fromCanvas.height = canvas.height;
+        const fromCtx = fromCanvas.getContext("2d");
+        fromCtx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+        drawImageCover(fromImg, fromCtx, fromCanvas);
+
+        const toCanvas = document.createElement("canvas");
+        toCanvas.width = canvas.width; toCanvas.height = canvas.height;
+        const toCtx = toCanvas.getContext("2d");
+        toCtx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+        drawImageCover(toImg, toCtx, toCanvas);
+
+        // 生成闪电路径
+        const mainPath = generateLightningPath(cw, ch);
+        const branches = generateBranches(mainPath, cw);
+
+        // 沿闪电路径生成电火花
+        const sparks = [];
+        mainPath.forEach((p) => {
+          for (let i = 0; i < 3; i++) {
+            sparks.push(new Spark(p.x, p.y));
+          }
+        });
+
+        const duration = 2000;
+        const startTime = performance.now();
+
+        // 将闪电路径转为裁切多边形（左半和右半）
+        function getClipPolygon(path, side, offset) {
+          const poly = [];
+          if (side === "left") {
+            poly.push({ x: -offset, y: 0 });
+            path.forEach((p) => poly.push({ x: p.x + offset, y: p.y }));
+            poly.push({ x: -offset, y: ch });
+          } else {
+            poly.push({ x: cw + offset, y: 0 });
+            path.forEach((p) => poly.push({ x: p.x - offset, y: p.y }));
+            poly.push({ x: cw + offset, y: ch });
+          }
+          return poly;
+        }
+
+        function animate(currentTime) {
+          const elapsed = currentTime - startTime;
+          const progress = Math.min(elapsed / duration, 1);
+
+          ctx.clearRect(0, 0, cw, ch);
+
+          // 阶段1 (0~0.15): 闪电出现 + 闪光
+          // 阶段2 (0.15~0.7): 旧图沿闪电路径劈裂，左右分离
+          // 阶段3 (0.7~1.0): 新图渐显
+
+          // 底层新图
+          if (progress > 0.1) {
+            ctx.globalAlpha = Math.min(1, (progress - 0.1) / 0.5);
+            ctx.drawImage(toCanvas, 0, 0, cw, ch);
+            ctx.globalAlpha = 1;
+          }
+
+          // 旧图劈裂
+          if (progress < 0.85) {
+            const splitProgress = Math.max(0, (progress - 0.12) / 0.58);
+            const splitEased = splitProgress * splitProgress; // easeIn
+            const splitOffset = splitEased * cw * 0.15;
+            const fallAngle = splitEased * 0.05; // 轻微旋转
+
+            // 左半部分
+            ctx.save();
+            const leftPoly = getClipPolygon(mainPath, "left", -splitOffset);
+            ctx.beginPath();
+            ctx.moveTo(leftPoly[0].x, leftPoly[0].y);
+            leftPoly.forEach((p) => ctx.lineTo(p.x, p.y));
+            ctx.closePath();
+            ctx.clip();
+
+            ctx.globalAlpha = 1 - splitProgress * 0.6;
+            ctx.translate(-splitOffset, splitEased * 30);
+            ctx.rotate(-fallAngle);
+            ctx.drawImage(fromCanvas, 0, 0, cw, ch);
+            ctx.restore();
+
+            // 右半部分
+            ctx.save();
+            const rightPoly = getClipPolygon(mainPath, "right", -splitOffset);
+            ctx.beginPath();
+            ctx.moveTo(rightPoly[0].x, rightPoly[0].y);
+            rightPoly.forEach((p) => ctx.lineTo(p.x, p.y));
+            ctx.closePath();
+            ctx.clip();
+
+            ctx.globalAlpha = 1 - splitProgress * 0.6;
+            ctx.translate(splitOffset, splitEased * 20);
+            ctx.rotate(fallAngle);
+            ctx.drawImage(fromCanvas, 0, 0, cw, ch);
+            ctx.restore();
+          }
+
+          // 闪电
+          if (progress < 0.5) {
+            const lightP = progress < 0.15
+              ? progress / 0.15
+              : 1 - (progress - 0.15) / 0.35;
+            const lightAlpha = Math.max(0, lightP);
+
+            drawLightning(mainPath, lightAlpha * 0.9, 3, 25);
+            branches.forEach((branch) => {
+              drawLightning(branch, lightAlpha * 0.5, 1.5, 10);
+            });
+          }
+
+          // 电火花
+          if (progress < 0.6) {
+            sparks.forEach((s) => {
+              s.update();
+              s.draw();
+            });
+            ctx.globalAlpha = 1;
+          }
+
+          // 闪光效果（闪电击中瞬间）
+          if (progress < 0.2) {
+            const flashP = progress < 0.05
+              ? progress / 0.05
+              : 1 - (progress - 0.05) / 0.15;
+            ctx.fillStyle = `rgba(200, 230, 255, ${Math.max(0, flashP * 0.4)})`;
+            ctx.fillRect(0, 0, cw, ch);
+          }
+
+          if (progress < 1) {
+            animationFrame = requestAnimationFrame(animate);
+          } else {
+            ctx.clearRect(0, 0, cw, ch);
+            drawImageCover(toImg);
+            callback();
+          }
+        }
+
+        animationFrame = requestAnimationFrame(animate);
+      }
+
+      function goTo(targetIndex) {
+        if (isTransitioning || targetIndex === currentIndex) return;
+        isTransitioning = true;
+        const dots = indicatorsEl.querySelectorAll(".indicator");
+        dots[currentIndex].classList.remove("active");
+        dots[targetIndex].classList.add("active");
+        lightningTransition(loadedImages[currentIndex], loadedImages[targetIndex], () => {
+          currentIndex = targetIndex;
+          isTransitioning = false;
+        });
+      }
+
+      function next() { goTo((currentIndex + 1) % images.length); }
+      function prev() { goTo((currentIndex - 1 + images.length) % images.length); }
+      function startAutoPlay() { stopAutoPlay(); autoPlayTimer = setInterval(next, 4500); }
+      function stopAutoPlay() { if (autoPlayTimer) { clearInterval(autoPlayTimer); autoPlayTimer = null; } }
+
+      function preloadImages() {
+        let loaded = 0;
+        return new Promise((resolve) => {
+          images.forEach((imgData, index) => {
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            img.onload = () => { loadedImages[index] = img; loaded++; if (loaded === images.length) resolve(); };
+            img.onerror = () => {
+              const p = document.createElement("canvas"); p.width = 1920; p.height = 1080;
+              const c = p.getContext("2d");
+              c.fillStyle = `hsl(${210 + index * 20}, 50%, 15%)`; c.fillRect(0, 0, 1920, 1080);
+              c.fillStyle = "#adf"; c.font = "48px sans-serif"; c.textAlign = "center"; c.fillText(imgData.alt, 960, 540);
+              loadedImages[index] = p; loaded++; if (loaded === images.length) resolve();
+            };
+            img.src = imgData.src;
+          });
+        });
+      }
+
+      async function init() {
+        resizeCanvas();
+        window.addEventListener("resize", resizeCanvas);
+        images.forEach((_, i) => {
+          const dot = document.createElement("button");
+          dot.className = `indicator ${i === 0 ? "active" : ""}`;
+          dot.addEventListener("click", () => goTo(i));
+          indicatorsEl.appendChild(dot);
+        });
+        await preloadImages();
+        drawImageCover(loadedImages[0]);
+        startAutoPlay();
+      }
+
+      document.getElementById("prevBtn").addEventListener("click", () => { prev(); startAutoPlay(); });
+      document.getElementById("nextBtn").addEventListener("click", () => { next(); startAutoPlay(); });
+      document.querySelector(".carousel-container").addEventListener("mouseenter", stopAutoPlay);
+      document.querySelector(".carousel-container").addEventListener("mouseleave", startAutoPlay);
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowLeft") { prev(); startAutoPlay(); }
+        if (e.key === "ArrowRight") { next(); startAutoPlay(); }
+      });
+      document.addEventListener("visibilitychange", () => { document.hidden ? stopAutoPlay() : startAutoPlay(); });
+      init();
+    </script>
+  </body>
+</html>
