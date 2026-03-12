@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>水墨晕染轮播图</title>
+    <style>
+      /*css样式*/
+      :root {
+        --image-width: 60%;
+        --image-height: 60%;
+        --transition-duration: 1.8s;
+      }
+
+      body {
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0;
+        overflow: hidden;
+        background: #0a0a0a;
+      }
+
+      .container {
+        width: var(--image-width);
+        height: var(--image-height);
+      }
+
+      .carousel-container {
+        position: relative;
+        border-radius: 0.75rem;
+        overflow: hidden;
+        box-shadow: 0 10px 40px -5px rgba(0, 0, 0, 0.5);
+      }
+
+      .carousel {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 16/9;
+      }
+
+      .slide {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        transition: none;
+      }
+
+      .slide.active {
+        opacity: 1;
+        z-index: 2;
+      }
+
+      .slide.leaving {
+        opacity: 1;
+        z-index: 3;
+      }
+
+      .slide img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      /* 控制按钮 */
+      .nav-btn {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 10;
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: rgba(0, 0, 0, 0.3);
+        backdrop-filter: blur(4px);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        color: #fff;
+        font-size: 20px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+      }
+
+      .nav-btn:hover {
+        background: rgba(0, 0, 0, 0.5);
+        border-color: rgba(255, 255, 255, 0.3);
+      }
+
+      .nav-btn.prev { left: 16px; }
+      .nav-btn.next { right: 16px; }
+
+      /* 指示器 */
+      .indicators {
+        position: absolute;
+        bottom: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 8px;
+        z-index: 10;
+      }
+
+      .indicator {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.4);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: none;
+      }
+
+      .indicator.active {
+        background: rgba(255, 255, 255, 0.95);
+        width: 24px;
+        border-radius: 4px;
+      }
+
+      /* SVG 滤镜层 - 隐藏 */
+      .svg-filters {
+        position: absolute;
+        width: 0;
+        height: 0;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- SVG 滤镜定义 -->
+    <svg class="svg-filters">
+      <defs>
+        <!-- 水墨晕染滤镜 -->
+        <filter id="ink-dissolve" x="-10%" y="-10%" width="120%" height="120%">
+          <feTurbulence
+            id="turbulence"
+            type="fractalNoise"
+            baseFrequency="0.015"
+            numOctaves="6"
+            seed="1"
+            result="noise"
+          />
+          <feDisplacementMap
+            id="displacement"
+            in="SourceGraphic"
+            in2="noise"
+            scale="0"
+            xChannelSelector="R"
+            yChannelSelector="G"
+            result="displaced"
+          />
+          <feGaussianBlur
+            id="ink-blur"
+            in="displaced"
+            stdDeviation="0"
+            result="blurred"
+          />
+          <feComponentTransfer in="blurred" result="faded">
+            <feFuncA id="alpha-func" type="linear" slope="1" intercept="0" />
+          </feComponentTransfer>
+        </filter>
+      </defs>
+    </svg>
+
+    <div class="container">
+      <div class="carousel-container">
+        <div class="carousel" id="carousel"></div>
+        <button class="nav-btn prev" id="prevBtn">◂</button>
+        <button class="nav-btn next" id="nextBtn">▸</button>
+        <div class="indicators" id="indicators"></div>
+      </div>
+    </div>
+
+    <script>
+      //js逻辑
+      const images = [
+        {
+          src: "http://5b0988e595225.cdn.sohucs.com/images/20180130/24aecf0d680546ccbf6480badce389dc.jpeg",
+          alt: "千与千寻",
+        },
+        {
+          src: "https://pic3.zhimg.com/v2-f1159536dc58af663e3955e774a7a13a_r.jpg",
+          alt: "龙猫",
+        },
+        {
+          src: "http://qqpublic.qpic.cn/qq_public_cover/0/0-2083471255-1DB77954D274653D98B57D000A686040_vsmcut/0",
+          alt: "天空之城",
+        },
+        {
+          src: "http://5b0988e595225.cdn.sohucs.com/images/20180824/781646fe72fc4788b7dfc24c112b5bbb.png",
+          alt: "悬崖上的金鱼姬",
+        },
+        {
+          src: "http://p6.itc.cn/q_70/images03/20210106/6cd651a28f9a46268205410dcc5cad4d.jpeg",
+          alt: "魔女宅急便",
+        },
+        {
+          src: "https://x0.ifengimg.com/ucms/2024_13/88635184EFC2FFE43710A5DF199B7067DF336C0F_size489_w1000_h1423.jpg",
+          alt: "你想活出怎样的人生",
+        },
+      ];
+
+      let currentIndex = 0;
+      let isTransitioning = false;
+      let autoPlayTimer = null;
+      let animationFrame = null;
+
+      const carousel = document.getElementById("carousel");
+      const indicators = document.getElementById("indicators");
+      const turbulence = document.getElementById("turbulence");
+      const displacement = document.getElementById("displacement");
+      const inkBlur = document.getElementById("ink-blur");
+      const alphaFunc = document.getElementById("alpha-func");
+
+      // 初始化
+      function init() {
+        images.forEach((image, index) => {
+          // 创建幻灯片
+          const slide = document.createElement("div");
+          slide.className = `slide ${index === 0 ? "active" : ""}`;
+          slide.innerHTML = `<img src="${image.src}" alt="${image.alt}" />`;
+          carousel.appendChild(slide);
+
+          // 创建指示器
+          const dot = document.createElement("button");
+          dot.className = `indicator ${index === 0 ? "active" : ""}`;
+          dot.addEventListener("click", () => goTo(index));
+          indicators.appendChild(dot);
+        });
+
+        startAutoPlay();
+      }
+
+      // 水墨晕染过渡动画
+      function inkDissolveTransition(leavingSlide, callback) {
+        leavingSlide.style.filter = "url(#ink-dissolve)";
+
+        const duration = 1800; // ms
+        const startTime = performance.now();
+
+        function animate(currentTime) {
+          const elapsed = currentTime - startTime;
+          const progress = Math.min(elapsed / duration, 1);
+
+          // 使用 easeInOutCubic 缓动
+          const eased = progress < 0.5
+            ? 4 * progress * progress * progress
+            : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+
+          // 水墨扩散 - 位移量从0增加到800
+          const displacementScale = eased * 800;
+          displacement.setAttribute("scale", displacementScale);
+
+          // 墨迹晕开 - 模糊从0增加到15
+          const blurAmount = eased * 15;
+          inkBlur.setAttribute("stdDeviation", blurAmount);
+
+          // 透明度渐变 - 后半段开始消失
+          const alphaProgress = Math.max(0, (progress - 0.3) / 0.7);
+          const alphaSlope = 1 - alphaProgress;
+          alphaFunc.setAttribute("slope", Math.max(0, alphaSlope));
+
+          // 动态改变噪声频率 - 模拟墨水扩散的有机感
+          const freq = 0.015 - eased * 0.008;
+          turbulence.setAttribute("baseFrequency", `${freq} ${freq * 1.2}`);
+
+          // 随机切换噪声种子 - 增加不可预测的有机质感
+          if (progress > 0.1 && progress < 0.8 && Math.random() < 0.03) {
+            turbulence.setAttribute("seed", Math.floor(Math.random() * 100));
+          }
+
+          if (progress < 1) {
+            animationFrame = requestAnimationFrame(animate);
+          } else {
+            // 动画结束，重置滤镜
+            leavingSlide.style.filter = "none";
+            displacement.setAttribute("scale", 0);
+            inkBlur.setAttribute("stdDeviation", 0);
+            alphaFunc.setAttribute("slope", 1);
+            turbulence.setAttribute("baseFrequency", "0.015");
+            callback();
+          }
+        }
+
+        animationFrame = requestAnimationFrame(animate);
+      }
+
+      // 切换到指定索引
+      function goTo(targetIndex) {
+        if (isTransitioning || targetIndex === currentIndex) return;
+        isTransitioning = true;
+
+        const slides = carousel.querySelectorAll(".slide");
+        const dots = indicators.querySelectorAll(".indicator");
+
+        const leavingSlide = slides[currentIndex];
+        const enteringSlide = slides[targetIndex];
+
+        // 设置新幻灯片为激活态
+        enteringSlide.classList.add("active");
+        leavingSlide.classList.remove("active");
+        leavingSlide.classList.add("leaving");
+
+        // 更新指示器
+        dots[currentIndex].classList.remove("active");
+        dots[targetIndex].classList.add("active");
+
+        // 执行水墨过渡
+        inkDissolveTransition(leavingSlide, () => {
+          leavingSlide.classList.remove("leaving");
+          currentIndex = targetIndex;
+          isTransitioning = false;
+        });
+      }
+
+      function next() {
+        goTo((currentIndex + 1) % images.length);
+      }
+
+      function prev() {
+        goTo((currentIndex - 1 + images.length) % images.length);
+      }
+
+      function startAutoPlay() {
+        stopAutoPlay();
+        autoPlayTimer = setInterval(next, 4000);
+      }
+
+      function stopAutoPlay() {
+        if (autoPlayTimer) {
+          clearInterval(autoPlayTimer);
+          autoPlayTimer = null;
+        }
+      }
+
+      // 强制中断动画（仅在页面不可见等场景使用）
+      function cancelTransition() {
+        if (animationFrame) {
+          cancelAnimationFrame(animationFrame);
+          animationFrame = null;
+        }
+        // 重置滤镜状态
+        displacement.setAttribute("scale", 0);
+        inkBlur.setAttribute("stdDeviation", 0);
+        alphaFunc.setAttribute("slope", 1);
+        turbulence.setAttribute("baseFrequency", "0.015");
+        // 清理 leaving 状态
+        const leavingSlide = carousel.querySelector(".slide.leaving");
+        if (leavingSlide) {
+          leavingSlide.style.filter = "none";
+          leavingSlide.classList.remove("leaving");
+        }
+        isTransitioning = false;
+      }
+
+      // 事件绑定
+      document.getElementById("prevBtn").addEventListener("click", () => {
+        prev();
+        startAutoPlay();
+      });
+
+      document.getElementById("nextBtn").addEventListener("click", () => {
+        next();
+        startAutoPlay();
+      });
+
+      carousel.parentElement.addEventListener("mouseenter", () => {
+        if (autoPlayTimer) clearInterval(autoPlayTimer);
+      });
+
+      carousel.parentElement.addEventListener("mouseleave", startAutoPlay);
+
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowLeft") { prev(); startAutoPlay(); }
+        if (e.key === "ArrowRight") { next(); startAutoPlay(); }
+      });
+
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) {
+          stopAutoPlay();
+          cancelTransition();
+        } else {
+          startAutoPlay();
+        }
+      });
+
+      init();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>磁流体轮播图</title>
+    <style>
+      /*css样式*/
+      :root {
+        --image-width: 60%;
+        --image-height: 60%;
+      }
+
+      body {
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0;
+        overflow: hidden;
+        background: #0a0a12;
+      }
+
+      .container {
+        width: var(--image-width);
+        height: var(--image-height);
+      }
+
+      .carousel-container {
+        position: relative;
+        border-radius: 0.75rem;
+        overflow: hidden;
+        box-shadow: 0 10px 40px -5px rgba(0, 0, 0, 0.5);
+      }
+
+      .carousel {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 16/9;
+        background: #000;
+      }
+
+      canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      /* 控制按钮 */
+      .nav-btn {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 10;
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: rgba(0, 0, 0, 0.35);
+        backdrop-filter: blur(4px);
+        border: 1px solid rgba(0, 180, 255, 0.2);
+        color: #fff;
+        font-size: 20px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+      }
+
+      .nav-btn:hover {
+        background: rgba(0, 120, 200, 0.2);
+        border-color: rgba(0, 180, 255, 0.5);
+        box-shadow: 0 0 20px rgba(0, 150, 255, 0.2);
+      }
+
+      .nav-btn.prev { left: 16px; }
+      .nav-btn.next { right: 16px; }
+
+      /* 指示器 */
+      .indicators {
+        position: absolute;
+        bottom: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 8px;
+        z-index: 10;
+      }
+
+      .indicator {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.3);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: none;
+      }
+
+      .indicator.active {
+        background: rgba(0, 200, 255, 0.9);
+        box-shadow: 0 0 8px rgba(0, 180, 255, 0.5);
+        width: 24px;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="carousel-container">
+        <div class="carousel" id="carousel">
+          <canvas id="canvas"></canvas>
+        </div>
+        <button class="nav-btn prev" id="prevBtn">◂</button>
+        <button class="nav-btn next" id="nextBtn">▸</button>
+        <div class="indicators" id="indicators"></div>
+      </div>
+    </div>
+
+    <script>
+      //js逻辑
+      const images = [
+        {
+          src: "http://5b0988e595225.cdn.sohucs.com/images/20180130/24aecf0d680546ccbf6480badce389dc.jpeg",
+          alt: "千与千寻",
+        },
+        {
+          src: "https://pic3.zhimg.com/v2-f1159536dc58af663e3955e774a7a13a_r.jpg",
+          alt: "龙猫",
+        },
+        {
+          src: "http://qqpublic.qpic.cn/qq_public_cover/0/0-2083471255-1DB77954D274653D98B57D000A686040_vsmcut/0",
+          alt: "天空之城",
+        },
+        {
+          src: "http://5b0988e595225.cdn.sohucs.com/images/20180824/781646fe72fc4788b7dfc24c112b5bbb.png",
+          alt: "悬崖上的金鱼姬",
+        },
+        {
+          src: "http://p6.itc.cn/q_70/images03/20210106/6cd651a28f9a46268205410dcc5cad4d.jpeg",
+          alt: "魔女宅急便",
+        },
+        {
+          src: "https://x0.ifengimg.com/ucms/2024_13/88635184EFC2FFE43710A5DF199B7067DF336C0F_size489_w1000_h1423.jpg",
+          alt: "你想活出怎样的人生",
+        },
+      ];
+
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d");
+      const indicatorsEl = document.getElementById("indicators");
+
+      let currentIndex = 0;
+      let isTransitioning = false;
+      let autoPlayTimer = null;
+      let animationFrame = null;
+      const loadedImages = [];
+
+      function resizeCanvas() {
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = rect.width * devicePixelRatio;
+        canvas.height = rect.height * devicePixelRatio;
+        ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+        if (!isTransitioning && loadedImages[currentIndex]) {
+          drawImageCover(loadedImages[currentIndex]);
+        }
+      }
+
+      function drawImageCover(img, targetCtx, targetCanvas) {
+        const c = targetCtx || ctx;
+        const cvs = targetCanvas || canvas;
+        const cw = cvs.width / devicePixelRatio;
+        const ch = cvs.height / devicePixelRatio;
+        const imgRatio = img.naturalWidth / img.naturalHeight;
+        const canvasRatio = cw / ch;
+        let sx, sy, sw, sh;
+
+        if (imgRatio > canvasRatio) {
+          sh = img.naturalHeight;
+          sw = sh * canvasRatio;
+          sx = (img.naturalWidth - sw) / 2;
+          sy = 0;
+        } else {
+          sw = img.naturalWidth;
+          sh = sw / canvasRatio;
+          sx = 0;
+          sy = (img.naturalHeight - sh) / 2;
+        }
+
+        c.drawImage(img, sx, sy, sw, sh, 0, 0, cw, ch);
+      }
+
+      // Metaball（元球）计算 - 磁流体的核心
+      class Metaball {
+        constructor(x, y, radius, vx, vy) {
+          this.x = x;
+          this.y = y;
+          this.radius = radius;
+          this.vx = vx;
+          this.vy = vy;
+          this.targetX = x;
+          this.targetY = y;
+        }
+
+        update(progress) {
+          // 平滑移向目标位置
+          this.x += (this.targetX - this.x) * 0.06;
+          this.y += (this.targetY - this.y) * 0.06;
+          // 添加有机运动
+          this.x += Math.sin(progress * Math.PI * 4 + this.vx) * 1.5;
+          this.y += Math.cos(progress * Math.PI * 3 + this.vy) * 1.5;
+        }
+
+        influence(px, py) {
+          const dx = px - this.x;
+          const dy = py - this.y;
+          const distSq = dx * dx + dy * dy;
+          return (this.radius * this.radius) / distSq;
+        }
+      }
+
+      // 创建磁流体 blob 组
+      function createMetaballs(cw, ch, direction) {
+        const balls = [];
+        const count = 8;
+
+        for (let i = 0; i < count; i++) {
+          let startX, startY;
+          const spread = ch * 0.8;
+          const yPos = ch * 0.1 + (spread / count) * i + Math.random() * (spread / count);
+
+          if (direction === "next") {
+            startX = cw + 50 + Math.random() * 100;
+          } else {
+            startX = -50 - Math.random() * 100;
+          }
+          startY = yPos;
+
+          const radius = 50 + Math.random() * 60;
+          const ball = new Metaball(
+            startX, startY, radius,
+            Math.random() * Math.PI * 2,
+            Math.random() * Math.PI * 2
+          );
+
+          // 目标位置 - 移动到覆盖画布
+          ball.targetX = cw * (0.15 + Math.random() * 0.7);
+          ball.targetY = yPos;
+
+          balls.push(ball);
+        }
+
+        // 添加一些小球增加有机感
+        for (let i = 0; i < 5; i++) {
+          let startX;
+          if (direction === "next") {
+            startX = cw + 80 + Math.random() * 150;
+          } else {
+            startX = -80 - Math.random() * 150;
+          }
+          const ball = new Metaball(
+            startX,
+            Math.random() * ch,
+            25 + Math.random() * 35,
+            Math.random() * Math.PI * 2,
+            Math.random() * Math.PI * 2
+          );
+          ball.targetX = cw * (0.1 + Math.random() * 0.8);
+          ball.targetY = Math.random() * ch;
+          balls.push(ball);
+        }
+
+        return balls;
+      }
+
+      // 磁流体过渡效果
+      function ferrofluidTransition(fromImg, toImg, direction, callback) {
+        const cw = canvas.width / devicePixelRatio;
+        const ch = canvas.height / devicePixelRatio;
+
+        // 创建两个离屏 canvas 分别存储新旧图片
+        const fromCanvas = document.createElement("canvas");
+        fromCanvas.width = canvas.width;
+        fromCanvas.height = canvas.height;
+        const fromCtx = fromCanvas.getContext("2d");
+        fromCtx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+        drawImageCover(fromImg, fromCtx, fromCanvas);
+
+        const toCanvas = document.createElement("canvas");
+        toCanvas.width = canvas.width;
+        toCanvas.height = canvas.height;
+        const toCtx = toCanvas.getContext("2d");
+        toCtx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+        drawImageCover(toImg, toCtx, toCanvas);
+
+        // 创建 metaball 遮罩 canvas
+        const maskCanvas = document.createElement("canvas");
+        maskCanvas.width = cw;
+        maskCanvas.height = ch;
+        const maskCtx = maskCanvas.getContext("2d");
+
+        const metaballs = createMetaballs(cw, ch, direction);
+
+        const duration = 2000;
+        const startTime = performance.now();
+        // metaball 场的阈值
+        const threshold = 1.0;
+        // 采样步长（性能优化 - 不逐像素计算）
+        const step = 4;
+
+        function animate(currentTime) {
+          const elapsed = currentTime - startTime;
+          const progress = Math.min(elapsed / duration, 1);
+
+          // easeInOutQuart
+          const eased = progress < 0.5
+            ? 8 * progress * progress * progress * progress
+            : 1 - Math.pow(-2 * progress + 2, 4) / 2;
+
+          // 更新 metaball 位置
+          metaballs.forEach((ball) => ball.update(progress));
+
+          // 动态调整半径 - 逐渐增大直到覆盖全屏
+          metaballs.forEach((ball, i) => {
+            const sizeMultiplier = 1 + eased * 3.5;
+            ball.radius = (50 + (i < 8 ? i * 7 : 0)) * sizeMultiplier;
+          });
+
+          // 绘制 metaball 场到遮罩
+          maskCtx.clearRect(0, 0, cw, ch);
+          const maskImageData = maskCtx.createImageData(cw, ch);
+          const maskData = maskImageData.data;
+
+          for (let y = 0; y < ch; y += step) {
+            for (let x = 0; x < cw; x += step) {
+              let sum = 0;
+              for (const ball of metaballs) {
+                sum += ball.influence(x, y);
+              }
+
+              // 在阈值边界做平滑过渡
+              let alpha = 0;
+              if (sum >= threshold) {
+                alpha = 255;
+              } else if (sum >= threshold * 0.7) {
+                // 边缘平滑
+                alpha = Math.floor(((sum - threshold * 0.7) / (threshold * 0.3)) * 255);
+              }
+
+              // 填充 step x step 区域
+              for (let dy = 0; dy < step && y + dy < ch; dy++) {
+                for (let dx = 0; dx < step && x + dx < cw; dx++) {
+                  const idx = ((y + dy) * cw + (x + dx)) * 4;
+                  maskData[idx] = 255;
+                  maskData[idx + 1] = 255;
+                  maskData[idx + 2] = 255;
+                  maskData[idx + 3] = alpha;
+                }
+              }
+            }
+          }
+
+          maskCtx.putImageData(maskImageData, 0, 0);
+
+          // 合成最终画面
+          ctx.clearRect(0, 0, cw, ch);
+
+          // 1. 绘制旧图
+          ctx.drawImage(fromCanvas, 0, 0, cw, ch);
+
+          // 2. 使用 metaball 遮罩绘制新图
+          ctx.save();
+          ctx.globalCompositeOperation = "source-over";
+
+          // 先画遮罩到一个临时 canvas，再用它裁切新图
+          const tempCanvas = document.createElement("canvas");
+          tempCanvas.width = cw;
+          tempCanvas.height = ch;
+          const tempCtx = tempCanvas.getContext("2d");
+
+          // 在临时 canvas 上画新图
+          tempCtx.drawImage(toCanvas, 0, 0, cw, ch);
+          // 用 destination-in 保留与遮罩重叠的区域
+          tempCtx.globalCompositeOperation = "destination-in";
+          tempCtx.drawImage(maskCanvas, 0, 0);
+
+          // 将裁切结果叠加到主 canvas
+          ctx.drawImage(tempCanvas, 0, 0);
+          ctx.restore();
+
+          // 3. 绘制磁流体边缘高光
+          if (progress > 0.05 && progress < 0.95) {
+            ctx.save();
+            ctx.globalAlpha = 0.3 * (1 - Math.abs(progress - 0.5) * 2);
+
+            // 边缘检测 - 简化版：在遮罩边界绘制高光线
+            const edgeMaskData = maskCtx.getImageData(0, 0, cw, ch).data;
+            ctx.strokeStyle = "rgba(80, 200, 255, 0.6)";
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+
+            for (let y = 0; y < ch; y += step * 2) {
+              for (let x = 0; x < cw; x += step * 2) {
+                const idx = (y * cw + x) * 4;
+                const a = edgeMaskData[idx + 3];
+                // 找边界像素
+                if (a > 50 && a < 230) {
+                  ctx.moveTo(x, y);
+                  ctx.lineTo(x + 1, y + 1);
+                }
+              }
+            }
+            ctx.stroke();
+            ctx.restore();
+          }
+
+          if (progress < 1) {
+            animationFrame = requestAnimationFrame(animate);
+          } else {
+            ctx.clearRect(0, 0, cw, ch);
+            drawImageCover(toImg);
+            callback();
+          }
+        }
+
+        animationFrame = requestAnimationFrame(animate);
+      }
+
+      function goTo(targetIndex, direction) {
+        if (isTransitioning || targetIndex === currentIndex) return;
+        isTransitioning = true;
+
+        const dir = direction || (targetIndex > currentIndex ? "next" : "prev");
+
+        const dots = indicatorsEl.querySelectorAll(".indicator");
+        dots[currentIndex].classList.remove("active");
+        dots[targetIndex].classList.add("active");
+
+        ferrofluidTransition(
+          loadedImages[currentIndex],
+          loadedImages[targetIndex],
+          dir,
+          () => {
+            currentIndex = targetIndex;
+            isTransitioning = false;
+          }
+        );
+      }
+
+      function next() {
+        goTo((currentIndex + 1) % images.length, "next");
+      }
+
+      function prev() {
+        goTo((currentIndex - 1 + images.length) % images.length, "prev");
+      }
+
+      function startAutoPlay() {
+        stopAutoPlay();
+        autoPlayTimer = setInterval(next, 4500);
+      }
+
+      function stopAutoPlay() {
+        if (autoPlayTimer) {
+          clearInterval(autoPlayTimer);
+          autoPlayTimer = null;
+        }
+      }
+
+      function preloadImages() {
+        let loaded = 0;
+        return new Promise((resolve) => {
+          images.forEach((imgData, index) => {
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            img.onload = () => {
+              loadedImages[index] = img;
+              loaded++;
+              if (loaded === images.length) resolve();
+            };
+            img.onerror = () => {
+              const placeholder = document.createElement("canvas");
+              placeholder.width = 1920;
+              placeholder.height = 1080;
+              const pCtx = placeholder.getContext("2d");
+              const gradient = pCtx.createLinearGradient(0, 0, 1920, 1080);
+              gradient.addColorStop(0, `hsl(${index * 60 + 200}, 60%, 25%)`);
+              gradient.addColorStop(1, `hsl(${index * 60 + 230}, 60%, 15%)`);
+              pCtx.fillStyle = gradient;
+              pCtx.fillRect(0, 0, 1920, 1080);
+              pCtx.fillStyle = "#fff";
+              pCtx.font = "48px sans-serif";
+              pCtx.textAlign = "center";
+              pCtx.fillText(imgData.alt, 960, 540);
+              loadedImages[index] = placeholder;
+              loaded++;
+              if (loaded === images.length) resolve();
+            };
+            img.src = imgData.src;
+          });
+        });
+      }
+
+      async function init() {
+        resizeCanvas();
+        window.addEventListener("resize", resizeCanvas);
+
+        images.forEach((_, index) => {
+          const dot = document.createElement("button");
+          dot.className = `indicator ${index === 0 ? "active" : ""}`;
+          dot.addEventListener("click", () => goTo(index));
+          indicatorsEl.appendChild(dot);
+        });
+
+        await preloadImages();
+        drawImageCover(loadedImages[0]);
+        startAutoPlay();
+      }
+
+      document.getElementById("prevBtn").addEventListener("click", () => {
+        prev();
+        startAutoPlay();
+      });
+
+      document.getElementById("nextBtn").addEventListener("click", () => {
+        next();
+        startAutoPlay();
+      });
+
+      document.querySelector(".carousel-container").addEventListener("mouseenter", stopAutoPlay);
+      document.querySelector(".carousel-container").addEventListener("mouseleave", startAutoPlay);
+
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowLeft") { prev(); startAutoPlay(); }
+        if (e.key === "ArrowRight") { next(); startAutoPlay(); }
+      });
+
+      document.addEventListener("visibilitychange", () => {
+        document.hidden ? stopAutoPlay() : startAutoPlay();
+      });
+
+      init();
+    </script>
+  </body>
+</html>

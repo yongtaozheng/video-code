@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>黑洞吞噬轮播图</title>
+    <style>
+      /*css样式*/
+      :root {
+        --image-width: 60%;
+        --image-height: 60%;
+      }
+
+      body {
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0;
+        overflow: hidden;
+        background: #050510;
+      }
+
+      .container {
+        width: var(--image-width);
+        height: var(--image-height);
+      }
+
+      .carousel-container {
+        position: relative;
+        border-radius: 0.75rem;
+        overflow: hidden;
+        box-shadow: 0 0 60px rgba(100, 60, 255, 0.15);
+      }
+
+      .carousel {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 16/9;
+        background: #000;
+      }
+
+      canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      /* 控制按钮 */
+      .nav-btn {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 10;
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: rgba(0, 0, 0, 0.4);
+        backdrop-filter: blur(4px);
+        border: 1px solid rgba(150, 100, 255, 0.25);
+        color: #fff;
+        font-size: 20px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+      }
+
+      .nav-btn:hover {
+        background: rgba(100, 60, 255, 0.25);
+        border-color: rgba(150, 100, 255, 0.5);
+        box-shadow: 0 0 20px rgba(100, 60, 255, 0.3);
+      }
+
+      .nav-btn.prev { left: 16px; }
+      .nav-btn.next { right: 16px; }
+
+      /* 指示器 */
+      .indicators {
+        position: absolute;
+        bottom: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 8px;
+        z-index: 10;
+      }
+
+      .indicator {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.3);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: none;
+      }
+
+      .indicator.active {
+        background: rgba(180, 140, 255, 0.9);
+        box-shadow: 0 0 8px rgba(150, 100, 255, 0.6);
+        width: 24px;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="carousel-container">
+        <div class="carousel" id="carousel">
+          <canvas id="canvas"></canvas>
+        </div>
+        <button class="nav-btn prev" id="prevBtn">◂</button>
+        <button class="nav-btn next" id="nextBtn">▸</button>
+        <div class="indicators" id="indicators"></div>
+      </div>
+    </div>
+
+    <script>
+      //js逻辑
+      const images = [
+        {
+          src: "http://5b0988e595225.cdn.sohucs.com/images/20180130/24aecf0d680546ccbf6480badce389dc.jpeg",
+          alt: "千与千寻",
+        },
+        {
+          src: "https://pic3.zhimg.com/v2-f1159536dc58af663e3955e774a7a13a_r.jpg",
+          alt: "龙猫",
+        },
+        {
+          src: "http://qqpublic.qpic.cn/qq_public_cover/0/0-2083471255-1DB77954D274653D98B57D000A686040_vsmcut/0",
+          alt: "天空之城",
+        },
+        {
+          src: "http://5b0988e595225.cdn.sohucs.com/images/20180824/781646fe72fc4788b7dfc24c112b5bbb.png",
+          alt: "悬崖上的金鱼姬",
+        },
+        {
+          src: "http://p6.itc.cn/q_70/images03/20210106/6cd651a28f9a46268205410dcc5cad4d.jpeg",
+          alt: "魔女宅急便",
+        },
+        {
+          src: "https://x0.ifengimg.com/ucms/2024_13/88635184EFC2FFE43710A5DF199B7067DF336C0F_size489_w1000_h1423.jpg",
+          alt: "你想活出怎样的人生",
+        },
+      ];
+
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d");
+      const indicatorsEl = document.getElementById("indicators");
+
+      let currentIndex = 0;
+      let isTransitioning = false;
+      let autoPlayTimer = null;
+      let animationFrame = null;
+      const loadedImages = [];
+
+      // 吸积盘粒子
+      let accretionParticles = [];
+
+      function resizeCanvas() {
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = rect.width * devicePixelRatio;
+        canvas.height = rect.height * devicePixelRatio;
+        ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+        if (!isTransitioning && loadedImages[currentIndex]) {
+          drawImageCover(loadedImages[currentIndex]);
+        }
+      }
+
+      // 以 cover 模式绘制图片
+      function drawImageCover(img, targetCtx) {
+        const c = targetCtx || ctx;
+        const cw = canvas.width / devicePixelRatio;
+        const ch = canvas.height / devicePixelRatio;
+        const imgW = img.naturalWidth || img.width;
+        const imgH = img.naturalHeight || img.height;
+        const imgRatio = imgW / imgH;
+        const canvasRatio = cw / ch;
+        let sx, sy, sw, sh;
+
+        if (imgRatio > canvasRatio) {
+          sh = imgH;
+          sw = sh * canvasRatio;
+          sx = (imgW - sw) / 2;
+          sy = 0;
+        } else {
+          sw = imgW;
+          sh = sw / canvasRatio;
+          sx = 0;
+          sy = (imgH - sh) / 2;
+        }
+
+        c.drawImage(img, sx, sy, sw, sh, 0, 0, cw, ch);
+      }
+
+      // 初始化吸积盘粒子
+      function initAccretionParticles(cx, cy) {
+        accretionParticles = [];
+        for (let i = 0; i < 120; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const radius = 20 + Math.random() * 80;
+          accretionParticles.push({
+            angle,
+            radius,
+            speed: 0.02 + Math.random() * 0.04,
+            size: 1 + Math.random() * 2.5,
+            brightness: 0.5 + Math.random() * 0.5,
+            hue: 240 + Math.random() * 60, // 蓝紫色系
+          });
+        }
+      }
+
+      // 绘制吸积盘
+      function drawAccretionDisk(cx, cy, progress, intensity) {
+        accretionParticles.forEach((p) => {
+          p.angle += p.speed * (1 + progress * 3);
+          const r = p.radius * (1 - progress * 0.6);
+          const x = cx + Math.cos(p.angle) * r;
+          const y = cy + Math.sin(p.angle) * r * 0.4; // 椭圆轨道
+
+          const alpha = p.brightness * intensity * (1 - progress * 0.5);
+          ctx.beginPath();
+          ctx.arc(x, y, p.size, 0, Math.PI * 2);
+          ctx.fillStyle = `hsla(${p.hue}, 80%, 70%, ${alpha})`;
+          ctx.fill();
+        });
+      }
+
+      // 绘制引力透镜光环
+      function drawGravityLens(cx, cy, radius, progress) {
+        if (radius < 1) return; // 半径太小时跳过
+        const glowRadius = radius * 1.5;
+        const gradient = ctx.createRadialGradient(cx, cy, radius * 0.8, cx, cy, glowRadius);
+        gradient.addColorStop(0, `rgba(140, 100, 255, ${0.3 * progress})`);
+        gradient.addColorStop(0.5, `rgba(80, 60, 200, ${0.15 * progress})`);
+        gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+
+        ctx.beginPath();
+        ctx.arc(cx, cy, glowRadius, 0, Math.PI * 2);
+        ctx.fillStyle = gradient;
+        ctx.fill();
+
+        // 事件视界边缘的光环
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(180, 140, 255, ${0.6 * progress})`;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      // 黑洞吞噬过渡
+      function blackHoleTransition(fromImg, toImg, callback) {
+        const cw = canvas.width / devicePixelRatio;
+        const ch = canvas.height / devicePixelRatio;
+        const cx = cw / 2;
+        const cy = ch / 2;
+        const maxRadius = Math.sqrt(cx * cx + cy * cy);
+
+        initAccretionParticles(cx, cy);
+
+        // 创建离屏 canvas 获取像素数据
+        const offscreen = document.createElement("canvas");
+        offscreen.width = canvas.width;
+        offscreen.height = canvas.height;
+        const offCtx = offscreen.getContext("2d");
+        offCtx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+        drawImageCover(fromImg, offCtx);
+
+        const duration = 2000;
+        const startTime = performance.now();
+
+        function animate(currentTime) {
+          const elapsed = currentTime - startTime;
+          const progress = Math.min(elapsed / duration, 1);
+
+          // 非线性缓动 - 先慢后快再慢
+          const eased = progress < 0.5
+            ? 2 * progress * progress
+            : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+          ctx.clearRect(0, 0, cw, ch);
+
+          // 阶段1 (0~0.6): 旧图片被吸入黑洞
+          if (progress < 0.7) {
+            const swirlProgress = progress / 0.7;
+            const swirlEased = swirlProgress * swirlProgress;
+
+            // 绘制被扭曲的旧图片 - 使用极坐标网格扭曲
+            ctx.save();
+            ctx.translate(cx, cy);
+
+            // 旋转 + 缩小
+            const rotation = swirlEased * Math.PI * 3;
+            const scale = 1 - swirlEased * 0.95;
+            ctx.rotate(rotation);
+            ctx.scale(scale, scale);
+            ctx.translate(-cx, -cy);
+
+            // 绘制旧图
+            ctx.globalAlpha = 1 - swirlEased * 0.8;
+            drawImageCover(fromImg);
+            ctx.restore();
+
+            // 径向模糊效果 - 叠加多层微偏移图像
+            if (swirlProgress > 0.2) {
+              const blurIntensity = (swirlProgress - 0.2) / 0.8;
+              for (let i = 0; i < 3; i++) {
+                ctx.save();
+                ctx.globalAlpha = 0.1 * blurIntensity;
+                const s = 1 - swirlEased * 0.95 + (i + 1) * 0.01;
+                ctx.translate(cx, cy);
+                ctx.rotate(rotation - (i + 1) * 0.05);
+                ctx.scale(s, s);
+                ctx.translate(-cx, -cy);
+                drawImageCover(fromImg);
+                ctx.restore();
+              }
+            }
+
+            // 黑洞中心 - 纯黑圆
+            const holeRadius = swirlEased * maxRadius * 0.15;
+            ctx.beginPath();
+            ctx.arc(cx, cy, holeRadius, 0, Math.PI * 2);
+            ctx.fillStyle = "#000";
+            ctx.fill();
+
+            // 吸积盘 + 引力透镜
+            drawAccretionDisk(cx, cy, swirlProgress, swirlEased);
+            drawGravityLens(cx, cy, holeRadius, swirlEased);
+          }
+
+          // 阶段2 (0.5~1.0): 新图片从黑洞中释放
+          if (progress > 0.5) {
+            const releaseProgress = (progress - 0.5) / 0.5;
+            const releaseEased = 1 - Math.pow(1 - releaseProgress, 3); // easeOutCubic
+
+            // 圆形遮罩 - 从中心向外扩展露出新图
+            ctx.save();
+            ctx.beginPath();
+            const clipRadius = releaseEased * maxRadius * 1.2;
+            ctx.arc(cx, cy, clipRadius, 0, Math.PI * 2);
+            ctx.clip();
+
+            ctx.globalAlpha = releaseEased;
+            drawImageCover(toImg);
+            ctx.restore();
+
+            // 扩展边缘的能量环
+            if (releaseProgress < 0.8 && clipRadius > 12) {
+              const ringAlpha = (1 - releaseProgress / 0.8) * 0.5;
+              const gradient = ctx.createRadialGradient(
+                cx, cy, Math.max(0, clipRadius - 10),
+                cx, cy, clipRadius + 20
+              );
+              gradient.addColorStop(0, `rgba(150, 120, 255, ${ringAlpha})`);
+              gradient.addColorStop(0.5, `rgba(100, 80, 220, ${ringAlpha * 0.5})`);
+              gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+
+              ctx.beginPath();
+              ctx.arc(cx, cy, clipRadius + 20, 0, Math.PI * 2);
+              ctx.fillStyle = gradient;
+              ctx.fill();
+            }
+
+            // 残留吸积盘粒子消散
+            if (releaseProgress < 0.6) {
+              drawAccretionDisk(cx, cy, 0.7 + releaseProgress * 0.3, 1 - releaseProgress / 0.6);
+            }
+          }
+
+          if (progress < 1) {
+            animationFrame = requestAnimationFrame(animate);
+          } else {
+            // 绘制最终的新图片
+            ctx.clearRect(0, 0, cw, ch);
+            drawImageCover(toImg);
+            callback();
+          }
+        }
+
+        animationFrame = requestAnimationFrame(animate);
+      }
+
+      function goTo(targetIndex) {
+        if (isTransitioning || targetIndex === currentIndex) return;
+        isTransitioning = true;
+
+        const dots = indicatorsEl.querySelectorAll(".indicator");
+        dots[currentIndex].classList.remove("active");
+        dots[targetIndex].classList.add("active");
+
+        const fromImg = loadedImages[currentIndex];
+        const toImg = loadedImages[targetIndex];
+
+        blackHoleTransition(fromImg, toImg, () => {
+          currentIndex = targetIndex;
+          isTransitioning = false;
+        });
+      }
+
+      function next() {
+        goTo((currentIndex + 1) % images.length);
+      }
+
+      function prev() {
+        goTo((currentIndex - 1 + images.length) % images.length);
+      }
+
+      function startAutoPlay() {
+        stopAutoPlay();
+        autoPlayTimer = setInterval(next, 4500);
+      }
+
+      function stopAutoPlay() {
+        if (autoPlayTimer) {
+          clearInterval(autoPlayTimer);
+          autoPlayTimer = null;
+        }
+      }
+
+      // 预加载图片
+      function preloadImages() {
+        let loaded = 0;
+        return new Promise((resolve) => {
+          images.forEach((imgData, index) => {
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            img.onload = () => {
+              loadedImages[index] = img;
+              loaded++;
+              if (loaded === images.length) resolve();
+            };
+            img.onerror = () => {
+              // 加载失败时创建占位图
+              const placeholder = document.createElement("canvas");
+              placeholder.width = 1920;
+              placeholder.height = 1080;
+              const pCtx = placeholder.getContext("2d");
+              const gradient = pCtx.createLinearGradient(0, 0, 1920, 1080);
+              gradient.addColorStop(0, `hsl(${index * 60}, 50%, 25%)`);
+              gradient.addColorStop(1, `hsl(${index * 60 + 30}, 50%, 15%)`);
+              pCtx.fillStyle = gradient;
+              pCtx.fillRect(0, 0, 1920, 1080);
+              pCtx.fillStyle = "#fff";
+              pCtx.font = "48px sans-serif";
+              pCtx.textAlign = "center";
+              pCtx.fillText(imgData.alt, 960, 540);
+              loadedImages[index] = placeholder;
+              loaded++;
+              if (loaded === images.length) resolve();
+            };
+            img.src = imgData.src;
+          });
+        });
+      }
+
+      // 初始化
+      async function init() {
+        resizeCanvas();
+        window.addEventListener("resize", resizeCanvas);
+
+        // 创建指示器
+        images.forEach((_, index) => {
+          const dot = document.createElement("button");
+          dot.className = `indicator ${index === 0 ? "active" : ""}`;
+          dot.addEventListener("click", () => goTo(index));
+          indicatorsEl.appendChild(dot);
+        });
+
+        await preloadImages();
+        drawImageCover(loadedImages[0]);
+        startAutoPlay();
+      }
+
+      // 事件绑定
+      document.getElementById("prevBtn").addEventListener("click", () => {
+        prev();
+        startAutoPlay();
+      });
+
+      document.getElementById("nextBtn").addEventListener("click", () => {
+        next();
+        startAutoPlay();
+      });
+
+      document.querySelector(".carousel-container").addEventListener("mouseenter", stopAutoPlay);
+      document.querySelector(".carousel-container").addEventListener("mouseleave", startAutoPlay);
+
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowLeft") { prev(); startAutoPlay(); }
+        if (e.key === "ArrowRight") { next(); startAutoPlay(); }
+      });
+
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) {
+          stopAutoPlay();
+        } else {
+          startAutoPlay();
+        }
+      });
+
+      init();
+    </script>
+  </body>
+</html>
