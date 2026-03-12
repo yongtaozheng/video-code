@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>霓虹呼吸环Loading动画</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #0a0a0f;
+            overflow: hidden;
+        }
+
+        .neon-loader {
+            position: relative;
+            width: 250px;
+            height: 250px;
+        }
+
+        .ring {
+            position: absolute;
+            border-radius: 50%;
+            border: 2px solid transparent;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        /* 第1环 - 最外层 - 青色 */
+        .ring-1 {
+            width: 220px;
+            height: 220px;
+            border-top-color: #00fff2;
+            border-right-color: rgba(0, 255, 242, 0.3);
+            box-shadow:
+                0 0 15px rgba(0, 255, 242, 0.3),
+                inset 0 0 15px rgba(0, 255, 242, 0.1);
+            animation: spin 3s linear infinite, breathe 2s ease-in-out infinite;
+        }
+
+        /* 第2环 - 紫色 */
+        .ring-2 {
+            width: 180px;
+            height: 180px;
+            border-top-color: #bf00ff;
+            border-left-color: rgba(191, 0, 255, 0.3);
+            box-shadow:
+                0 0 15px rgba(191, 0, 255, 0.3),
+                inset 0 0 15px rgba(191, 0, 255, 0.1);
+            animation: spinReverse 2.5s linear infinite, breathe 2.5s ease-in-out infinite 0.3s;
+        }
+
+        /* 第3环 - 粉色 */
+        .ring-3 {
+            width: 140px;
+            height: 140px;
+            border-bottom-color: #ff006e;
+            border-right-color: rgba(255, 0, 110, 0.3);
+            box-shadow:
+                0 0 15px rgba(255, 0, 110, 0.3),
+                inset 0 0 15px rgba(255, 0, 110, 0.1);
+            animation: spin 2s linear infinite, breathe 3s ease-in-out infinite 0.6s;
+        }
+
+        /* 第4环 - 最内层 - 橙色 */
+        .ring-4 {
+            width: 100px;
+            height: 100px;
+            border-bottom-color: #ff8c00;
+            border-left-color: rgba(255, 140, 0, 0.3);
+            box-shadow:
+                0 0 15px rgba(255, 140, 0, 0.3),
+                inset 0 0 15px rgba(255, 140, 0, 0.1);
+            animation: spinReverse 1.5s linear infinite, breathe 2s ease-in-out infinite 0.9s;
+        }
+
+        @keyframes spin {
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        @keyframes spinReverse {
+            to { transform: translate(-50%, -50%) rotate(-360deg); }
+        }
+
+        @keyframes breathe {
+            0%, 100% {
+                filter: brightness(0.8) blur(0px);
+                border-width: 2px;
+            }
+            50% {
+                filter: brightness(1.5) blur(1px);
+                border-width: 3px;
+            }
+        }
+
+        /* 中心光点 */
+        .center-dot {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 12px;
+            height: 12px;
+            background: #fff;
+            border-radius: 50%;
+            animation: centerPulse 1.5s ease-in-out infinite;
+        }
+
+        .center-dot::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: radial-gradient(circle,
+                rgba(255, 255, 255, 0.15),
+                transparent 70%
+            );
+            animation: centerPulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes centerPulse {
+            0%, 100% {
+                box-shadow:
+                    0 0 10px rgba(255, 255, 255, 0.5),
+                    0 0 30px rgba(255, 255, 255, 0.2);
+                transform: translate(-50%, -50%) scale(1);
+            }
+            50% {
+                box-shadow:
+                    0 0 20px rgba(255, 255, 255, 0.8),
+                    0 0 60px rgba(255, 255, 255, 0.3);
+                transform: translate(-50%, -50%) scale(1.3);
+            }
+        }
+
+        /* 轨道粒子 */
+        .orbit-particle {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+        }
+
+        .orbit-particle-1 {
+            animation: orbitParticle1 3s linear infinite;
+            background: #00fff2;
+            box-shadow: 0 0 10px #00fff2, 0 0 20px #00fff2;
+        }
+
+        .orbit-particle-2 {
+            animation: orbitParticle2 2.5s linear infinite;
+            background: #bf00ff;
+            box-shadow: 0 0 10px #bf00ff, 0 0 20px #bf00ff;
+        }
+
+        .orbit-particle-3 {
+            animation: orbitParticle3 2s linear infinite;
+            background: #ff006e;
+            box-shadow: 0 0 10px #ff006e, 0 0 20px #ff006e;
+        }
+
+        .orbit-particle-4 {
+            animation: orbitParticle4 1.5s linear infinite;
+            background: #ff8c00;
+            box-shadow: 0 0 10px #ff8c00, 0 0 20px #ff8c00;
+        }
+
+        @keyframes orbitParticle1 {
+            from { transform: rotate(0deg) translateX(110px) rotate(0deg); }
+            to { transform: rotate(360deg) translateX(110px) rotate(-360deg); }
+        }
+
+        @keyframes orbitParticle2 {
+            from { transform: rotate(0deg) translateX(90px) rotate(0deg); }
+            to { transform: rotate(-360deg) translateX(90px) rotate(360deg); }
+        }
+
+        @keyframes orbitParticle3 {
+            from { transform: rotate(0deg) translateX(70px) rotate(0deg); }
+            to { transform: rotate(360deg) translateX(70px) rotate(-360deg); }
+        }
+
+        @keyframes orbitParticle4 {
+            from { transform: rotate(0deg) translateX(50px) rotate(0deg); }
+            to { transform: rotate(-360deg) translateX(50px) rotate(360deg); }
+        }
+
+        /* 脉冲波纹 */
+        .pulse-wave {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            animation: pulseExpand 3s ease-out infinite;
+        }
+
+        .pulse-wave:nth-child(2) { animation-delay: 1s; }
+        .pulse-wave:nth-child(3) { animation-delay: 2s; }
+
+        @keyframes pulseExpand {
+            0% {
+                width: 60px;
+                height: 60px;
+                opacity: 0.5;
+                border-color: rgba(255, 255, 255, 0.3);
+            }
+            100% {
+                width: 280px;
+                height: 280px;
+                opacity: 0;
+                border-color: rgba(255, 255, 255, 0);
+            }
+        }
+
+        /* 百分比文字 */
+        .percent-text {
+            position: absolute;
+            bottom: -50px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, 0.5);
+            font-family: 'Courier New', monospace;
+            font-size: 18px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="neon-loader">
+        <!-- 脉冲波纹 -->
+        <div class="pulse-wave"></div>
+        <div class="pulse-wave"></div>
+        <div class="pulse-wave"></div>
+
+        <!-- 四层同心环 -->
+        <div class="ring ring-1"></div>
+        <div class="ring ring-2"></div>
+        <div class="ring ring-3"></div>
+        <div class="ring ring-4"></div>
+
+        <!-- 轨道粒子 -->
+        <div class="orbit-particle orbit-particle-1"></div>
+        <div class="orbit-particle orbit-particle-2"></div>
+        <div class="orbit-particle orbit-particle-3"></div>
+        <div class="orbit-particle orbit-particle-4"></div>
+
+        <!-- 中心光点 -->
+        <div class="center-dot"></div>
+
+        <!-- 进度文字 -->
+        <div class="percent-text" id="percentText">0%</div>
+    </div>
+
+    <script>
+        // 模拟进度
+        let progress = 0;
+        const percentText = document.getElementById('percentText');
+
+        function updateProgress() {
+            progress += Math.random() * 3;
+            if (progress > 100) progress = 0;
+
+            percentText.textContent = Math.floor(progress) + '%';
+
+            // 颜色渐变：从青到紫到粉到白
+            const hue = 180 - (progress / 100) * 180;
+            const lightness = 50 + (progress / 100) * 30;
+            percentText.style.color = `hsl(${hue}, 80%, ${lightness}%)`;
+
+            setTimeout(updateProgress, 50 + Math.random() * 100);
+        }
+        updateProgress();
+    </script>
+</body>
+</html>

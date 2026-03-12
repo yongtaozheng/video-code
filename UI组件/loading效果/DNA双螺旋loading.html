@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DNA双螺旋Loading动画</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #0a0a1a;
+            overflow: hidden;
+        }
+
+        .dna-container {
+            position: relative;
+            width: 200px;
+            height: 300px;
+            perspective: 800px;
+        }
+
+        .dna-strand {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            transform-style: preserve-3d;
+            animation: dnaRotate 4s linear infinite;
+        }
+
+        @keyframes dnaRotate {
+            from { transform: rotateY(0deg); }
+            to { transform: rotateY(360deg); }
+        }
+
+        .node-pair {
+            position: absolute;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transform-style: preserve-3d;
+        }
+
+        .node {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            position: relative;
+            z-index: 2;
+            box-shadow: 0 0 10px currentColor, 0 0 20px currentColor;
+        }
+
+        .node-left {
+            background: #00d4ff;
+            color: #00d4ff;
+        }
+
+        .node-right {
+            background: #ff006e;
+            color: #ff006e;
+        }
+
+        .bridge {
+            position: absolute;
+            left: 16px;
+            right: 16px;
+            height: 2px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: linear-gradient(90deg,
+                rgba(0, 212, 255, 0.6),
+                rgba(255, 255, 255, 0.2) 45%,
+                rgba(255, 255, 255, 0.2) 55%,
+                rgba(255, 0, 110, 0.6)
+            );
+            opacity: 0.6;
+        }
+
+        .loading-text {
+            position: absolute;
+            bottom: -60px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #fff;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            letter-spacing: 8px;
+            text-transform: uppercase;
+            opacity: 0.7;
+        }
+
+        .loading-text span {
+            display: inline-block;
+            animation: textPulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes textPulse {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+
+        /* 背景粒子 */
+        .bg-particle {
+            position: fixed;
+            width: 2px;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            animation: floatUp linear infinite;
+        }
+
+        @keyframes floatUp {
+            from {
+                transform: translateY(100vh) scale(0);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            to {
+                transform: translateY(-10vh) scale(1);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dna-container">
+        <div class="dna-strand" id="dnaStrand"></div>
+        <div class="loading-text" id="loadingText"></div>
+    </div>
+
+    <script>
+        const strand = document.getElementById('dnaStrand');
+        const nodeCount = 12;
+        const totalHeight = 280;
+        const amplitude = 70; // 螺旋半径
+
+        // 创建DNA节点对
+        for (let i = 0; i < nodeCount; i++) {
+            const pair = document.createElement('div');
+            pair.className = 'node-pair';
+
+            const yPos = (i / (nodeCount - 1)) * totalHeight;
+            const angle = (i / nodeCount) * Math.PI * 2;
+
+            // 左右节点的Z轴偏移形成3D螺旋
+            const leftZ = Math.sin(angle) * amplitude;
+            const rightZ = Math.sin(angle + Math.PI) * amplitude;
+            const leftX = 30 + Math.cos(angle) * 40;
+            const rightX = 170 - Math.cos(angle) * 40;
+
+            pair.style.top = `${yPos}px`;
+            pair.style.transform = `translateZ(0px)`;
+
+            const nodeLeft = document.createElement('div');
+            nodeLeft.className = 'node node-left';
+            nodeLeft.style.transform = `translateX(${leftX - 30}px) translateZ(${leftZ}px)`;
+            nodeLeft.style.animationDelay = `${i * 0.15}s`;
+
+            const nodeRight = document.createElement('div');
+            nodeRight.className = 'node node-right';
+            nodeRight.style.transform = `translateX(${rightX - 170}px) translateZ(${rightZ}px)`;
+            nodeRight.style.animationDelay = `${i * 0.15}s`;
+
+            const bridge = document.createElement('div');
+            bridge.className = 'bridge';
+            bridge.style.opacity = Math.abs(Math.cos(angle)) * 0.5 + 0.1;
+
+            pair.appendChild(nodeLeft);
+            pair.appendChild(bridge);
+            pair.appendChild(nodeRight);
+            strand.appendChild(pair);
+        }
+
+        // 动态更新节点位置
+        let time = 0;
+        function animate() {
+            time += 0.02;
+            const pairs = strand.querySelectorAll('.node-pair');
+
+            pairs.forEach((pair, i) => {
+                const angle = (i / nodeCount) * Math.PI * 2 + time * 2;
+                const leftZ = Math.sin(angle) * amplitude;
+                const rightZ = Math.sin(angle + Math.PI) * amplitude;
+                const leftX = Math.cos(angle) * 40;
+                const rightX = -Math.cos(angle) * 40;
+
+                const nodeLeft = pair.querySelector('.node-left');
+                const nodeRight = pair.querySelector('.node-right');
+                const bridge = pair.querySelector('.bridge');
+
+                nodeLeft.style.transform = `translateX(${leftX}px) translateZ(${leftZ}px)`;
+                nodeRight.style.transform = `translateX(${rightX}px) translateZ(${rightZ}px)`;
+
+                // 根据深度调整透明度
+                const depthFactor = (Math.sin(angle) + 1) / 2;
+                nodeLeft.style.opacity = 0.4 + depthFactor * 0.6;
+
+                const depthFactorRight = (Math.sin(angle + Math.PI) + 1) / 2;
+                nodeRight.style.opacity = 0.4 + depthFactorRight * 0.6;
+
+                bridge.style.opacity = Math.abs(Math.cos(angle)) * 0.5 + 0.1;
+
+                // 节点大小随深度变化
+                const scaleLeft = 0.7 + depthFactor * 0.5;
+                const scaleRight = 0.7 + depthFactorRight * 0.5;
+                nodeLeft.style.transform = `translateX(${leftX}px) translateZ(${leftZ}px) scale(${scaleLeft})`;
+                nodeRight.style.transform = `translateX(${rightX}px) translateZ(${rightZ}px) scale(${scaleRight})`;
+            });
+
+            requestAnimationFrame(animate);
+        }
+        animate();
+
+        // Loading文字动画
+        const text = 'LOADING';
+        const loadingText = document.getElementById('loadingText');
+        text.split('').forEach((char, i) => {
+            const span = document.createElement('span');
+            span.textContent = char;
+            span.style.animationDelay = `${i * 0.15}s`;
+            loadingText.appendChild(span);
+        });
+
+        // 背景粒子
+        for (let i = 0; i < 30; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'bg-particle';
+            particle.style.left = Math.random() * 100 + 'vw';
+            particle.style.animationDuration = (Math.random() * 5 + 5) + 's';
+            particle.style.animationDelay = Math.random() * 5 + 's';
+            particle.style.width = particle.style.height = (Math.random() * 3 + 1) + 'px';
+            document.body.appendChild(particle);
+        }
+    </script>
+</body>
+</html>

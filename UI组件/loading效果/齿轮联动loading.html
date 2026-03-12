@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>齿轮联动Loading动画</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #1a1a2e;
+            overflow: hidden;
+        }
+
+        .gear-system {
+            position: relative;
+            width: 350px;
+            height: 280px;
+        }
+
+        .gear-wrapper {
+            position: absolute;
+        }
+
+        /* SVG齿轮基础样式 */
+        .gear {
+            animation-timing-function: linear;
+            animation-iteration-count: infinite;
+        }
+
+        .gear-cw {
+            animation-name: rotateCW;
+        }
+
+        .gear-ccw {
+            animation-name: rotateCCW;
+        }
+
+        @keyframes rotateCW {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes rotateCCW {
+            to { transform: rotate(-360deg); }
+        }
+
+        /* 齿轮光效 */
+        .gear-glow {
+            filter: drop-shadow(0 0 6px var(--gear-color));
+        }
+
+        /* Loading条 */
+        .loading-bar-container {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 250px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .loading-bar {
+            height: 100%;
+            width: 0%;
+            border-radius: 3px;
+            background: linear-gradient(90deg, #e94560, #ffb830, #00d2ff);
+            background-size: 200% 100%;
+            animation: barProgress 3s ease-in-out infinite, barShimmer 1.5s linear infinite;
+        }
+
+        @keyframes barProgress {
+            0% { width: 0%; }
+            50% { width: 100%; }
+            51% { width: 100%; }
+            100% { width: 0%; }
+        }
+
+        @keyframes barShimmer {
+            from { background-position: 200% 0; }
+            to { background-position: -200% 0; }
+        }
+
+        /* 蒸汽粒子效果 */
+        .steam {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            animation: steamRise 2s ease-out infinite;
+        }
+
+        @keyframes steamRise {
+            0% {
+                opacity: 0.8;
+                transform: translateY(0) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-60px) translateX(var(--drift)) scale(0.3);
+            }
+        }
+
+        .loading-text {
+            position: absolute;
+            bottom: -35px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.5);
+            letter-spacing: 6px;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+    <div class="gear-system" id="gearSystem">
+        <div class="loading-bar-container">
+            <div class="loading-bar"></div>
+        </div>
+        <div class="loading-text">Processing</div>
+    </div>
+
+    <script>
+        const system = document.getElementById('gearSystem');
+
+        // 齿轮配置: [x, y, 半径, 齿数, 颜色, 方向(cw/ccw), 速度(s)]
+        const gears = [
+            { x: 90, y: 100, r: 50, teeth: 12, color: '#e94560', dir: 'cw', speed: 3 },
+            { x: 175, y: 75, r: 35, teeth: 9, color: '#ffb830', dir: 'ccw', speed: 2.1 },
+            { x: 240, y: 110, r: 45, teeth: 11, color: '#00d2ff', dir: 'cw', speed: 2.65 },
+            { x: 155, y: 145, r: 25, teeth: 7, color: '#ff6b9d', dir: 'ccw', speed: 1.5 },
+        ];
+
+        // 生成SVG齿轮
+        function createGearSVG(config) {
+            const { r, teeth, color } = config;
+            const toothHeight = r * 0.2;
+            const innerR = r - toothHeight;
+            const outerR = r + toothHeight;
+            const svgSize = (outerR + 4) * 2;
+            const cx = svgSize / 2;
+            const cy = svgSize / 2;
+
+            let pathData = '';
+            const angleStep = (Math.PI * 2) / teeth;
+
+            for (let i = 0; i < teeth; i++) {
+                const a1 = i * angleStep;
+                const a2 = a1 + angleStep * 0.15;
+                const a3 = a1 + angleStep * 0.35;
+                const a4 = a1 + angleStep * 0.5;
+                const a5 = a1 + angleStep * 0.65;
+                const a6 = a1 + angleStep * 0.85;
+                const a7 = (i + 1) * angleStep;
+
+                const points = [
+                    [cx + Math.cos(a1) * innerR, cy + Math.sin(a1) * innerR],
+                    [cx + Math.cos(a2) * innerR, cy + Math.sin(a2) * innerR],
+                    [cx + Math.cos(a3) * outerR, cy + Math.sin(a3) * outerR],
+                    [cx + Math.cos(a4) * outerR, cy + Math.sin(a4) * outerR],
+                    [cx + Math.cos(a5) * outerR, cy + Math.sin(a5) * outerR],
+                    [cx + Math.cos(a6) * innerR, cy + Math.sin(a6) * innerR],
+                ];
+
+                if (i === 0) {
+                    pathData += `M ${points[0][0]} ${points[0][1]} `;
+                }
+                points.slice(1).forEach(p => {
+                    pathData += `L ${p[0]} ${p[1]} `;
+                });
+            }
+            pathData += 'Z';
+
+            // 中心圆孔
+            const holeR = r * 0.25;
+
+            const svg = `
+                <svg width="${svgSize}" height="${svgSize}" viewBox="0 0 ${svgSize} ${svgSize}">
+                    <defs>
+                        <filter id="glow-${config.color.slice(1)}">
+                            <feGaussianBlur stdDeviation="2" result="blur"/>
+                            <feMerge>
+                                <feMergeNode in="blur"/>
+                                <feMergeNode in="SourceGraphic"/>
+                            </feMerge>
+                        </filter>
+                    </defs>
+                    <g filter="url(#glow-${config.color.slice(1)})">
+                        <path d="${pathData}" fill="none" stroke="${color}" stroke-width="2" opacity="0.9"/>
+                        <circle cx="${cx}" cy="${cy}" r="${holeR}" fill="none" stroke="${color}" stroke-width="2" opacity="0.7"/>
+                        <circle cx="${cx}" cy="${cy}" r="${r * 0.08}" fill="${color}" opacity="0.8"/>
+                        <!-- 轮辐 -->
+                        <line x1="${cx}" y1="${cy - holeR}" x2="${cx}" y2="${cy - r * 0.6}" stroke="${color}" stroke-width="1.5" opacity="0.4"/>
+                        <line x1="${cx}" y1="${cy + holeR}" x2="${cx}" y2="${cy + r * 0.6}" stroke="${color}" stroke-width="1.5" opacity="0.4"/>
+                        <line x1="${cx - holeR}" y1="${cy}" x2="${cx - r * 0.6}" y2="${cy}" stroke="${color}" stroke-width="1.5" opacity="0.4"/>
+                        <line x1="${cx + holeR}" y1="${cy}" x2="${cx + r * 0.6}" y2="${cy}" stroke="${color}" stroke-width="1.5" opacity="0.4"/>
+                    </g>
+                </svg>
+            `;
+
+            return { svg, size: svgSize };
+        }
+
+        // 渲染齿轮
+        gears.forEach((config, i) => {
+            const { svg, size } = createGearSVG(config);
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'gear-wrapper';
+            wrapper.style.cssText = `
+                left: ${config.x - size / 2}px;
+                top: ${config.y - size / 2}px;
+                width: ${size}px;
+                height: ${size}px;
+                --gear-color: ${config.color};
+            `;
+
+            const gearEl = document.createElement('div');
+            gearEl.className = `gear gear-${config.dir} gear-glow`;
+            gearEl.style.animationDuration = `${config.speed}s`;
+            gearEl.innerHTML = svg;
+
+            wrapper.appendChild(gearEl);
+            system.appendChild(wrapper);
+        });
+
+        // 蒸汽粒子
+        function createSteam() {
+            const gear = gears[Math.floor(Math.random() * gears.length)];
+            const steam = document.createElement('div');
+            steam.className = 'steam';
+
+            const angle = Math.random() * Math.PI * 2;
+            const dist = gear.r * 0.6;
+            steam.style.left = (gear.x + Math.cos(angle) * dist) + 'px';
+            steam.style.top = (gear.y + Math.sin(angle) * dist) + 'px';
+            steam.style.setProperty('--drift', (Math.random() * 30 - 15) + 'px');
+            steam.style.animationDuration = (1.5 + Math.random()) + 's';
+            steam.style.background = `rgba(255, 255, 255, ${0.2 + Math.random() * 0.3})`;
+            steam.style.width = steam.style.height = (2 + Math.random() * 3) + 'px';
+
+            system.appendChild(steam);
+            setTimeout(() => steam.remove(), 2500);
+        }
+
+        setInterval(createSteam, 200);
+    </script>
+</body>
+</html>
