@@ -90,14 +90,39 @@
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
 
-        let W = canvas.width = window.innerWidth;
-        let H = canvas.height = window.innerHeight;
-        const cx = W / 2;
-        const cy = H / 2;
+        let W, H, cx, cy;
+        const bgStars = [];
 
-        window.addEventListener('resize', () => {
+        function resizeCanvas() {
+            const oldW = W || window.innerWidth;
+            const oldH = H || window.innerHeight;
             W = canvas.width = window.innerWidth;
             H = canvas.height = window.innerHeight;
+            cx = W / 2;
+            cy = H / 2;
+
+            // 重新分布背景星星坐标，按比例缩放
+            if (bgStars && bgStars.length > 0) {
+                bgStars.forEach(star => {
+                    star.x = (star.x / oldW) * W;
+                    star.y = (star.y / oldH) * H;
+                });
+            }
+        }
+
+        // 初始化尺寸
+        resizeCanvas();
+
+        // 防抖处理 resize 事件
+        let resizeTimer = null;
+        window.addEventListener('resize', () => {
+            // 立即更新画布尺寸，避免闪烁
+            resizeCanvas();
+            // 防抖处理重新生成背景星星（补充边缘区域）
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                regenerateBgStars();
+            }, 200);
         });
 
         // 星座数据 (归一化坐标 0~1)
@@ -162,17 +187,43 @@
         ];
 
         // 背景星空
-        const bgStars = [];
-        for (let i = 0; i < 200; i++) {
-            bgStars.push({
+        const BG_STAR_DENSITY = 200; // 基于初始分辨率的数量基准
+
+        function createBgStar() {
+            return {
                 x: Math.random() * W,
                 y: Math.random() * H,
+                // 保存归一化坐标，方便 resize 时重算
+                nx: 0,
+                ny: 0,
                 size: Math.random() * 1.5 + 0.5,
                 alpha: Math.random() * 0.5 + 0.2,
                 twinkleSpeed: Math.random() * 0.02 + 0.005,
                 twinklePhase: Math.random() * Math.PI * 2,
-            });
+            };
         }
+
+        function initBgStars() {
+            bgStars.length = 0;
+            for (let i = 0; i < BG_STAR_DENSITY; i++) {
+                const star = createBgStar();
+                star.nx = star.x / W;
+                star.ny = star.y / H;
+                bgStars.push(star);
+            }
+        }
+
+        function regenerateBgStars() {
+            bgStars.length = 0;
+            for (let i = 0; i < BG_STAR_DENSITY; i++) {
+                const star = createBgStar();
+                star.nx = star.x / W;
+                star.ny = star.y / H;
+                bgStars.push(star);
+            }
+        }
+
+        initBgStars();
 
         // 状态管理
         let currentIndex = 0;
