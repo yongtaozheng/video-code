@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>星空穿越 Starfield Warp</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            background: #000;
+            cursor: crosshair;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        .hud {
+            position: fixed;
+            top: 30px;
+            left: 30px;
+            font-family: 'Courier New', monospace;
+            color: rgba(100, 200, 255, 0.7);
+            font-size: 14px;
+            z-index: 10;
+            pointer-events: none;
+            text-shadow: 0 0 10px rgba(100, 200, 255, 0.5);
+        }
+
+        .hud .speed-label {
+            font-size: 12px;
+            color: rgba(100, 200, 255, 0.5);
+            margin-bottom: 4px;
+        }
+
+        .hud .speed-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: rgba(150, 220, 255, 0.9);
+        }
+
+        .hud .unit {
+            font-size: 12px;
+            color: rgba(100, 200, 255, 0.5);
+        }
+
+        .tip {
+            position: fixed;
+            bottom: 30px;
+            width: 100%;
+            text-align: center;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            color: rgba(100, 200, 255, 0.4);
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .crosshair {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .crosshair::before,
+        .crosshair::after {
+            content: '';
+            position: absolute;
+            background: rgba(100, 200, 255, 0.3);
+        }
+
+        .crosshair::before {
+            width: 1px;
+            height: 30px;
+            top: -15px;
+            left: 0;
+        }
+
+        .crosshair::after {
+            width: 30px;
+            height: 1px;
+            top: 0;
+            left: -15px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <div class="crosshair"></div>
+    <div class="hud">
+        <div class="speed-label">WARP SPEED</div>
+        <div class="speed-value" id="speedDisplay">0.0</div>
+        <div class="unit">× LIGHT SPEED</div>
+    </div>
+    <div class="tip">鼠标移动控制方向 · 按住鼠标加速 · 滚轮调节巡航速度</div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const speedDisplay = document.getElementById('speedDisplay');
+
+        let W, H, centerX, centerY;
+
+        function resize() {
+            W = canvas.width = window.innerWidth;
+            H = canvas.height = window.innerHeight;
+            centerX = W / 2;
+            centerY = H / 2;
+        }
+        resize();
+        window.addEventListener('resize', resize);
+
+        // 鼠标状态
+        let mouseX = centerX;
+        let mouseY = centerY;
+        let isMouseDown = false;
+        let baseSpeed = 2;
+
+        // 平滑插值的投影中心（消失点）
+        let vanishX = centerX;
+        let vanishY = centerY;
+
+        window.addEventListener('mousemove', e => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+        });
+        window.addEventListener('mousedown', () => isMouseDown = true);
+        window.addEventListener('mouseup', () => isMouseDown = false);
+        window.addEventListener('wheel', e => {
+            baseSpeed = Math.max(0.5, Math.min(8, baseSpeed + (e.deltaY > 0 ? -0.5 : 0.5)));
+        });
+
+        // 星星
+        const NUM_STARS = 1500;
+        const MAX_DEPTH = 1500;
+
+        class Star {
+            constructor() {
+                this.reset();
+            }
+
+            reset() {
+                this.x = (Math.random() - 0.5) * W * 2;
+                this.y = (Math.random() - 0.5) * H * 2;
+                this.z = Math.random() * MAX_DEPTH;
+                this.pz = this.z; // 上一帧的 z
+                this.color = this.randomColor();
+            }
+
+            randomColor() {
+                const colors = [
+                    [255, 255, 255],   // 白
+                    [200, 220, 255],   // 蓝白
+                    [255, 240, 220],   // 暖白
+                    [180, 200, 255],   // 淡蓝
+                    [255, 200, 150],   // 橙
+                    [200, 255, 255],   // 青
+                ];
+                return colors[Math.floor(Math.random() * colors.length)];
+            }
+
+            update(speed, ox, oy) {
+                this.pz = this.z;
+                this.z -= speed;
+                // 鼠标偏移驱动星星横向/纵向漂移，系数放大
+                this.x += ox * speed * 0.8;
+                this.y += oy * speed * 0.8;
+
+                if (this.z <= 0 || this.z > MAX_DEPTH) {
+                    this.reset();
+                    this.z = MAX_DEPTH;
+                    this.pz = this.z;
+                }
+
+                // 使用动态消失点计算投影，超出边界则重置
+                const sx = (this.x / this.z) * centerX + vanishX;
+                const sy = (this.y / this.z) * centerY + vanishY;
+                if (sx < -200 || sx > W + 200 || sy < -200 || sy > H + 200) {
+                    this.reset();
+                    this.z = MAX_DEPTH;
+                    this.pz = this.z;
+                }
+            }
+
+            draw(speed) {
+                // 投影使用动态消失点，鼠标移动时整个星场跟着偏转
+                const sx = (this.x / this.z) * centerX + vanishX;
+                const sy = (this.y / this.z) * centerY + vanishY;
+                const px = (this.x / this.pz) * centerX + vanishX;
+                const py = (this.y / this.pz) * centerY + vanishY;
+
+                const size = Math.max(0.5, (1 - this.z / MAX_DEPTH) * 3);
+                const brightness = Math.max(0, 1 - this.z / MAX_DEPTH);
+                const [r, g, b] = this.color;
+
+                // 绘制星轨线条
+                const trailLength = Math.min(speed / 5, 1);
+                if (trailLength > 0.1) {
+                    ctx.beginPath();
+                    ctx.moveTo(px, py);
+                    ctx.lineTo(sx, sy);
+                    ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${brightness * trailLength * 0.7})`;
+                    ctx.lineWidth = size * 0.8;
+                    ctx.stroke();
+                }
+
+                // 绘制星点
+                ctx.beginPath();
+                ctx.arc(sx, sy, size, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${brightness})`;
+                ctx.fill();
+
+                // 近距离的星星添加光晕
+                if (brightness > 0.7 && speed > 3) {
+                    ctx.beginPath();
+                    ctx.arc(sx, sy, size * 3, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${(brightness - 0.7) * 0.3})`;
+                    ctx.fill();
+                }
+            }
+        }
+
+        const stars = [];
+        for (let i = 0; i < NUM_STARS; i++) {
+            stars.push(new Star());
+        }
+
+        // 星云粒子（背景装饰）
+        class Nebula {
+            constructor() {
+                this.x = (Math.random() - 0.5) * W * 3;
+                this.y = (Math.random() - 0.5) * H * 3;
+                this.z = Math.random() * MAX_DEPTH;
+                this.size = 50 + Math.random() * 150;
+                this.hue = Math.random() * 360;
+                this.alpha = 0.02 + Math.random() * 0.03;
+            }
+
+            update(speed, ox, oy) {
+                this.z -= speed * 0.3;
+                this.x += ox * speed * 0.4;
+                this.y += oy * speed * 0.4;
+
+                if (this.z <= 0) {
+                    this.z = MAX_DEPTH;
+                    this.x = (Math.random() - 0.5) * W * 3;
+                    this.y = (Math.random() - 0.5) * H * 3;
+                }
+            }
+
+            draw() {
+                const sx = (this.x / this.z) * centerX + vanishX;
+                const sy = (this.y / this.z) * centerY + vanishY;
+                const scale = (1 - this.z / MAX_DEPTH);
+                const size = this.size * scale;
+
+                if (size < 5) return;
+
+                const gradient = ctx.createRadialGradient(sx, sy, 0, sx, sy, size);
+                gradient.addColorStop(0, `hsla(${this.hue}, 60%, 50%, ${this.alpha * scale})`);
+                gradient.addColorStop(0.5, `hsla(${this.hue + 20}, 50%, 40%, ${this.alpha * scale * 0.5})`);
+                gradient.addColorStop(1, `hsla(${this.hue}, 60%, 30%, 0)`);
+
+                ctx.save();
+                ctx.globalCompositeOperation = 'screen';
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(sx, sy, size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        const nebulae = [];
+        for (let i = 0; i < 20; i++) {
+            nebulae.push(new Nebula());
+        }
+
+        // 速度线（高速时的动态模糊效果）
+        function drawSpeedLines(speed) {
+            if (speed < 8) return;
+            const intensity = Math.min((speed - 8) / 20, 1);
+            const numLines = Math.floor(intensity * 30);
+
+            ctx.save();
+            ctx.globalCompositeOperation = 'screen';
+
+            for (let i = 0; i < numLines; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const dist = 50 + Math.random() * Math.max(W, H) * 0.4;
+                const x = vanishX + Math.cos(angle) * dist;
+                const y = vanishY + Math.sin(angle) * dist;
+                const len = 20 + Math.random() * 60 * intensity;
+
+                const dx = x - vanishX;
+                const dy = y - vanishY;
+                const d = Math.sqrt(dx * dx + dy * dy);
+                const nx = dx / d;
+                const ny = dy / d;
+
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.lineTo(x + nx * len, y + ny * len);
+                ctx.strokeStyle = `rgba(150, 200, 255, ${0.1 * intensity * Math.random()})`;
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        // 隧道晕影效果
+        function drawVignette(speed) {
+            const intensity = Math.min(speed / 15, 1);
+            const gradient = ctx.createRadialGradient(
+                vanishX, vanishY, W * 0.2,
+                vanishX, vanishY, W * 0.8
+            );
+            gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+            gradient.addColorStop(0.7, `rgba(0, 5, 15, ${0.3 * intensity})`);
+            gradient.addColorStop(1, `rgba(0, 5, 15, ${0.6 + 0.3 * intensity})`);
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, W, H);
+
+            // 高速时边缘蓝色光晕
+            if (speed > 5) {
+                const blueIntensity = Math.min((speed - 5) / 20, 1);
+                const blueGrad = ctx.createRadialGradient(
+                    vanishX, vanishY, W * 0.35,
+                    vanishX, vanishY, W * 0.7
+                );
+                blueGrad.addColorStop(0, 'rgba(0, 50, 150, 0)');
+                blueGrad.addColorStop(0.8, `rgba(0, 30, 100, ${0.05 * blueIntensity})`);
+                blueGrad.addColorStop(1, `rgba(0, 50, 150, ${0.1 * blueIntensity})`);
+                ctx.save();
+                ctx.globalCompositeOperation = 'screen';
+                ctx.fillStyle = blueGrad;
+                ctx.fillRect(0, 0, W, H);
+                ctx.restore();
+            }
+        }
+
+        // 主循环
+        let currentSpeed = 0;
+
+        function animate() {
+            // 计算目标速度
+            let targetSpeed = baseSpeed;
+            if (isMouseDown) targetSpeed = baseSpeed * 4;
+
+            // 平滑过渡速度
+            currentSpeed += (targetSpeed - currentSpeed) * 0.05;
+
+            // 鼠标偏移量（控制方向）
+            const ox = (mouseX - centerX) / centerX;
+            const oy = (mouseY - centerY) / centerY;
+
+            // 平滑更新消失点 —— 跟随鼠标偏移，最大偏移屏幕 30%
+            const targetVanishX = centerX + ox * W * 0.3;
+            const targetVanishY = centerY + oy * H * 0.3;
+            vanishX += (targetVanishX - vanishX) * 0.08;
+            vanishY += (targetVanishY - vanishY) * 0.08;
+
+            // 清空（带拖尾效果）
+            ctx.fillStyle = `rgba(0, 2, 8, ${Math.max(0.15, 1 - currentSpeed * 0.03)})`;
+            ctx.fillRect(0, 0, W, H);
+
+            // 更新并绘制星云
+            nebulae.forEach(n => {
+                n.update(currentSpeed, ox, oy);
+                n.draw();
+            });
+
+            // 更新并绘制星星（按深度排序，远的先画）
+            stars.sort((a, b) => b.z - a.z);
+            stars.forEach(star => {
+                star.update(currentSpeed, ox, oy);
+                star.draw(currentSpeed);
+            });
+
+            // 速度线
+            drawSpeedLines(currentSpeed);
+
+            // 晕影效果
+            drawVignette(currentSpeed);
+
+            // 更新 HUD
+            const warpSpeed = (currentSpeed / baseSpeed * 1.5).toFixed(1);
+            speedDisplay.textContent = warpSpeed;
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    </script>
+</body>
+</html>

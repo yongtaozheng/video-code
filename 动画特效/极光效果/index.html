@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>极光效果 Aurora Borealis</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            background: #000;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        .title {
+            position: fixed;
+            bottom: 40px;
+            width: 100%;
+            text-align: center;
+            font-family: 'Georgia', serif;
+            font-size: 28px;
+            color: rgba(255, 255, 255, 0.6);
+            letter-spacing: 8px;
+            text-shadow: 0 0 20px rgba(100, 255, 200, 0.5);
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="auroraCanvas"></canvas>
+    <canvas class="stars" id="starsCanvas"></canvas>
+    <div class="title">A U R O R A &nbsp; B O R E A L I S</div>
+
+    <script>
+        // ============ 星空背景 ============
+        const starsCanvas = document.getElementById('starsCanvas');
+        const starsCtx = starsCanvas.getContext('2d');
+
+        function resizeStars() {
+            starsCanvas.width = window.innerWidth;
+            starsCanvas.height = window.innerHeight;
+        }
+        resizeStars();
+
+        const stars = [];
+        for (let i = 0; i < 200; i++) {
+            stars.push({
+                x: Math.random() * starsCanvas.width,
+                y: Math.random() * starsCanvas.height * 0.7,
+                r: Math.random() * 1.5 + 0.5,
+                alpha: Math.random(),
+                speed: Math.random() * 0.02 + 0.005
+            });
+        }
+
+        function drawStars() {
+            starsCtx.clearRect(0, 0, starsCanvas.width, starsCanvas.height);
+            const time = Date.now() * 0.001;
+            stars.forEach(star => {
+                const twinkle = 0.5 + 0.5 * Math.sin(time * star.speed * 100 + star.alpha * 10);
+                starsCtx.beginPath();
+                starsCtx.arc(star.x, star.y, star.r, 0, Math.PI * 2);
+                starsCtx.fillStyle = `rgba(255, 255, 255, ${twinkle * 0.8})`;
+                starsCtx.fill();
+            });
+            requestAnimationFrame(drawStars);
+        }
+        drawStars();
+
+        // ============ 极光主体 ============
+        const canvas = document.getElementById('auroraCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let W, H;
+
+        function resize() {
+            W = canvas.width = window.innerWidth;
+            H = canvas.height = window.innerHeight;
+            resizeStars();
+        }
+        resize();
+        window.addEventListener('resize', resize);
+
+        // 极光带 - 每条带有不同的颜色和运动参数
+        class AuroraBand {
+            constructor(config) {
+                this.baseY = config.baseY;          // 基础 Y 位置
+                this.amplitude = config.amplitude;   // 波动幅度
+                this.colorStops = config.colorStops; // 颜色梯度
+                this.speed = config.speed;           // 运动速度
+                this.segments = config.segments || 8; // 控制点数量
+                this.phase = Math.random() * Math.PI * 2;
+                this.thickness = config.thickness || 120;
+                this.opacity = config.opacity || 0.3;
+
+                // 每个控制点的独立相位
+                this.controlPhases = [];
+                this.controlSpeeds = [];
+                for (let i = 0; i <= this.segments; i++) {
+                    this.controlPhases.push(Math.random() * Math.PI * 2);
+                    this.controlSpeeds.push(0.3 + Math.random() * 0.7);
+                }
+            }
+
+            draw(time) {
+                const points = [];
+                const segW = W / this.segments;
+
+                // 生成波浪控制点
+                for (let i = 0; i <= this.segments; i++) {
+                    const x = i * segW;
+                    const phaseOffset = this.controlPhases[i];
+                    const speedMult = this.controlSpeeds[i];
+                    const y = this.baseY +
+                        Math.sin(time * this.speed * speedMult + phaseOffset) * this.amplitude +
+                        Math.sin(time * this.speed * 0.7 + i * 0.8) * this.amplitude * 0.5 +
+                        Math.cos(time * this.speed * 0.3 + i * 1.2) * this.amplitude * 0.3;
+                    points.push({ x, y });
+                }
+
+                // 绘制极光带
+                ctx.save();
+
+                // 上边界路径
+                ctx.beginPath();
+                ctx.moveTo(points[0].x, points[0].y);
+                for (let i = 1; i < points.length; i++) {
+                    const prev = points[i - 1];
+                    const curr = points[i];
+                    const cpx = (prev.x + curr.x) / 2;
+                    ctx.quadraticCurveTo(prev.x + segW * 0.3, prev.y, cpx, (prev.y + curr.y) / 2);
+                }
+
+                // 下边界（向下偏移形成带宽）
+                const dynamicThickness = this.thickness + Math.sin(time * this.speed * 0.5) * 30;
+                for (let i = points.length - 1; i >= 0; i--) {
+                    const p = points[i];
+                    const bottomY = p.y + dynamicThickness +
+                        Math.sin(time * this.speed * 0.8 + i) * 20;
+                    if (i === points.length - 1) {
+                        ctx.lineTo(p.x, bottomY);
+                    } else {
+                        const next = points[i + 1];
+                        const nextBottomY = next.y + dynamicThickness +
+                            Math.sin(time * this.speed * 0.8 + (i + 1)) * 20;
+                        const cpx = (p.x + next.x) / 2;
+                        ctx.quadraticCurveTo(next.x - segW * 0.3, nextBottomY, cpx, (bottomY + nextBottomY) / 2);
+                    }
+                }
+                ctx.closePath();
+
+                // 创建渐变填充
+                const gradient = ctx.createLinearGradient(0, this.baseY - this.amplitude, 0, this.baseY + dynamicThickness + this.amplitude);
+                this.colorStops.forEach(stop => {
+                    gradient.addColorStop(stop[0], stop[1]);
+                });
+
+                ctx.globalAlpha = this.opacity + Math.sin(time * this.speed * 0.3) * 0.1;
+                ctx.globalCompositeOperation = 'screen';
+                ctx.fillStyle = gradient;
+                ctx.filter = 'blur(15px)';
+                ctx.fill();
+
+                // 额外绘制更亮的核心
+                ctx.globalAlpha = (this.opacity * 0.6) + Math.sin(time * this.speed * 0.5 + 1) * 0.05;
+                ctx.filter = 'blur(5px)';
+                ctx.fill();
+
+                ctx.restore();
+            }
+        }
+
+        // 创建多条极光带
+        const bands = [
+            new AuroraBand({
+                baseY: H * 0.2,
+                amplitude: 50,
+                thickness: 150,
+                speed: 0.4,
+                opacity: 0.35,
+                segments: 10,
+                colorStops: [
+                    [0, 'rgba(0, 255, 120, 0)'],
+                    [0.2, 'rgba(0, 255, 120, 0.6)'],
+                    [0.5, 'rgba(0, 200, 100, 0.8)'],
+                    [0.7, 'rgba(0, 150, 200, 0.6)'],
+                    [1, 'rgba(0, 100, 255, 0)']
+                ]
+            }),
+            new AuroraBand({
+                baseY: H * 0.25,
+                amplitude: 40,
+                thickness: 100,
+                speed: 0.5,
+                opacity: 0.25,
+                segments: 12,
+                colorStops: [
+                    [0, 'rgba(100, 255, 200, 0)'],
+                    [0.3, 'rgba(100, 255, 200, 0.5)'],
+                    [0.5, 'rgba(50, 200, 255, 0.7)'],
+                    [0.8, 'rgba(150, 100, 255, 0.4)'],
+                    [1, 'rgba(200, 50, 255, 0)']
+                ]
+            }),
+            new AuroraBand({
+                baseY: H * 0.15,
+                amplitude: 60,
+                thickness: 80,
+                speed: 0.35,
+                opacity: 0.2,
+                segments: 8,
+                colorStops: [
+                    [0, 'rgba(0, 150, 255, 0)'],
+                    [0.3, 'rgba(0, 200, 255, 0.4)'],
+                    [0.6, 'rgba(100, 50, 255, 0.6)'],
+                    [0.8, 'rgba(200, 0, 255, 0.3)'],
+                    [1, 'rgba(255, 0, 200, 0)']
+                ]
+            }),
+            new AuroraBand({
+                baseY: H * 0.3,
+                amplitude: 35,
+                thickness: 120,
+                speed: 0.6,
+                opacity: 0.15,
+                segments: 9,
+                colorStops: [
+                    [0, 'rgba(0, 255, 100, 0)'],
+                    [0.2, 'rgba(0, 255, 150, 0.3)'],
+                    [0.5, 'rgba(0, 255, 200, 0.5)'],
+                    [0.8, 'rgba(100, 255, 150, 0.3)'],
+                    [1, 'rgba(0, 200, 100, 0)']
+                ]
+            }),
+            // 亮绿色高光带
+            new AuroraBand({
+                baseY: H * 0.22,
+                amplitude: 45,
+                thickness: 40,
+                speed: 0.45,
+                opacity: 0.4,
+                segments: 14,
+                colorStops: [
+                    [0, 'rgba(100, 255, 180, 0)'],
+                    [0.3, 'rgba(100, 255, 180, 0.8)'],
+                    [0.5, 'rgba(150, 255, 200, 1)'],
+                    [0.7, 'rgba(100, 255, 180, 0.8)'],
+                    [1, 'rgba(100, 255, 180, 0)']
+                ]
+            })
+        ];
+
+        // 垂直光柱效果
+        class LightRay {
+            constructor() {
+                this.reset();
+            }
+
+            reset() {
+                this.x = Math.random() * W;
+                this.width = 2 + Math.random() * 4;
+                this.height = H * (0.3 + Math.random() * 0.4);
+                this.y = H * 0.05 + Math.random() * H * 0.2;
+                this.alpha = 0;
+                this.maxAlpha = 0.05 + Math.random() * 0.1;
+                this.fadeSpeed = 0.002 + Math.random() * 0.005;
+                this.state = 'fadein';
+                this.hue = 120 + Math.random() * 60; // 绿色到青色范围
+            }
+
+            update() {
+                if (this.state === 'fadein') {
+                    this.alpha += this.fadeSpeed;
+                    if (this.alpha >= this.maxAlpha) {
+                        this.state = 'fadeout';
+                    }
+                } else {
+                    this.alpha -= this.fadeSpeed * 0.5;
+                    if (this.alpha <= 0) {
+                        this.reset();
+                    }
+                }
+            }
+
+            draw() {
+                if (this.alpha <= 0) return;
+                ctx.save();
+                const gradient = ctx.createLinearGradient(this.x, this.y, this.x, this.y + this.height);
+                gradient.addColorStop(0, `hsla(${this.hue}, 100%, 70%, 0)`);
+                gradient.addColorStop(0.2, `hsla(${this.hue}, 100%, 70%, ${this.alpha})`);
+                gradient.addColorStop(0.5, `hsla(${this.hue}, 80%, 60%, ${this.alpha * 0.7})`);
+                gradient.addColorStop(1, `hsla(${this.hue}, 100%, 50%, 0)`);
+
+                ctx.globalCompositeOperation = 'screen';
+                ctx.fillStyle = gradient;
+                ctx.filter = 'blur(3px)';
+                ctx.fillRect(this.x - this.width / 2, this.y, this.width, this.height);
+                ctx.restore();
+            }
+        }
+
+        const rays = [];
+        for (let i = 0; i < 15; i++) {
+            rays.push(new LightRay());
+        }
+
+        // 地面反射
+        function drawGround(time) {
+            const groundY = H * 0.75;
+            const gradient = ctx.createLinearGradient(0, groundY, 0, H);
+            gradient.addColorStop(0, 'rgba(0, 30, 20, 0.8)');
+            gradient.addColorStop(0.3, 'rgba(0, 15, 10, 0.9)');
+            gradient.addColorStop(1, 'rgba(0, 5, 5, 1)');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, groundY, W, H - groundY);
+
+            // 地面上的极光反射
+            ctx.save();
+            ctx.globalCompositeOperation = 'screen';
+            ctx.globalAlpha = 0.08 + Math.sin(time * 0.3) * 0.03;
+            const reflGrad = ctx.createLinearGradient(0, groundY, 0, H);
+            reflGrad.addColorStop(0, 'rgba(0, 255, 150, 0.3)');
+            reflGrad.addColorStop(0.5, 'rgba(0, 200, 100, 0.1)');
+            reflGrad.addColorStop(1, 'rgba(0, 100, 50, 0)');
+            ctx.fillStyle = reflGrad;
+            ctx.filter = 'blur(20px)';
+            ctx.fillRect(0, groundY, W, H - groundY);
+            ctx.restore();
+
+            // 雪山剪影
+            drawMountains(groundY);
+        }
+
+        function drawMountains(baseY) {
+            ctx.save();
+            ctx.fillStyle = '#0a0f0a';
+
+            ctx.beginPath();
+            ctx.moveTo(0, baseY);
+            ctx.lineTo(0, baseY - 30);
+            ctx.lineTo(W * 0.05, baseY - 50);
+            ctx.lineTo(W * 0.1, baseY - 80);
+            ctx.lineTo(W * 0.15, baseY - 60);
+            ctx.lineTo(W * 0.2, baseY - 100);
+            ctx.lineTo(W * 0.28, baseY - 140);
+            ctx.lineTo(W * 0.35, baseY - 90);
+            ctx.lineTo(W * 0.4, baseY - 110);
+            ctx.lineTo(W * 0.48, baseY - 70);
+            ctx.lineTo(W * 0.55, baseY - 130);
+            ctx.lineTo(W * 0.62, baseY - 160);
+            ctx.lineTo(W * 0.68, baseY - 100);
+            ctx.lineTo(W * 0.75, baseY - 80);
+            ctx.lineTo(W * 0.82, baseY - 120);
+            ctx.lineTo(W * 0.88, baseY - 90);
+            ctx.lineTo(W * 0.95, baseY - 50);
+            ctx.lineTo(W, baseY - 40);
+            ctx.lineTo(W, baseY);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        // 主渲染循环
+        function animate() {
+            const time = Date.now() * 0.001;
+
+            // 清空画布 - 深空背景
+            const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+            bgGrad.addColorStop(0, '#000510');
+            bgGrad.addColorStop(0.4, '#001020');
+            bgGrad.addColorStop(0.7, '#001515');
+            bgGrad.addColorStop(1, '#000a0a');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, W, H);
+
+            // 绘制极光带
+            bands.forEach(band => band.draw(time));
+
+            // 绘制光柱
+            rays.forEach(ray => {
+                ray.update();
+                ray.draw();
+            });
+
+            // 绘制地面和山脉
+            drawGround(time);
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
