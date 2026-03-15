@@ -24,6 +24,7 @@
             position: relative;
             width: 350px;
             height: 280px;
+            transform-origin: center center;
         }
 
         .gear-wrapper {
@@ -257,6 +258,20 @@
         }
 
         setInterval(createSteam, 200);
+
+        // 窗口适配：根据视口大小缩放整个齿轮系统
+        const BASE_W = 350;
+        const BASE_H = 320; // 280 + 底部文字空间
+
+        function fitToWindow() {
+            const scaleX = window.innerWidth / BASE_W;
+            const scaleY = window.innerHeight / BASE_H;
+            const scale = Math.min(scaleX, scaleY, 3) * 0.85; // 最大3倍，留15%边距
+            system.style.transform = `scale(${scale})`;
+        }
+
+        fitToWindow();
+        window.addEventListener('resize', fitToWindow);
     </script>
 </body>
 </html>
