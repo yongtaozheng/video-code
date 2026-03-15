@@ -190,16 +190,7 @@
 
             const svg = `
                 <svg width="${svgSize}" height="${svgSize}" viewBox="0 0 ${svgSize} ${svgSize}">
-                    <defs>
-                        <filter id="glow-${config.color.slice(1)}">
-                            <feGaussianBlur stdDeviation="2" result="blur"/>
-                            <feMerge>
-                                <feMergeNode in="blur"/>
-                                <feMergeNode in="SourceGraphic"/>
-                            </feMerge>
-                        </filter>
-                    </defs>
-                    <g filter="url(#glow-${config.color.slice(1)})">
+                    <g>
                         <path d="${pathData}" fill="none" stroke="${color}" stroke-width="2" opacity="0.9"/>
                         <circle cx="${cx}" cy="${cy}" r="${holeR}" fill="none" stroke="${color}" stroke-width="2" opacity="0.7"/>
                         <circle cx="${cx}" cy="${cy}" r="${r * 0.08}" fill="${color}" opacity="0.8"/>
