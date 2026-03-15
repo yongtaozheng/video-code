@@ -59,12 +59,14 @@
 
         let width = canvas.width = window.innerWidth;
         let height = canvas.height = window.innerHeight;
-        const centerX = width / 2;
-        const centerY = height / 2;
+        let centerX = width / 2;
+        let centerY = height / 2;
 
         window.addEventListener('resize', () => {
             width = canvas.width = window.innerWidth;
             height = canvas.height = window.innerHeight;
+            centerX = width / 2;
+            centerY = height / 2;
         });
 
         // 粒子类
