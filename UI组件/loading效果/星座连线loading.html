@@ -32,12 +32,22 @@
             text-align: center;
         }
 
+        .constellation-name-cn {
+            font-family: 'PingFang SC', 'Microsoft YaHei', 'Hiragino Sans GB', sans-serif;
+            font-size: 28px;
+            color: rgba(200, 230, 255, 0.85);
+            letter-spacing: 12px;
+            margin-bottom: 6px;
+            animation: fadeInOut 4s ease-in-out infinite;
+            text-shadow: 0 0 20px rgba(100, 180, 255, 0.4), 0 0 40px rgba(100, 180, 255, 0.15);
+        }
+
         .constellation-name {
             font-family: 'Georgia', serif;
-            font-size: 22px;
-            color: rgba(255, 255, 255, 0.7);
-            letter-spacing: 8px;
-            margin-bottom: 12px;
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.45);
+            letter-spacing: 6px;
+            margin-bottom: 14px;
             animation: fadeInOut 4s ease-in-out infinite;
         }
 
@@ -78,6 +88,7 @@
 <body>
     <canvas id="canvas"></canvas>
     <div class="loading-info">
+        <div class="constellation-name-cn" id="constellationNameCN">猎户座</div>
         <div class="constellation-name" id="constellationName">ORION</div>
         <div class="loading-dots">
             <span></span>
@@ -129,6 +140,7 @@
         const constellations = [
             {
                 name: 'ORION',
+                nameCN: '猎户座',
                 stars: [
                     { x: 0.40, y: 0.15 }, // 参宿四
                     { x: 0.60, y: 0.18 }, // 参宿五
@@ -144,6 +156,7 @@
             },
             {
                 name: 'CASSIOPEIA',
+                nameCN: '仙后座',
                 stars: [
                     { x: 0.25, y: 0.40 },
                     { x: 0.38, y: 0.25 },
@@ -156,6 +169,7 @@
             },
             {
                 name: 'URSA MAJOR',
+                nameCN: '大熊座',
                 stars: [
                     { x: 0.30, y: 0.30 },
                     { x: 0.38, y: 0.28 },
@@ -170,6 +184,7 @@
             },
             {
                 name: 'SCORPIUS',
+                nameCN: '天蝎座',
                 stars: [
                     { x: 0.50, y: 0.15 },
                     { x: 0.48, y: 0.28 },
@@ -234,6 +249,7 @@
         let starParticles = []; // 星光粒子
 
         const nameEl = document.getElementById('constellationName');
+        const nameCNEl = document.getElementById('constellationNameCN');
 
         function getCurrentConstellation() {
             return constellations[currentIndex % constellations.length];
@@ -439,9 +455,15 @@
                         phase = 'drawing';
                         drawProgress = 0;
                         currentIndex++;
-                        nameEl.textContent = getCurrentConstellation().name;
+                        const next = getCurrentConstellation();
+                        nameEl.textContent = next.name;
+                        nameCNEl.textContent = next.nameCN;
                         nameEl.style.opacity = 0;
-                        setTimeout(() => nameEl.style.opacity = '', 100);
+                        nameCNEl.style.opacity = 0;
+                        setTimeout(() => {
+                            nameEl.style.opacity = '';
+                            nameCNEl.style.opacity = '';
+                        }, 100);
                     }
                     break;
             }
