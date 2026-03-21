@@ -65,7 +65,7 @@
     /* ── Content area ── */
     .content-wrap {
       margin-top: 48px;
-      width: 460px;
+      width: min(460px, 90vw);
       min-height: 120px;
       position: relative;
     }
@@ -164,9 +164,17 @@
     const panels  = document.querySelectorAll('.content-panel');
     let current   = 0;
 
-    function movePill(tab) {
+    // animate=false 时禁用过渡，直接归位（用于 resize）
+    function movePill(tab, animate = true) {
+      if (!animate) {
+        pill.style.transition = 'none';
+      }
       pill.style.left  = tab.offsetLeft + 'px';
       pill.style.width = tab.offsetWidth + 'px';
+      if (!animate) {
+        pill.offsetWidth; // 强制回流，确保 none 生效后再恢复
+        pill.style.transition = '';
+      }
     }
 
     function switchTo(i) {
@@ -180,6 +188,10 @@
     }
 
     tabs.forEach((tab, i) => tab.addEventListener('click', () => switchTo(i)));
+
+    // 监听 tabs 容器尺寸变化，立即无动画归位
+    new ResizeObserver(() => movePill(tabs[current], false))
+      .observe(document.getElementById('tabs'));
 
     // Init
     movePill(tabs[0]);
