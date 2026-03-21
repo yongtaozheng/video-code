@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>胶囊滑块 Tabbar</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: #f0f0ea;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ── Tab bar ── */
+    .tabs {
+      position: relative;
+      display: flex;
+      background: #e4e4dd;
+      border-radius: 100px;
+      padding: 5px;
+      gap: 2px;
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.08), inset 0 -1px 0 rgba(255,255,255,0.6);
+    }
+
+    /* Sliding indicator */
+    .pill {
+      position: absolute;
+      top: 5px;
+      height: calc(100% - 10px);
+      background: #ffffff;
+      border-radius: 100px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1), 0 0 0 0.5px rgba(0,0,0,0.04);
+      transition:
+        left   0.42s cubic-bezier(0.34, 1.56, 0.64, 1),
+        width  0.42s cubic-bezier(0.34, 1.56, 0.64, 1);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .tab {
+      position: relative;
+      z-index: 2;
+      padding: 10px 26px;
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      color: #9a9a90;
+      cursor: pointer;
+      border-radius: 100px;
+      white-space: nowrap;
+      transition: color 0.3s ease;
+      user-select: none;
+    }
+
+    .tab.active { color: #1a1a14; }
+    .tab:not(.active):hover { color: #666660; }
+
+    /* ── Content area ── */
+    .content-wrap {
+      margin-top: 48px;
+      width: 460px;
+      min-height: 120px;
+      position: relative;
+    }
+
+    .content-panel {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      pointer-events: none;
+    }
+
+    .content-panel.visible {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    .content-title {
+      font-size: 14px;
+      font-weight: 500;
+      color: #333;
+      letter-spacing: 0.08em;
+    }
+
+    .content-sub {
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      color: #bbb;
+      text-transform: uppercase;
+    }
+
+    /* Decorative dots */
+    .dots {
+      display: flex;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: #ddd;
+    }
+    .dot.on { background: #333; }
+  </style>
+</head>
+<body>
+  <div class="tabs" id="tabs">
+    <div class="pill" id="pill"></div>
+    <div class="tab active" data-i="0">首页</div>
+    <div class="tab" data-i="1">发现</div>
+    <div class="tab" data-i="2">消息</div>
+    <div class="tab" data-i="3">我的</div>
+  </div>
+
+  <div class="content-wrap">
+    <div class="content-panel visible">
+      <div class="content-title">首页内容</div>
+      <div class="content-sub">home</div>
+      <div class="dots">
+        <div class="dot on"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+      </div>
+    </div>
+    <div class="content-panel">
+      <div class="content-title">发现内容</div>
+      <div class="content-sub">discover</div>
+      <div class="dots">
+        <div class="dot"></div><div class="dot on"></div><div class="dot"></div><div class="dot"></div>
+      </div>
+    </div>
+    <div class="content-panel">
+      <div class="content-title">消息内容</div>
+      <div class="content-sub">messages</div>
+      <div class="dots">
+        <div class="dot"></div><div class="dot"></div><div class="dot on"></div><div class="dot"></div>
+      </div>
+    </div>
+    <div class="content-panel">
+      <div class="content-title">我的内容</div>
+      <div class="content-sub">profile</div>
+      <div class="dots">
+        <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot on"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const tabs    = document.querySelectorAll('.tab');
+    const pill    = document.getElementById('pill');
+    const panels  = document.querySelectorAll('.content-panel');
+    let current   = 0;
+
+    function movePill(tab) {
+      pill.style.left  = tab.offsetLeft + 'px';
+      pill.style.width = tab.offsetWidth + 'px';
+    }
+
+    function switchTo(i) {
+      if (i === current) return;
+      tabs[current].classList.remove('active');
+      panels[current].classList.remove('visible');
+      current = i;
+      tabs[current].classList.add('active');
+      panels[current].classList.add('visible');
+      movePill(tabs[current]);
+    }
+
+    tabs.forEach((tab, i) => tab.addEventListener('click', () => switchTo(i)));
+
+    // Init
+    movePill(tabs[0]);
+  </script>
+</body>
+</html>
