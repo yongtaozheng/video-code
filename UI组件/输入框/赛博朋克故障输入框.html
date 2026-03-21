@@ -1,944 +1,1095 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>赛博朋克故障输入框 | Cyberpunk Glitch Input</title>
-  <style>
-    /* ========== 基础重置与全局样式 ========== */
-    *,
-    *::before,
-    *::after {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    :root {
-      /* 赛博朋克主题色 */
-      --neon-pink: #ff2a6d;
-      --neon-cyan: #05d9e8;
-      --neon-yellow: #f5f520;
-      --neon-purple: #d300c5;
-      --bg-dark: #0d0d0d;
-      --bg-panel: #0a0a12;
-      --text-primary: #e0e0e0;
-      --text-dim: #4a4a5a;
-      --scanline-color: rgba(5, 217, 232, 0.03);
-      --glitch-offset: 0px;
-    }
-
-    body {
-      background-color: var(--bg-dark);
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-family: 'Courier New', 'Consolas', monospace;
-      overflow: hidden;
-      position: relative;
-    }
-
-    /* ========== 背景矩阵雨效果 ========== */
-    #matrix-canvas {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 0;
-      opacity: 0.15;
-      pointer-events: none;
-    }
-
-    /* ========== 全局扫描线覆盖层 ========== */
-    body::before {
-      content: '';
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 1;
-      pointer-events: none;
-      background: repeating-linear-gradient(
-        0deg,
-        transparent,
-        transparent 2px,
-        var(--scanline-color) 2px,
-        var(--scanline-color) 4px
-      );
-    }
-
-    /* CRT 屏幕微光效果 */
-    body::after {
-      content: '';
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 1;
-      pointer-events: none;
-      background: radial-gradient(
-        ellipse at center,
-        transparent 50%,
-        rgba(0, 0, 0, 0.4) 100%
-      );
-    }
-
-    /* ========== 主容器 ========== */
-    .cyber-container {
-      position: relative;
-      z-index: 10;
-      width: 520px;
-      padding: 40px;
-    }
-
-    /* ========== 标签文字 - 终端风格 ========== */
-    .cyber-label {
-      font-size: 13px;
-      color: var(--neon-cyan);
-      letter-spacing: 3px;
-      margin-bottom: 14px;
-      text-transform: uppercase;
-      position: relative;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      text-shadow:
-        0 0 5px var(--neon-cyan),
-        0 0 15px rgba(5, 217, 232, 0.3);
-      animation: labelFlicker 4s infinite;
-    }
-
-    .cyber-label::before {
-      content: '>>';
-      color: var(--neon-pink);
-      text-shadow:
-        0 0 5px var(--neon-pink),
-        0 0 15px rgba(255, 42, 109, 0.3);
-    }
-
-    .cyber-label::after {
-      content: '//';
-      color: var(--text-dim);
-      margin-left: auto;
-    }
-
-    /* 标签闪烁动画 */
-    @keyframes labelFlicker {
-      0%, 100% { opacity: 1; }
-      92% { opacity: 1; }
-      93% { opacity: 0.3; }
-      94% { opacity: 1; }
-      96% { opacity: 0.5; }
-      97% { opacity: 1; }
-    }
-
-    /* ========== 状态指示行 ========== */
-    .cyber-status {
-      font-size: 10px;
-      color: var(--text-dim);
-      letter-spacing: 2px;
-      margin-bottom: 20px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .status-dot {
-      width: 6px;
-      height: 6px;
-      background: var(--neon-cyan);
-      border-radius: 50%;
-      display: inline-block;
-      animation: dotPulse 2s ease-in-out infinite;
-      box-shadow: 0 0 6px var(--neon-cyan);
-    }
-
-    @keyframes dotPulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.4; transform: scale(0.7); }
-    }
-
-    /* ========== 输入框外层包裹 - 故障效果载体 ========== */
-    .input-wrapper {
-      position: relative;
-      /* 故障偏移由 JS 动态控制 */
-      transform: translate(var(--glitch-offset), 0);
-      transition: transform 0.05s;
-    }
-
-    /* 输入框上方装饰线 */
-    .input-wrapper::before {
-      content: '';
-      position: absolute;
-      top: -2px;
-      left: 0;
-      right: 0;
-      height: 1px;
-      background: linear-gradient(
-        90deg,
-        transparent,
-        var(--neon-pink),
-        var(--neon-cyan),
-        transparent
-      );
-      opacity: 0.6;
-      animation: borderSweep 3s linear infinite;
-    }
-
-    /* 输入框下方装饰线 */
-    .input-wrapper::after {
-      content: '';
-      position: absolute;
-      bottom: -2px;
-      left: 0;
-      right: 0;
-      height: 1px;
-      background: linear-gradient(
-        90deg,
-        transparent,
-        var(--neon-cyan),
-        var(--neon-pink),
-        transparent
-      );
-      opacity: 0.6;
-      animation: borderSweep 3s linear infinite reverse;
-    }
-
-    /* 边框光效扫过动画 */
-    @keyframes borderSweep {
-      0% { background-position: -200% 0; }
-      100% { background-position: 200% 0; }
-    }
-
-    /* ========== 核心输入框样式 ========== */
-    .cyber-input {
-      width: 100%;
-      padding: 16px 20px;
-      font-family: 'Courier New', 'Consolas', monospace;
-      font-size: 16px;
-      letter-spacing: 1.5px;
-      color: var(--text-primary);
-      background: var(--bg-panel);
-      border: 1px solid rgba(5, 217, 232, 0.2);
-      outline: none;
-      position: relative;
-      caret-color: var(--neon-pink);
-      transition:
-        border-color 0.3s,
-        box-shadow 0.3s;
-      animation: neonPulse 4s ease-in-out infinite;
-    }
-
-    /* 霓虹灯呼吸发光 */
-    @keyframes neonPulse {
-      0%, 100% {
-        box-shadow:
-          0 0 5px rgba(5, 217, 232, 0.1),
-          0 0 15px rgba(5, 217, 232, 0.05),
-          inset 0 0 10px rgba(5, 217, 232, 0.02);
-      }
-      50% {
-        box-shadow:
-          0 0 8px rgba(5, 217, 232, 0.2),
-          0 0 25px rgba(5, 217, 232, 0.1),
-          inset 0 0 15px rgba(5, 217, 232, 0.03);
-      }
-    }
-
-    .cyber-input::placeholder {
-      color: var(--text-dim);
-      letter-spacing: 2px;
-      font-size: 13px;
-    }
-
-    /* ========== 聚焦状态 - 增强故障效果 ========== */
-    .cyber-input:focus {
-      border-color: var(--neon-pink);
-      animation: neonPulseFocus 1.5s ease-in-out infinite, borderFlicker 0.3s step-end infinite;
-    }
-
-    @keyframes neonPulseFocus {
-      0%, 100% {
-        box-shadow:
-          0 0 5px rgba(255, 42, 109, 0.3),
-          0 0 20px rgba(255, 42, 109, 0.15),
-          0 0 40px rgba(255, 42, 109, 0.05),
-          0 0 5px rgba(5, 217, 232, 0.2),
-          0 0 20px rgba(5, 217, 232, 0.1),
-          inset 0 0 15px rgba(255, 42, 109, 0.03);
-      }
-      50% {
-        box-shadow:
-          0 0 10px rgba(255, 42, 109, 0.5),
-          0 0 30px rgba(255, 42, 109, 0.25),
-          0 0 60px rgba(255, 42, 109, 0.1),
-          0 0 10px rgba(5, 217, 232, 0.3),
-          0 0 30px rgba(5, 217, 232, 0.15),
-          inset 0 0 20px rgba(255, 42, 109, 0.05);
-      }
-    }
-
-    /* 边框闪烁 */
-    @keyframes borderFlicker {
-      0% { border-color: var(--neon-pink); }
-      20% { border-color: var(--neon-cyan); }
-      40% { border-color: var(--neon-pink); }
-      60% { border-color: rgba(255, 42, 109, 0.4); }
-      80% { border-color: var(--neon-cyan); }
-      100% { border-color: var(--neon-pink); }
-    }
-
-    /* ========== 扫描线叠加层 (聚焦时出现) ========== */
-    .scanline-overlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity 0.3s;
-      z-index: 2;
-      background: repeating-linear-gradient(
-        0deg,
-        transparent,
-        transparent 1px,
-        rgba(5, 217, 232, 0.02) 1px,
-        rgba(5, 217, 232, 0.02) 2px
-      );
-      mix-blend-mode: screen;
-    }
-
-    .cyber-input:focus ~ .scanline-overlay {
-      opacity: 1;
-      animation: scanlineMove 8s linear infinite;
-    }
-
-    @keyframes scanlineMove {
-      0% { background-position: 0 0; }
-      100% { background-position: 0 200px; }
-    }
-
-    /* ========== 故障克隆层 - RGB色彩分离 ========== */
-    .glitch-clone {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      z-index: 3;
-      overflow: hidden;
-    }
-
-    /* 红色通道偏移 */
-    .glitch-clone--red {
-      opacity: 0;
-      mix-blend-mode: screen;
-    }
-
-    .glitch-clone--red::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 2px;
-      width: 100%;
-      height: 100%;
-      border: 1px solid rgba(255, 42, 109, 0.4);
-      background: transparent;
-    }
-
-    /* 蓝色通道偏移 */
-    .glitch-clone--blue {
-      opacity: 0;
-      mix-blend-mode: screen;
-    }
-
-    .glitch-clone--blue::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: -2px;
-      width: 100%;
-      height: 100%;
-      border: 1px solid rgba(5, 217, 232, 0.4);
-      background: transparent;
-    }
-
-    /* 聚焦时激活色差效果 */
-    .input-wrapper.focused .glitch-clone--red {
-      animation: glitchRed 0.3s step-end infinite;
-    }
-
-    .input-wrapper.focused .glitch-clone--blue {
-      animation: glitchBlue 0.3s step-end infinite;
-    }
-
-    @keyframes glitchRed {
-      0% { opacity: 0; transform: translate(0, 0); }
-      10% { opacity: 0.6; transform: translate(2px, -1px); clip-path: inset(20% 0 60% 0); }
-      20% { opacity: 0; transform: translate(0, 0); }
-      50% { opacity: 0.4; transform: translate(-1px, 1px); clip-path: inset(50% 0 20% 0); }
-      60% { opacity: 0; transform: translate(0, 0); }
-      80% { opacity: 0.5; transform: translate(3px, 0); clip-path: inset(10% 0 70% 0); }
-      100% { opacity: 0; transform: translate(0, 0); }
-    }
-
-    @keyframes glitchBlue {
-      0% { opacity: 0; transform: translate(0, 0); }
-      15% { opacity: 0.5; transform: translate(-2px, 1px); clip-path: inset(40% 0 30% 0); }
-      25% { opacity: 0; transform: translate(0, 0); }
-      55% { opacity: 0.4; transform: translate(1px, -1px); clip-path: inset(60% 0 10% 0); }
-      65% { opacity: 0; transform: translate(0, 0); }
-      85% { opacity: 0.5; transform: translate(-3px, 0); clip-path: inset(30% 0 50% 0); }
-      100% { opacity: 0; transform: translate(0, 0); }
-    }
-
-    /* ========== 故障爆发动画 (打字时触发) ========== */
-    .input-wrapper.glitch-burst {
-      animation: glitchBurst 0.15s steps(2) forwards;
-    }
-
-    @keyframes glitchBurst {
-      0% { transform: translate(0, 0); filter: none; }
-      25% { transform: translate(-3px, 1px); filter: hue-rotate(30deg); }
-      50% { transform: translate(2px, -1px); filter: hue-rotate(-20deg) brightness(1.2); }
-      75% { transform: translate(-1px, -2px); filter: hue-rotate(10deg); }
-      100% { transform: translate(0, 0); filter: none; }
-    }
-
-    /* ========== RGB文字阴影 (聚焦时) ========== */
-    .input-wrapper.focused .cyber-input {
-      text-shadow:
-        1px 0 rgba(255, 42, 109, 0.4),
-        -1px 0 rgba(5, 217, 232, 0.4);
-    }
-
-    /* ========== 数据碎片粒子样式 ========== */
-    .data-fragment {
-      position: absolute;
-      font-family: 'Courier New', monospace;
-      font-size: 9px;
-      letter-spacing: 1px;
-      padding: 2px 5px;
-      pointer-events: none;
-      z-index: 20;
-      white-space: nowrap;
-      border: 1px solid;
-      opacity: 0;
-      animation: fragmentFade 1.2s ease-out forwards;
-    }
-
-    .data-fragment--pink {
-      color: var(--neon-pink);
-      border-color: rgba(255, 42, 109, 0.3);
-      text-shadow: 0 0 4px var(--neon-pink);
-      background: rgba(255, 42, 109, 0.05);
-    }
-
-    .data-fragment--cyan {
-      color: var(--neon-cyan);
-      border-color: rgba(5, 217, 232, 0.3);
-      text-shadow: 0 0 4px var(--neon-cyan);
-      background: rgba(5, 217, 232, 0.05);
-    }
-
-    .data-fragment--yellow {
-      color: var(--neon-yellow);
-      border-color: rgba(245, 245, 32, 0.3);
-      text-shadow: 0 0 4px var(--neon-yellow);
-      background: rgba(245, 245, 32, 0.05);
-    }
-
-    @keyframes fragmentFade {
-      0% {
-        opacity: 0;
-        transform: translate(0, 0) scale(0.5);
-      }
-      15% {
-        opacity: 0.9;
-        transform: translate(var(--fx), var(--fy)) scale(1);
-      }
-      70% {
-        opacity: 0.6;
-      }
-      100% {
-        opacity: 0;
-        transform: translate(calc(var(--fx) * 2.5), calc(var(--fy) * 2.5)) scale(0.3);
-      }
-    }
-
-    /* ========== 底部装饰信息 ========== */
-    .cyber-footer {
-      margin-top: 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 9px;
-      letter-spacing: 2px;
-      color: var(--text-dim);
-    }
-
-    .cyber-footer .enc-type {
-      color: var(--neon-pink);
-      opacity: 0.5;
-    }
-
-    .cyber-footer .char-count {
-      color: var(--neon-cyan);
-      opacity: 0.6;
-      transition: opacity 0.3s;
-    }
-
-    .cyber-footer .char-count.active {
-      opacity: 1;
-      text-shadow: 0 0 5px rgba(5, 217, 232, 0.3);
-    }
-
-    /* ========== 角落装饰 ========== */
-    .corner-decor {
-      position: absolute;
-      width: 8px;
-      height: 8px;
-      border-color: var(--neon-cyan);
-      opacity: 0.4;
-      transition: opacity 0.3s, border-color 0.3s;
-    }
-
-    .corner-decor--tl {
-      top: -1px;
-      left: -1px;
-      border-top: 1px solid;
-      border-left: 1px solid;
-    }
-
-    .corner-decor--tr {
-      top: -1px;
-      right: -1px;
-      border-top: 1px solid;
-      border-right: 1px solid;
-    }
-
-    .corner-decor--bl {
-      bottom: -1px;
-      left: -1px;
-      border-bottom: 1px solid;
-      border-left: 1px solid;
-    }
-
-    .corner-decor--br {
-      bottom: -1px;
-      right: -1px;
-      border-bottom: 1px solid;
-      border-right: 1px solid;
-    }
-
-    .input-wrapper.focused .corner-decor {
-      opacity: 1;
-      border-color: var(--neon-pink);
-      animation: cornerPulse 1.5s ease-in-out infinite;
-    }
-
-    @keyframes cornerPulse {
-      0%, 100% { opacity: 0.6; }
-      50% { opacity: 1; }
-    }
-
-    /* ========== 随机故障条纹 (聚焦时) ========== */
-    .glitch-bar {
-      position: absolute;
-      left: 0;
-      width: 100%;
-      pointer-events: none;
-      z-index: 4;
-      opacity: 0;
-    }
-
-    .input-wrapper.focused .glitch-bar {
-      animation: glitchBarFlash 4s step-end infinite;
-    }
-
-    .glitch-bar--1 {
-      top: 30%;
-      height: 2px;
-      background: var(--neon-pink);
-      animation-delay: 0s !important;
-    }
-
-    .glitch-bar--2 {
-      top: 70%;
-      height: 1px;
-      background: var(--neon-cyan);
-      animation-delay: 1.5s !important;
-    }
-
-    @keyframes glitchBarFlash {
-      0%, 100% { opacity: 0; transform: scaleX(1); }
-      5% { opacity: 0.6; transform: scaleX(0.8); clip-path: inset(0 20% 0 10%); }
-      6% { opacity: 0; }
-      45% { opacity: 0; }
-      46% { opacity: 0.4; transform: scaleX(1.1); clip-path: inset(0 5% 0 30%); }
-      48% { opacity: 0; }
-    }
-
-    /* ========== 背景闪光效果 (大故障时触发) ========== */
-    .screen-flash {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      z-index: 100;
-      opacity: 0;
-      background: var(--neon-cyan);
-      mix-blend-mode: overlay;
-    }
-
-    .screen-flash.flash {
-      animation: screenFlash 0.1s ease-out forwards;
-    }
-
-    @keyframes screenFlash {
-      0% { opacity: 0.15; }
-      100% { opacity: 0; }
-    }
-  </style>
-</head>
-<body>
-
-  <!-- 矩阵雨背景画布 -->
-  <canvas id="matrix-canvas"></canvas>
-
-  <!-- 屏幕闪光效果层 -->
-  <div class="screen-flash" id="screenFlash"></div>
-
-  <!-- 主内容容器 -->
-  <div class="cyber-container">
-
-    <!-- 终端风格标签 -->
-    <div class="cyber-label">
-      <span>NEURAL_LINK</span>
-    </div>
-
-    <!-- 状态指示行 -->
-    <div class="cyber-status">
-      <span class="status-dot"></span>
-      <span>SYS.ONLINE</span>
-      <span style="margin-left: auto; color: #333;">v2.077</span>
-    </div>
-
-    <!-- 输入框包裹层 -->
-    <div class="input-wrapper" id="inputWrapper">
-      <!-- 角落装饰 -->
-      <div class="corner-decor corner-decor--tl"></div>
-      <div class="corner-decor corner-decor--tr"></div>
-      <div class="corner-decor corner-decor--bl"></div>
-      <div class="corner-decor corner-decor--br"></div>
-
-      <!-- 核心输入框 -->
-      <input
-        type="text"
-        class="cyber-input"
-        id="cyberInput"
-        placeholder="ENTER_COMMAND..."
-        autocomplete="off"
-        spellcheck="false"
-      />
-
-      <!-- 扫描线叠加 -->
-      <div class="scanline-overlay"></div>
-
-      <!-- 故障色彩分离层 -->
-      <div class="glitch-clone glitch-clone--red"></div>
-      <div class="glitch-clone glitch-clone--blue"></div>
-
-      <!-- 故障条纹 -->
-      <div class="glitch-bar glitch-bar--1"></div>
-      <div class="glitch-bar glitch-bar--2"></div>
-    </div>
-
-    <!-- 底部信息 -->
-    <div class="cyber-footer">
-      <span class="enc-type">AES-256 ENCRYPTED</span>
-      <span class="char-count" id="charCount">0x00</span>
-    </div>
-  </div>
-
-  <script>
-    /* ========== DOM 元素引用 ========== */
-    const inputWrapper = document.getElementById('inputWrapper');
-    const cyberInput = document.getElementById('cyberInput');
-    const charCount = document.getElementById('charCount');
-    const screenFlash = document.getElementById('screenFlash');
-    const matrixCanvas = document.getElementById('matrix-canvas');
-
-    /* ========== 工具函数 ========== */
-
-    /** 生成随机十六进制字符串 */
-    function randomHex(length) {
-      const chars = '0123456789ABCDEF';
-      let result = '';
-      for (let i = 0; i < length; i++) {
-        result += chars[Math.floor(Math.random() * chars.length)];
-      }
-      return result;
-    }
-
-    /** 在指定范围内生成随机数 */
-    function randomRange(min, max) {
-      return Math.random() * (max - min) + min;
-    }
-
-    /** 从数组中随机选取一个元素 */
-    function randomPick(arr) {
-      return arr[Math.floor(Math.random() * arr.length)];
-    }
-
-    /* ========== 数据碎片粒子系统 ========== */
-
-    /** 在输入框附近生成漂浮的数据碎片 */
-    function spawnDataFragment() {
-      const fragment = document.createElement('div');
-      const colorClass = randomPick(['data-fragment--pink', 'data-fragment--cyan', 'data-fragment--yellow']);
-      fragment.className = `data-fragment ${colorClass}`;
-
-      /* 碎片内容: 随机十六进制值 */
-      const contentTypes = [
-        () => `0x${randomHex(4)}`,
-        () => `${randomHex(2)}:${randomHex(2)}`,
-        () => `[${randomHex(3)}]`,
-        () => `#${randomHex(6)}`,
-        () => `ERR_${randomHex(2)}`,
-        () => `${randomHex(8)}`,
-      ];
-      fragment.textContent = randomPick(contentTypes)();
-
-      /* 定位: 在输入框附近随机位置生成 */
-      const wrapperRect = inputWrapper.getBoundingClientRect();
-      const side = Math.random() > 0.5 ? 1 : -1;
-      const startX = wrapperRect.width / 2 + side * randomRange(20, wrapperRect.width / 2 + 30);
-      const startY = randomRange(-20, wrapperRect.height + 20);
-
-      fragment.style.left = `${startX}px`;
-      fragment.style.top = `${startY}px`;
-
-      /* 设置飘动方向 CSS 变量 */
-      const fx = side * randomRange(10, 50);
-      const fy = randomRange(-30, 30);
-      fragment.style.setProperty('--fx', `${fx}px`);
-      fragment.style.setProperty('--fy', `${fy}px`);
-
-      inputWrapper.appendChild(fragment);
-
-      /* 动画结束后移除 DOM 节点 */
-      fragment.addEventListener('animationend', () => {
-        fragment.remove();
-      });
-    }
-
-    /** 批量生成碎片 (打字触发故障爆发) */
-    function burstFragments(count) {
-      for (let i = 0; i < count; i++) {
-        setTimeout(() => spawnDataFragment(), i * 40);
-      }
-    }
-
-    /* ========== 故障效果引擎 ========== */
-
-    let isFocused = false;
-    let glitchInterval = null;
-    let idleGlitchInterval = null;
-
-    /** 触发一次小幅故障位移 */
-    function triggerMicroGlitch() {
-      const offsetX = randomRange(-2, 2);
-      const offsetY = randomRange(-1, 1);
-      inputWrapper.style.setProperty('--glitch-offset', `${offsetX}px`);
-      inputWrapper.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
-
-      /* 短暂后恢复 */
-      setTimeout(() => {
-        inputWrapper.style.setProperty('--glitch-offset', '0px');
-        inputWrapper.style.transform = 'translate(0, 0)';
-      }, 50 + Math.random() * 80);
-    }
-
-    /** 触发一次强烈故障 (聚焦时使用) */
-    function triggerHeavyGlitch() {
-      const offsetX = randomRange(-5, 5);
-      const offsetY = randomRange(-2, 2);
-      inputWrapper.style.transform = `translate(${offsetX}px, ${offsetY}px) skewX(${randomRange(-0.5, 0.5)}deg)`;
-
-      /* 生成碎片 */
-      if (Math.random() > 0.4) {
-        spawnDataFragment();
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>赛博朋克故障输入框</title>
+    <style>
+      /* ========== 基础重置与全局样式 ========== */
+      *,
+      *::before,
+      *::after {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
       }
 
-      setTimeout(() => {
-        inputWrapper.style.transform = 'translate(0, 0) skewX(0)';
-      }, 60 + Math.random() * 100);
-    }
-
-    /** 触发打字故障爆发 */
-    function triggerTypingGlitch() {
-      /* 添加爆发动画类 */
-      inputWrapper.classList.add('glitch-burst');
-      setTimeout(() => {
-        inputWrapper.classList.remove('glitch-burst');
-      }, 150);
-
-      /* 生成数据碎片 */
-      burstFragments(Math.floor(randomRange(1, 4)));
-
-      /* 偶尔触发屏幕闪光 */
-      if (Math.random() > 0.75) {
-        triggerScreenFlash();
+      :root {
+        /* 赛博朋克主题色 */
+        --neon-pink: #ff2a6d;
+        --neon-cyan: #05d9e8;
+        --neon-yellow: #f5f520;
+        --neon-purple: #d300c5;
+        --bg-dark: #0d0d0d;
+        --bg-panel: #0a0a12;
+        --text-primary: #e0e0e0;
+        --text-dim: #4a4a5a;
+        --scanline-color: rgba(5, 217, 232, 0.03);
+        --glitch-offset: 0px;
       }
-    }
 
-    /** 触发屏幕闪光 */
-    function triggerScreenFlash() {
-      screenFlash.classList.remove('flash');
-      /* 强制回流以重启动画 */
-      void screenFlash.offsetWidth;
-      screenFlash.classList.add('flash');
-    }
+      body {
+        background-color: var(--bg-dark);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: "Courier New", "Consolas", monospace;
+        overflow: hidden;
+        position: relative;
+      }
 
-    /* ========== 空闲状态随机故障 (始终运行) ========== */
-    function startIdleGlitch() {
-      idleGlitchInterval = setInterval(() => {
-        if (Math.random() > 0.6) {
-          triggerMicroGlitch();
+      /* ========== 背景矩阵雨效果 ========== */
+      #matrix-canvas {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 0;
+        opacity: 0.15;
+        pointer-events: none;
+      }
+
+      /* ========== 全局扫描线覆盖层 ========== */
+      body::before {
+        content: "";
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1;
+        pointer-events: none;
+        background: repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 2px,
+          var(--scanline-color) 2px,
+          var(--scanline-color) 4px
+        );
+      }
+
+      /* CRT 屏幕微光效果 */
+      body::after {
+        content: "";
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1;
+        pointer-events: none;
+        background: radial-gradient(
+          ellipse at center,
+          transparent 50%,
+          rgba(0, 0, 0, 0.4) 100%
+        );
+      }
+
+      /* ========== 主容器 ========== */
+      .cyber-container {
+        position: relative;
+        z-index: 10;
+        width: 520px;
+        padding: 40px;
+      }
+
+      /* ========== 标签文字 - 终端风格 ========== */
+      .cyber-label {
+        font-size: 13px;
+        color: var(--neon-cyan);
+        letter-spacing: 3px;
+        margin-bottom: 14px;
+        text-transform: uppercase;
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-shadow:
+          0 0 5px var(--neon-cyan),
+          0 0 15px rgba(5, 217, 232, 0.3);
+        animation: labelFlicker 4s infinite;
+      }
+
+      .cyber-label::before {
+        content: ">>";
+        color: var(--neon-pink);
+        text-shadow:
+          0 0 5px var(--neon-pink),
+          0 0 15px rgba(255, 42, 109, 0.3);
+      }
+
+      .cyber-label::after {
+        content: "//";
+        color: var(--text-dim);
+        margin-left: auto;
+      }
+
+      /* 标签闪烁动画 */
+      @keyframes labelFlicker {
+        0%,
+        100% {
+          opacity: 1;
         }
-        if (Math.random() > 0.85) {
+        92% {
+          opacity: 1;
+        }
+        93% {
+          opacity: 0.3;
+        }
+        94% {
+          opacity: 1;
+        }
+        96% {
+          opacity: 0.5;
+        }
+        97% {
+          opacity: 1;
+        }
+      }
+
+      /* ========== 状态指示行 ========== */
+      .cyber-status {
+        font-size: 10px;
+        color: var(--text-dim);
+        letter-spacing: 2px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .status-dot {
+        width: 6px;
+        height: 6px;
+        background: var(--neon-cyan);
+        border-radius: 50%;
+        display: inline-block;
+        animation: dotPulse 2s ease-in-out infinite;
+        box-shadow: 0 0 6px var(--neon-cyan);
+      }
+
+      @keyframes dotPulse {
+        0%,
+        100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 0.4;
+          transform: scale(0.7);
+        }
+      }
+
+      /* ========== 输入框外层包裹 - 故障效果载体 ========== */
+      .input-wrapper {
+        position: relative;
+        /* 故障偏移由 JS 动态控制 */
+        transform: translate(var(--glitch-offset), 0);
+        transition: transform 0.05s;
+      }
+
+      /* 输入框上方装饰线 */
+      .input-wrapper::before {
+        content: "";
+        position: absolute;
+        top: -2px;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          var(--neon-pink),
+          var(--neon-cyan),
+          transparent
+        );
+        opacity: 0.6;
+        animation: borderSweep 3s linear infinite;
+      }
+
+      /* 输入框下方装饰线 */
+      .input-wrapper::after {
+        content: "";
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          var(--neon-cyan),
+          var(--neon-pink),
+          transparent
+        );
+        opacity: 0.6;
+        animation: borderSweep 3s linear infinite reverse;
+      }
+
+      /* 边框光效扫过动画 */
+      @keyframes borderSweep {
+        0% {
+          background-position: -200% 0;
+        }
+        100% {
+          background-position: 200% 0;
+        }
+      }
+
+      /* ========== 核心输入框样式 ========== */
+      .cyber-input {
+        width: 100%;
+        padding: 16px 20px;
+        font-family: "Courier New", "Consolas", monospace;
+        font-size: 16px;
+        letter-spacing: 1.5px;
+        color: var(--text-primary);
+        background: var(--bg-panel);
+        border: 1px solid rgba(5, 217, 232, 0.2);
+        outline: none;
+        position: relative;
+        caret-color: var(--neon-pink);
+        transition:
+          border-color 0.3s,
+          box-shadow 0.3s;
+        animation: neonPulse 4s ease-in-out infinite;
+      }
+
+      /* 霓虹灯呼吸发光 */
+      @keyframes neonPulse {
+        0%,
+        100% {
+          box-shadow:
+            0 0 5px rgba(5, 217, 232, 0.1),
+            0 0 15px rgba(5, 217, 232, 0.05),
+            inset 0 0 10px rgba(5, 217, 232, 0.02);
+        }
+        50% {
+          box-shadow:
+            0 0 8px rgba(5, 217, 232, 0.2),
+            0 0 25px rgba(5, 217, 232, 0.1),
+            inset 0 0 15px rgba(5, 217, 232, 0.03);
+        }
+      }
+
+      .cyber-input::placeholder {
+        color: var(--text-dim);
+        letter-spacing: 2px;
+        font-size: 13px;
+      }
+
+      /* ========== 聚焦状态 - 增强故障效果 ========== */
+      .cyber-input:focus {
+        border-color: var(--neon-pink);
+        animation:
+          neonPulseFocus 1.5s ease-in-out infinite,
+          borderFlicker 0.3s step-end infinite;
+      }
+
+      @keyframes neonPulseFocus {
+        0%,
+        100% {
+          box-shadow:
+            0 0 5px rgba(255, 42, 109, 0.3),
+            0 0 20px rgba(255, 42, 109, 0.15),
+            0 0 40px rgba(255, 42, 109, 0.05),
+            0 0 5px rgba(5, 217, 232, 0.2),
+            0 0 20px rgba(5, 217, 232, 0.1),
+            inset 0 0 15px rgba(255, 42, 109, 0.03);
+        }
+        50% {
+          box-shadow:
+            0 0 10px rgba(255, 42, 109, 0.5),
+            0 0 30px rgba(255, 42, 109, 0.25),
+            0 0 60px rgba(255, 42, 109, 0.1),
+            0 0 10px rgba(5, 217, 232, 0.3),
+            0 0 30px rgba(5, 217, 232, 0.15),
+            inset 0 0 20px rgba(255, 42, 109, 0.05);
+        }
+      }
+
+      /* 边框闪烁 */
+      @keyframes borderFlicker {
+        0% {
+          border-color: var(--neon-pink);
+        }
+        20% {
+          border-color: var(--neon-cyan);
+        }
+        40% {
+          border-color: var(--neon-pink);
+        }
+        60% {
+          border-color: rgba(255, 42, 109, 0.4);
+        }
+        80% {
+          border-color: var(--neon-cyan);
+        }
+        100% {
+          border-color: var(--neon-pink);
+        }
+      }
+
+      /* ========== 扫描线叠加层 (聚焦时出现) ========== */
+      .scanline-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.3s;
+        z-index: 2;
+        background: repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 1px,
+          rgba(5, 217, 232, 0.02) 1px,
+          rgba(5, 217, 232, 0.02) 2px
+        );
+        mix-blend-mode: screen;
+      }
+
+      .cyber-input:focus ~ .scanline-overlay {
+        opacity: 1;
+        animation: scanlineMove 8s linear infinite;
+      }
+
+      @keyframes scanlineMove {
+        0% {
+          background-position: 0 0;
+        }
+        100% {
+          background-position: 0 200px;
+        }
+      }
+
+      /* ========== 故障克隆层 - RGB色彩分离 ========== */
+      .glitch-clone {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 3;
+        overflow: hidden;
+      }
+
+      /* 红色通道偏移 */
+      .glitch-clone--red {
+        opacity: 0;
+        mix-blend-mode: screen;
+      }
+
+      .glitch-clone--red::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 2px;
+        width: 100%;
+        height: 100%;
+        border: 1px solid rgba(255, 42, 109, 0.4);
+        background: transparent;
+      }
+
+      /* 蓝色通道偏移 */
+      .glitch-clone--blue {
+        opacity: 0;
+        mix-blend-mode: screen;
+      }
+
+      .glitch-clone--blue::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: -2px;
+        width: 100%;
+        height: 100%;
+        border: 1px solid rgba(5, 217, 232, 0.4);
+        background: transparent;
+      }
+
+      /* 聚焦时激活色差效果 */
+      .input-wrapper.focused .glitch-clone--red {
+        animation: glitchRed 0.3s step-end infinite;
+      }
+
+      .input-wrapper.focused .glitch-clone--blue {
+        animation: glitchBlue 0.3s step-end infinite;
+      }
+
+      @keyframes glitchRed {
+        0% {
+          opacity: 0;
+          transform: translate(0, 0);
+        }
+        10% {
+          opacity: 0.6;
+          transform: translate(2px, -1px);
+          clip-path: inset(20% 0 60% 0);
+        }
+        20% {
+          opacity: 0;
+          transform: translate(0, 0);
+        }
+        50% {
+          opacity: 0.4;
+          transform: translate(-1px, 1px);
+          clip-path: inset(50% 0 20% 0);
+        }
+        60% {
+          opacity: 0;
+          transform: translate(0, 0);
+        }
+        80% {
+          opacity: 0.5;
+          transform: translate(3px, 0);
+          clip-path: inset(10% 0 70% 0);
+        }
+        100% {
+          opacity: 0;
+          transform: translate(0, 0);
+        }
+      }
+
+      @keyframes glitchBlue {
+        0% {
+          opacity: 0;
+          transform: translate(0, 0);
+        }
+        15% {
+          opacity: 0.5;
+          transform: translate(-2px, 1px);
+          clip-path: inset(40% 0 30% 0);
+        }
+        25% {
+          opacity: 0;
+          transform: translate(0, 0);
+        }
+        55% {
+          opacity: 0.4;
+          transform: translate(1px, -1px);
+          clip-path: inset(60% 0 10% 0);
+        }
+        65% {
+          opacity: 0;
+          transform: translate(0, 0);
+        }
+        85% {
+          opacity: 0.5;
+          transform: translate(-3px, 0);
+          clip-path: inset(30% 0 50% 0);
+        }
+        100% {
+          opacity: 0;
+          transform: translate(0, 0);
+        }
+      }
+
+      /* ========== 故障爆发动画 (打字时触发) ========== */
+      .input-wrapper.glitch-burst {
+        animation: glitchBurst 0.15s steps(2) forwards;
+      }
+
+      @keyframes glitchBurst {
+        0% {
+          transform: translate(0, 0);
+          filter: none;
+        }
+        25% {
+          transform: translate(-3px, 1px);
+          filter: hue-rotate(30deg);
+        }
+        50% {
+          transform: translate(2px, -1px);
+          filter: hue-rotate(-20deg) brightness(1.2);
+        }
+        75% {
+          transform: translate(-1px, -2px);
+          filter: hue-rotate(10deg);
+        }
+        100% {
+          transform: translate(0, 0);
+          filter: none;
+        }
+      }
+
+      /* ========== RGB文字阴影 (聚焦时) ========== */
+      .input-wrapper.focused .cyber-input {
+        text-shadow:
+          1px 0 rgba(255, 42, 109, 0.4),
+          -1px 0 rgba(5, 217, 232, 0.4);
+      }
+
+      /* ========== 数据碎片粒子样式 ========== */
+      .data-fragment {
+        position: absolute;
+        font-family: "Courier New", monospace;
+        font-size: 9px;
+        letter-spacing: 1px;
+        padding: 2px 5px;
+        pointer-events: none;
+        z-index: 20;
+        white-space: nowrap;
+        border: 1px solid;
+        opacity: 0;
+        animation: fragmentFade 1.2s ease-out forwards;
+      }
+
+      .data-fragment--pink {
+        color: var(--neon-pink);
+        border-color: rgba(255, 42, 109, 0.3);
+        text-shadow: 0 0 4px var(--neon-pink);
+        background: rgba(255, 42, 109, 0.05);
+      }
+
+      .data-fragment--cyan {
+        color: var(--neon-cyan);
+        border-color: rgba(5, 217, 232, 0.3);
+        text-shadow: 0 0 4px var(--neon-cyan);
+        background: rgba(5, 217, 232, 0.05);
+      }
+
+      .data-fragment--yellow {
+        color: var(--neon-yellow);
+        border-color: rgba(245, 245, 32, 0.3);
+        text-shadow: 0 0 4px var(--neon-yellow);
+        background: rgba(245, 245, 32, 0.05);
+      }
+
+      @keyframes fragmentFade {
+        0% {
+          opacity: 0;
+          transform: translate(0, 0) scale(0.5);
+        }
+        15% {
+          opacity: 0.9;
+          transform: translate(var(--fx), var(--fy)) scale(1);
+        }
+        70% {
+          opacity: 0.6;
+        }
+        100% {
+          opacity: 0;
+          transform: translate(calc(var(--fx) * 2.5), calc(var(--fy) * 2.5))
+            scale(0.3);
+        }
+      }
+
+      /* ========== 底部装饰信息 ========== */
+      .cyber-footer {
+        margin-top: 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 9px;
+        letter-spacing: 2px;
+        color: var(--text-dim);
+      }
+
+      .cyber-footer .enc-type {
+        color: var(--neon-pink);
+        opacity: 0.5;
+      }
+
+      .cyber-footer .char-count {
+        color: var(--neon-cyan);
+        opacity: 0.6;
+        transition: opacity 0.3s;
+      }
+
+      .cyber-footer .char-count.active {
+        opacity: 1;
+        text-shadow: 0 0 5px rgba(5, 217, 232, 0.3);
+      }
+
+      /* ========== 角落装饰 ========== */
+      .corner-decor {
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        border-color: var(--neon-cyan);
+        opacity: 0.4;
+        transition:
+          opacity 0.3s,
+          border-color 0.3s;
+      }
+
+      .corner-decor--tl {
+        top: -1px;
+        left: -1px;
+        border-top: 1px solid;
+        border-left: 1px solid;
+      }
+
+      .corner-decor--tr {
+        top: -1px;
+        right: -1px;
+        border-top: 1px solid;
+        border-right: 1px solid;
+      }
+
+      .corner-decor--bl {
+        bottom: -1px;
+        left: -1px;
+        border-bottom: 1px solid;
+        border-left: 1px solid;
+      }
+
+      .corner-decor--br {
+        bottom: -1px;
+        right: -1px;
+        border-bottom: 1px solid;
+        border-right: 1px solid;
+      }
+
+      .input-wrapper.focused .corner-decor {
+        opacity: 1;
+        border-color: var(--neon-pink);
+        animation: cornerPulse 1.5s ease-in-out infinite;
+      }
+
+      @keyframes cornerPulse {
+        0%,
+        100% {
+          opacity: 0.6;
+        }
+        50% {
+          opacity: 1;
+        }
+      }
+
+      /* ========== 随机故障条纹 (聚焦时) ========== */
+      .glitch-bar {
+        position: absolute;
+        left: 0;
+        width: 100%;
+        pointer-events: none;
+        z-index: 4;
+        opacity: 0;
+      }
+
+      .input-wrapper.focused .glitch-bar {
+        animation: glitchBarFlash 4s step-end infinite;
+      }
+
+      .glitch-bar--1 {
+        top: 30%;
+        height: 2px;
+        background: var(--neon-pink);
+        animation-delay: 0s !important;
+      }
+
+      .glitch-bar--2 {
+        top: 70%;
+        height: 1px;
+        background: var(--neon-cyan);
+        animation-delay: 1.5s !important;
+      }
+
+      @keyframes glitchBarFlash {
+        0%,
+        100% {
+          opacity: 0;
+          transform: scaleX(1);
+        }
+        5% {
+          opacity: 0.6;
+          transform: scaleX(0.8);
+          clip-path: inset(0 20% 0 10%);
+        }
+        6% {
+          opacity: 0;
+        }
+        45% {
+          opacity: 0;
+        }
+        46% {
+          opacity: 0.4;
+          transform: scaleX(1.1);
+          clip-path: inset(0 5% 0 30%);
+        }
+        48% {
+          opacity: 0;
+        }
+      }
+
+      /* ========== 背景闪光效果 (大故障时触发) ========== */
+      .screen-flash {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 100;
+        opacity: 0;
+        background: var(--neon-cyan);
+        mix-blend-mode: overlay;
+      }
+
+      .screen-flash.flash {
+        animation: screenFlash 0.1s ease-out forwards;
+      }
+
+      @keyframes screenFlash {
+        0% {
+          opacity: 0.15;
+        }
+        100% {
+          opacity: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 矩阵雨背景画布 -->
+    <canvas id="matrix-canvas"></canvas>
+
+    <!-- 屏幕闪光效果层 -->
+    <div class="screen-flash" id="screenFlash"></div>
+
+    <!-- 主内容容器 -->
+    <div class="cyber-container">
+      <!-- 终端风格标签 -->
+      <div class="cyber-label">
+        <span>NEURAL_LINK</span>
+      </div>
+
+      <!-- 状态指示行 -->
+      <div class="cyber-status">
+        <span class="status-dot"></span>
+        <span>SYS.ONLINE</span>
+        <span style="margin-left: auto; color: #333">v2.077</span>
+      </div>
+
+      <!-- 输入框包裹层 -->
+      <div class="input-wrapper" id="inputWrapper">
+        <!-- 角落装饰 -->
+        <div class="corner-decor corner-decor--tl"></div>
+        <div class="corner-decor corner-decor--tr"></div>
+        <div class="corner-decor corner-decor--bl"></div>
+        <div class="corner-decor corner-decor--br"></div>
+
+        <!-- 核心输入框 -->
+        <input
+          type="text"
+          class="cyber-input"
+          id="cyberInput"
+          placeholder="ENTER_COMMAND..."
+          autocomplete="off"
+          spellcheck="false"
+        />
+
+        <!-- 扫描线叠加 -->
+        <div class="scanline-overlay"></div>
+
+        <!-- 故障色彩分离层 -->
+        <div class="glitch-clone glitch-clone--red"></div>
+        <div class="glitch-clone glitch-clone--blue"></div>
+
+        <!-- 故障条纹 -->
+        <div class="glitch-bar glitch-bar--1"></div>
+        <div class="glitch-bar glitch-bar--2"></div>
+      </div>
+
+      <!-- 底部信息 -->
+      <div class="cyber-footer">
+        <span class="enc-type">AES-256 ENCRYPTED</span>
+        <span class="char-count" id="charCount">0x00</span>
+      </div>
+    </div>
+
+    <script>
+      /* ========== DOM 元素引用 ========== */
+      const inputWrapper = document.getElementById("inputWrapper");
+      const cyberInput = document.getElementById("cyberInput");
+      const charCount = document.getElementById("charCount");
+      const screenFlash = document.getElementById("screenFlash");
+      const matrixCanvas = document.getElementById("matrix-canvas");
+
+      /* ========== 工具函数 ========== */
+
+      /** 生成随机十六进制字符串 */
+      function randomHex(length) {
+        const chars = "0123456789ABCDEF";
+        let result = "";
+        for (let i = 0; i < length; i++) {
+          result += chars[Math.floor(Math.random() * chars.length)];
+        }
+        return result;
+      }
+
+      /** 在指定范围内生成随机数 */
+      function randomRange(min, max) {
+        return Math.random() * (max - min) + min;
+      }
+
+      /** 从数组中随机选取一个元素 */
+      function randomPick(arr) {
+        return arr[Math.floor(Math.random() * arr.length)];
+      }
+
+      /* ========== 数据碎片粒子系统 ========== */
+
+      /** 在输入框附近生成漂浮的数据碎片 */
+      function spawnDataFragment() {
+        const fragment = document.createElement("div");
+        const colorClass = randomPick([
+          "data-fragment--pink",
+          "data-fragment--cyan",
+          "data-fragment--yellow",
+        ]);
+        fragment.className = `data-fragment ${colorClass}`;
+
+        /* 碎片内容: 随机十六进制值 */
+        const contentTypes = [
+          () => `0x${randomHex(4)}`,
+          () => `${randomHex(2)}:${randomHex(2)}`,
+          () => `[${randomHex(3)}]`,
+          () => `#${randomHex(6)}`,
+          () => `ERR_${randomHex(2)}`,
+          () => `${randomHex(8)}`,
+        ];
+        fragment.textContent = randomPick(contentTypes)();
+
+        /* 定位: 在输入框附近随机位置生成 */
+        const wrapperRect = inputWrapper.getBoundingClientRect();
+        const side = Math.random() > 0.5 ? 1 : -1;
+        const startX =
+          wrapperRect.width / 2 +
+          side * randomRange(20, wrapperRect.width / 2 + 30);
+        const startY = randomRange(-20, wrapperRect.height + 20);
+
+        fragment.style.left = `${startX}px`;
+        fragment.style.top = `${startY}px`;
+
+        /* 设置飘动方向 CSS 变量 */
+        const fx = side * randomRange(10, 50);
+        const fy = randomRange(-30, 30);
+        fragment.style.setProperty("--fx", `${fx}px`);
+        fragment.style.setProperty("--fy", `${fy}px`);
+
+        inputWrapper.appendChild(fragment);
+
+        /* 动画结束后移除 DOM 节点 */
+        fragment.addEventListener("animationend", () => {
+          fragment.remove();
+        });
+      }
+
+      /** 批量生成碎片 (打字触发故障爆发) */
+      function burstFragments(count) {
+        for (let i = 0; i < count; i++) {
+          setTimeout(() => spawnDataFragment(), i * 40);
+        }
+      }
+
+      /* ========== 故障效果引擎 ========== */
+
+      let isFocused = false;
+      let glitchInterval = null;
+      let idleGlitchInterval = null;
+
+      /** 触发一次小幅故障位移 */
+      function triggerMicroGlitch() {
+        const offsetX = randomRange(-2, 2);
+        const offsetY = randomRange(-1, 1);
+        inputWrapper.style.setProperty("--glitch-offset", `${offsetX}px`);
+        inputWrapper.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
+
+        /* 短暂后恢复 */
+        setTimeout(
+          () => {
+            inputWrapper.style.setProperty("--glitch-offset", "0px");
+            inputWrapper.style.transform = "translate(0, 0)";
+          },
+          50 + Math.random() * 80,
+        );
+      }
+
+      /** 触发一次强烈故障 (聚焦时使用) */
+      function triggerHeavyGlitch() {
+        const offsetX = randomRange(-5, 5);
+        const offsetY = randomRange(-2, 2);
+        inputWrapper.style.transform = `translate(${offsetX}px, ${offsetY}px) skewX(${randomRange(-0.5, 0.5)}deg)`;
+
+        /* 生成碎片 */
+        if (Math.random() > 0.4) {
           spawnDataFragment();
         }
-      }, 2000);
-    }
 
-    /* ========== 聚焦状态强化故障 ========== */
-    function startFocusGlitch() {
-      glitchInterval = setInterval(() => {
-        if (Math.random() > 0.3) {
-          triggerHeavyGlitch();
-        }
-      }, 300 + Math.random() * 400);
-    }
-
-    function stopFocusGlitch() {
-      if (glitchInterval) {
-        clearInterval(glitchInterval);
-        glitchInterval = null;
+        setTimeout(
+          () => {
+            inputWrapper.style.transform = "translate(0, 0) skewX(0)";
+          },
+          60 + Math.random() * 100,
+        );
       }
-    }
 
-    /* ========== 事件绑定 ========== */
+      /** 触发打字故障爆发 */
+      function triggerTypingGlitch() {
+        /* 添加爆发动画类 */
+        inputWrapper.classList.add("glitch-burst");
+        setTimeout(() => {
+          inputWrapper.classList.remove("glitch-burst");
+        }, 150);
 
-    /** 聚焦 - 激活增强故障 */
-    cyberInput.addEventListener('focus', () => {
-      isFocused = true;
-      inputWrapper.classList.add('focused');
-      startFocusGlitch();
-      triggerScreenFlash();
-      burstFragments(3);
-    });
+        /* 生成数据碎片 */
+        burstFragments(Math.floor(randomRange(1, 4)));
 
-    /** 失焦 - 恢复空闲状态 */
-    cyberInput.addEventListener('blur', () => {
-      isFocused = false;
-      inputWrapper.classList.remove('focused');
-      stopFocusGlitch();
-      inputWrapper.style.transform = 'translate(0, 0)';
-    });
+        /* 偶尔触发屏幕闪光 */
+        if (Math.random() > 0.75) {
+          triggerScreenFlash();
+        }
+      }
 
-    /** 输入事件 - 打字触发故障 */
-    cyberInput.addEventListener('input', (e) => {
-      /* 触发打字故障 */
-      triggerTypingGlitch();
+      /** 触发屏幕闪光 */
+      function triggerScreenFlash() {
+        screenFlash.classList.remove("flash");
+        /* 强制回流以重启动画 */
+        void screenFlash.offsetWidth;
+        screenFlash.classList.add("flash");
+      }
 
-      /* 更新字符计数 (十六进制格式) */
-      const len = cyberInput.value.length;
-      const hexLen = len.toString(16).toUpperCase().padStart(2, '0');
-      charCount.textContent = `0x${hexLen}`;
-      charCount.classList.toggle('active', len > 0);
-    });
+      /* ========== 空闲状态随机故障 (始终运行) ========== */
+      function startIdleGlitch() {
+        idleGlitchInterval = setInterval(() => {
+          if (Math.random() > 0.6) {
+            triggerMicroGlitch();
+          }
+          if (Math.random() > 0.85) {
+            spawnDataFragment();
+          }
+        }, 2000);
+      }
 
-    /** 键盘按下 - 额外的视觉反馈 */
-    cyberInput.addEventListener('keydown', (e) => {
-      /* 回车键触发大故障 */
-      if (e.key === 'Enter') {
+      /* ========== 聚焦状态强化故障 ========== */
+      function startFocusGlitch() {
+        glitchInterval = setInterval(
+          () => {
+            if (Math.random() > 0.3) {
+              triggerHeavyGlitch();
+            }
+          },
+          300 + Math.random() * 400,
+        );
+      }
+
+      function stopFocusGlitch() {
+        if (glitchInterval) {
+          clearInterval(glitchInterval);
+          glitchInterval = null;
+        }
+      }
+
+      /* ========== 事件绑定 ========== */
+
+      /** 聚焦 - 激活增强故障 */
+      cyberInput.addEventListener("focus", () => {
+        isFocused = true;
+        inputWrapper.classList.add("focused");
+        startFocusGlitch();
         triggerScreenFlash();
-        burstFragments(6);
-        for (let i = 0; i < 3; i++) {
-          setTimeout(() => triggerHeavyGlitch(), i * 80);
+        burstFragments(3);
+      });
+
+      /** 失焦 - 恢复空闲状态 */
+      cyberInput.addEventListener("blur", () => {
+        isFocused = false;
+        inputWrapper.classList.remove("focused");
+        stopFocusGlitch();
+        inputWrapper.style.transform = "translate(0, 0)";
+      });
+
+      /** 输入事件 - 打字触发故障 */
+      cyberInput.addEventListener("input", (e) => {
+        /* 触发打字故障 */
+        triggerTypingGlitch();
+
+        /* 更新字符计数 (十六进制格式) */
+        const len = cyberInput.value.length;
+        const hexLen = len.toString(16).toUpperCase().padStart(2, "0");
+        charCount.textContent = `0x${hexLen}`;
+        charCount.classList.toggle("active", len > 0);
+      });
+
+      /** 键盘按下 - 额外的视觉反馈 */
+      cyberInput.addEventListener("keydown", (e) => {
+        /* 回车键触发大故障 */
+        if (e.key === "Enter") {
+          triggerScreenFlash();
+          burstFragments(6);
+          for (let i = 0; i < 3; i++) {
+            setTimeout(() => triggerHeavyGlitch(), i * 80);
+          }
         }
-      }
-    });
+      });
 
-    /* ========== 矩阵雨背景效果 ========== */
-    function initMatrixRain() {
-      const ctx = matrixCanvas.getContext('2d');
-      let w, h, columns, drops;
+      /* ========== 矩阵雨背景效果 ========== */
+      function initMatrixRain() {
+        const ctx = matrixCanvas.getContext("2d");
+        let w, h, columns, drops;
 
-      /* 矩阵字符集: 包含半角片假名、数字和一些符号 */
-      const chars = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789ABCDEF<>{}[]|';
+        /* 矩阵字符集: 包含半角片假名、数字和一些符号 */
+        const chars =
+          "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789ABCDEF<>{}[]|";
 
-      /** 初始化/重置画布尺寸 */
-      function resize() {
-        w = matrixCanvas.width = window.innerWidth;
-        h = matrixCanvas.height = window.innerHeight;
-        const fontSize = 14;
-        columns = Math.floor(w / fontSize);
-        drops = new Array(columns).fill(1);
-      }
-
-      /** 绘制一帧矩阵雨 */
-      function drawFrame() {
-        /* 半透明黑色覆盖实现拖尾效果 */
-        ctx.fillStyle = 'rgba(13, 13, 13, 0.06)';
-        ctx.fillRect(0, 0, w, h);
-
-        ctx.font = '14px monospace';
-
-        for (let i = 0; i < drops.length; i++) {
-          /* 随机选取字符 */
-          const char = chars[Math.floor(Math.random() * chars.length)];
-
-          /* 随机赋予不同的赛博朋克颜色 */
-          const colorRoll = Math.random();
-          if (colorRoll > 0.95) {
-            ctx.fillStyle = '#ff2a6d'; /* 霓虹粉 */
-          } else if (colorRoll > 0.9) {
-            ctx.fillStyle = '#05d9e8'; /* 电光蓝 */
-          } else {
-            ctx.fillStyle = `rgba(5, 217, 232, ${randomRange(0.1, 0.3)})`;
-          }
-
-          ctx.fillText(char, i * 14, drops[i] * 14);
-
-          /* 字符到达底部或随机重置 */
-          if (drops[i] * 14 > h && Math.random() > 0.975) {
-            drops[i] = 0;
-          }
-          drops[i]++;
+        /** 初始化/重置画布尺寸 */
+        function resize() {
+          w = matrixCanvas.width = window.innerWidth;
+          h = matrixCanvas.height = window.innerHeight;
+          const fontSize = 14;
+          columns = Math.floor(w / fontSize);
+          drops = new Array(columns).fill(1);
         }
 
-        requestAnimationFrame(drawFrame);
+        /** 绘制一帧矩阵雨 */
+        function drawFrame() {
+          /* 半透明黑色覆盖实现拖尾效果 */
+          ctx.fillStyle = "rgba(13, 13, 13, 0.06)";
+          ctx.fillRect(0, 0, w, h);
+
+          ctx.font = "14px monospace";
+
+          for (let i = 0; i < drops.length; i++) {
+            /* 随机选取字符 */
+            const char = chars[Math.floor(Math.random() * chars.length)];
+
+            /* 随机赋予不同的赛博朋克颜色 */
+            const colorRoll = Math.random();
+            if (colorRoll > 0.95) {
+              ctx.fillStyle = "#ff2a6d"; /* 霓虹粉 */
+            } else if (colorRoll > 0.9) {
+              ctx.fillStyle = "#05d9e8"; /* 电光蓝 */
+            } else {
+              ctx.fillStyle = `rgba(5, 217, 232, ${randomRange(0.1, 0.3)})`;
+            }
+
+            ctx.fillText(char, i * 14, drops[i] * 14);
+
+            /* 字符到达底部或随机重置 */
+            if (drops[i] * 14 > h && Math.random() > 0.975) {
+              drops[i] = 0;
+            }
+            drops[i]++;
+          }
+
+          requestAnimationFrame(drawFrame);
+        }
+
+        resize();
+        window.addEventListener("resize", resize);
+        drawFrame();
       }
 
-      resize();
-      window.addEventListener('resize', resize);
-      drawFrame();
-    }
-
-    /* ========== 启动所有效果 ========== */
-    startIdleGlitch();
-    initMatrixRain();
-  </script>
-</body>
+      /* ========== 启动所有效果 ========== */
+      startIdleGlitch();
+      initMatrixRain();
+    </script>
+  </body>
 </html>
