@@ -8,152 +8,89 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    /* ── 奶白背景 ── */
+    /* ── 拟态背景 ── */
     body {
       min-height: 100vh;
-      background: #eae5db;
+      background: #e8edf4;
       display: flex; align-items: center; justify-content: center;
       font-family: 'Noto Sans SC', sans-serif;
       overflow: auto;
       padding: 20px 0;
     }
 
-    /* ── 外壳：浅色玻璃容器 ── */
+    /* ── 外壳：拟态容器 ── */
     .auth-box {
       width: min(880px, 96vw);
       height: clamp(400px, 80vh, 560px);
       border-radius: clamp(16px, 2.5vw, 28px);
-      background: rgba(255,255,255,0.28);
-      border: 1px solid rgba(255,255,255,0.75);
+      background: #e8edf4;
+      border: none;
       box-shadow:
-        8px 8px 32px rgba(160,140,100,0.18),
-        -4px -4px 20px rgba(255,255,255,0.95),
-        inset 0 1px 0 rgba(255,255,255,0.9);
+        18px 18px 40px rgba(155,172,205,0.78),
+        -12px -12px 30px rgba(255,255,255,0.98),
+        0 4px 16px rgba(140,158,198,0.3);
       overflow: hidden;
       position: relative;
       z-index: 1;
     }
 
-    /* 顶部反光线 */
-    .auth-box::before {
-      content: '';
-      position: absolute; top: 0; left: 0; right: 0; height: 1px;
-      background: linear-gradient(90deg, transparent 5%, rgba(255,255,255,0.9) 40%, rgba(255,255,255,0.6) 65%, transparent 95%);
-      z-index: 100; pointer-events: none;
-    }
+    /* ── 液态背景层 - 隐藏 ── */
+    .liquid-bg { display: none; }
+    .liq-blob  {}
 
-    /* ── 液态背景层 ── */
-    .liquid-bg {
-      position: absolute; inset: 0; z-index: 0;
-    }
-
-    .liq-blob {
-      position: absolute;
-      filter: blur(62px);
-      will-change: transform, border-radius;
-    }
-
-    .lb1 {
-      width: 420px; height: 370px;
-      background: radial-gradient(circle at 40% 40%, rgba(255,218,160,0.55) 0%, rgba(240,195,120,0.28) 55%, transparent 80%);
-      top: -110px; left: -90px; opacity: 1;
-      animation: ld1 11s ease-in-out infinite alternate, liqMorph 17s ease-in-out infinite;
-    }
-    .lb2 {
-      width: 360px; height: 400px;
-      background: radial-gradient(circle at 50% 40%, rgba(255,200,170,0.5) 0%, rgba(240,170,140,0.28) 55%, transparent 80%);
-      bottom: -130px; right: -70px; opacity: 1;
-      animation: ld2 9s ease-in-out infinite alternate, liqMorph 14s ease-in-out infinite;
-      animation-delay: -3s, -5s;
-    }
-    .lb3 {
-      width: 300px; height: 320px;
-      background: radial-gradient(circle at 50% 50%, rgba(255,240,190,0.5) 0%, rgba(240,220,150,0.25) 55%, transparent 80%);
-      top: 38%; left: 18%; opacity: 1;
-      animation: ld3 14s ease-in-out infinite alternate, liqMorph 21s ease-in-out infinite;
-      animation-delay: -6s, -9s;
-    }
-    .lb4 {
-      width: 250px; height: 230px;
-      background: radial-gradient(circle at 50% 50%, rgba(235,210,185,0.5) 0%, rgba(215,185,155,0.25) 55%, transparent 80%);
-      top: 12%; right: 6%; opacity: 1;
-      animation: ld1 8s ease-in-out infinite alternate-reverse, liqMorph 12s ease-in-out infinite;
-      animation-delay: -1s, -6s;
-    }
-
-    @keyframes ld1 {
-      from { transform: translate(0,0) scale(1); }
-      to   { transform: translate(55px, 40px) scale(1.1); }
-    }
-    @keyframes ld2 {
-      from { transform: translate(0,0) scale(1); }
-      to   { transform: translate(-45px, -55px) scale(1.08); }
-    }
-    @keyframes ld3 {
-      from { transform: translate(0,0) scale(1); }
-      to   { transform: translate(65px, -35px) scale(1.13); }
-    }
-    @keyframes liqMorph {
-      0%   { border-radius: 60% 40% 55% 45% / 50% 60% 40% 50%; }
-      20%  { border-radius: 45% 55% 40% 60% / 65% 35% 55% 45%; }
-      40%  { border-radius: 55% 45% 65% 35% / 40% 55% 45% 60%; }
-      60%  { border-radius: 40% 60% 45% 55% / 60% 40% 60% 40%; }
-      80%  { border-radius: 65% 35% 50% 50% / 45% 65% 35% 55%; }
-      100% { border-radius: 60% 40% 55% 45% / 50% 60% 40% 50%; }
-    }
-
-    /* ── 两个独立半宽面板 ── */
+    /* ── 两个非对称面板：表单70% / 覆盖30% ── */
     .panel {
       position: absolute; top: 0;
-      width: 50%; height: 100%;
-      transition: transform 0.72s cubic-bezier(0.65, 0, 0.35, 1);
-      will-change: transform;
+      height: 100%;
+      transition: left 0.72s cubic-bezier(0.65, 0, 0.35, 1);
     }
 
-    /* 面板A：磨砂白玻璃（表单） */
+    /* 分割线跟随面板边界动画 */
+    .auth-box::after {
+      content: '';
+      position: absolute; top: 0; bottom: 0; left: 60%;
+      width: 1px;
+      background: transparent;
+      box-shadow: -1px 0 0 rgba(148,165,198,0.28), 1px 0 0 rgba(255,255,255,0.88);
+      z-index: 10; pointer-events: none;
+      transition: left 0.72s cubic-bezier(0.65, 0, 0.35, 1);
+    }
+    .auth-box.signup-mode::after { left: 40%; }
+
+    /* 面板A：表单面板 60%（层级低） */
     .pA {
-      left: 0;
-      background: rgba(255, 255, 255, 0.72);
-      backdrop-filter: blur(28px) saturate(1.7);
-      -webkit-backdrop-filter: blur(28px) saturate(1.7);
-      border-right: 1px solid rgba(255,255,255,0.38);
+      left: 0; width: 60%;
+      background: rgba(255,255,255,0.07);
+      box-shadow: inset -8px 0 24px rgba(140,158,198,0.08);
       z-index: 1;
     }
-    /* 面板A 内边高光 */
-    .pA::after {
-      content: '';
-      position: absolute; inset: 0; pointer-events: none; z-index: 10;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,0.65),
-                  inset 1px 0 0 rgba(255,255,255,0.3);
-    }
-    .auth-box.signup-mode .pA {
-      transform: translateX(100%);
-    }
+    .auth-box.signup-mode .pA { left: 40%; }
 
-    /* 面板B：暖奶白磨砂玻璃（覆盖层）*/
+    /* 面板B：覆盖层 40%（层级高，滑过时遮住 pA） */
     .pB {
-      left: 50%;
-      background: rgba(245,238,222,0.65);
-      backdrop-filter: blur(40px) saturate(1.4);
-      -webkit-backdrop-filter: blur(40px) saturate(1.4);
-      border-left: 1px solid rgba(255,255,255,0.7);
-      z-index: 2;
+      left: 60%; width: 40%;
+      background: #e8edf4;
+      z-index: 3;
       overflow: hidden;
     }
-    /* 面板B 玻璃折射光泽 */
-    .pB::after {
-      content: '';
-      position: absolute; inset: 0; pointer-events: none; z-index: 0;
-      background: linear-gradient(
-        135deg,
-        rgba(255,255,255,0.5) 0%,
-        rgba(255,255,255,0.15) 35%,
-        transparent 65%,
-        rgba(240,222,190,0.15) 100%
-      );
+    .auth-box.signup-mode .pB { left: 0; }
+
+    /* ── 拟态装饰圆 ── */
+    .d1 {
+      position: absolute;
+      width: 230px; height: 230px; border-radius: 50%;
+      background: #e8edf4;
+      box-shadow: 9px 9px 20px rgba(168,182,208,0.65), -7px -7px 16px rgba(255,255,255,0.92);
+      top: -95px; right: -85px;
+      pointer-events: none;
     }
-    .auth-box.signup-mode .pB {
-      transform: translateX(-100%);
+    .d2 {
+      position: absolute;
+      width: 210px; height: 210px; border-radius: 50%;
+      background: #e8edf4;
+      box-shadow: 8px 8px 18px rgba(168,182,208,0.6), -6px -6px 14px rgba(255,255,255,0.9);
+      bottom: -85px; left: -75px;
+      pointer-events: none;
     }
 
     /* ── 面板内容 ── */
@@ -180,81 +117,77 @@
     /* ── 表单元素 ── */
     .fp-title {
       font-size: clamp(17px, 2.6vw, 26px); font-weight: 700;
-      color: #2a1e10; letter-spacing: 0.18em;
+      color: #1e2545; letter-spacing: 0.18em;
       margin-bottom: clamp(12px, 2.5vh, 22px); white-space: nowrap;
     }
 
     .social-row { display: flex; gap: clamp(8px, 1.2vw, 14px); margin-bottom: clamp(6px, 1vh, 10px); }
     .s-icon {
       width: clamp(34px, 4.2vw, 44px); height: clamp(34px, 4.2vw, 44px); border-radius: 50%;
-      background: rgba(255,252,244,0.78);
-      border: 1px solid rgba(180,155,110,0.18);
+      background: #e8edf4;
+      border: none;
       display: flex; align-items: center; justify-content: center;
       cursor: pointer;
-      backdrop-filter: blur(6px);
-      -webkit-backdrop-filter: blur(6px);
-      transition: background 0.22s, transform 0.22s, box-shadow 0.22s;
+      box-shadow: 7px 7px 14px rgba(155,172,205,0.72), -6px -6px 12px rgba(255,255,255,0.96);
+      transition: box-shadow 0.22s, transform 0.22s;
     }
-    .s-icon svg { width: 20px; height: 20px; opacity: 0.45; transition: opacity 0.22s; }
+    .s-icon svg { width: 20px; height: 20px; opacity: 0.4; transition: opacity 0.22s; }
     .s-icon:hover {
-      background: rgba(255,255,255,0.95);
+      box-shadow: 9px 9px 18px rgba(155,172,205,0.76), -7px -7px 15px rgba(255,255,255,0.98);
       transform: translateY(-2px);
-      box-shadow: 0 4px 16px rgba(150,120,60,0.18);
     }
-    .s-icon:hover svg { opacity: 0.8; }
+    .s-icon:hover svg { opacity: 0.7; }
     .s-icon.active {
-      background: rgba(255,248,232,0.9);
-      box-shadow: 0 0 0 4px rgba(180,145,80,0.16);
+      box-shadow: inset 5px 5px 10px rgba(155,172,205,0.68), inset -4px -4px 8px rgba(255,255,255,0.9);
     }
     .s-icon.active svg { opacity: 1; }
 
-    .social-hint { font-size: 11px; color: #b0956e; letter-spacing: 0.05em; margin-bottom: clamp(10px, 2vh, 20px); }
+    .social-hint { font-size: 11px; color: #9ba4bb; letter-spacing: 0.05em; margin-bottom: clamp(10px, 2vh, 20px); }
 
     .field { width: 100%; margin-bottom: clamp(6px, 1.3vh, 12px); }
     .field input {
       width: 100%;
-      background: rgba(255,252,244,0.58);
-      border: 1.5px solid rgba(180,155,110,0.22);
+      background: rgba(255,255,255,0.88);
+      border: 1.5px solid #dde3ed;
       border-radius: 10px;
       padding: clamp(9px, 1.8vh, 13px) 16px;
-      font-family: 'Noto Sans SC', sans-serif; font-size: clamp(13px, 1.5vw, 14px); color: #2a1e10;
+      font-family: 'Noto Sans SC', sans-serif; font-size: clamp(13px, 1.5vw, 14px); color: #2a3054;
       outline: none;
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
+      box-shadow: inset 2px 2px 5px rgba(155,172,205,0.22), inset -1px -1px 4px rgba(255,255,255,0.7);
       transition: border-color 0.25s, background 0.25s, box-shadow 0.25s;
     }
-    .field input::placeholder { color: #c4ae88; }
+    .field input::placeholder { color: #b8c2d8; }
     .field input:focus {
-      border-color: rgba(160,125,65,0.5);
-      background: rgba(255,252,244,0.88);
-      box-shadow: 0 0 0 3px rgba(160,125,65,0.1);
+      border-color: rgba(91,122,247,0.6);
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(91,122,247,0.1), inset 2px 2px 5px rgba(91,122,247,0.08);
     }
 
     .forgot {
-      font-size: 12px; color: #a08860;
+      font-size: 12px; color: #9ba4bb;
       text-decoration: underline; text-underline-offset: 3px;
       cursor: pointer; margin: 2px 0 clamp(12px, 2vh, 20px);
       align-self: flex-start;
       transition: color 0.2s;
     }
-    .forgot:hover { color: #7a5e30; }
+    .forgot:hover { color: #5b7af7; }
 
-    /* 表单面板按钮：暖棕色拟态按钮 */
+    /* 拟态蓝色按钮 */
     .btn-blue {
       padding: clamp(10px, 1.8vh, 13px) clamp(22px, 3.5vw, 48px); border-radius: 100px;
-      border: 1px solid rgba(255,255,255,0.35);
+      border: none;
       cursor: pointer;
       font-family: 'Noto Sans SC', sans-serif;
       font-size: 12px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase;
-      background: #4a3420;
-      color: #fef6e4;
-      box-shadow: 0 6px 22px rgba(80,50,20,0.35), inset 0 1px 0 rgba(255,255,255,0.12);
+      background: #5b7af7;
+      color: #fff;
+      box-shadow: 0 6px 22px rgba(91,122,247,0.45);
       transition: box-shadow 0.25s, transform 0.2s, background 0.2s;
       position: relative; z-index: 1;
     }
     .btn-blue:hover {
-      background: #5c4228;
-      box-shadow: 0 10px 30px rgba(80,50,20,0.45), inset 0 1px 0 rgba(255,255,255,0.15);
+      background: #4a6ae6;
+      box-shadow: 0 10px 30px rgba(91,122,247,0.55);
       transform: translateY(-1px);
     }
     .btn-blue:active { transform: translateY(0); }
@@ -262,12 +195,12 @@
 
     /* ── 覆盖层文字 ── */
     .o-title {
-      font-size: clamp(17px, 2.6vw, 26px); font-weight: 700; color: #2a1e10;
+      font-size: clamp(17px, 2.6vw, 26px); font-weight: 700; color: #1e2545;
       letter-spacing: 0.02em; margin-bottom: clamp(10px, 1.5vh, 14px);
       position: relative; z-index: 1;
     }
     .o-sub {
-      font-size: clamp(11px, 1.3vw, 13px); color: #8a7458;
+      font-size: clamp(11px, 1.3vw, 13px); color: #9ba4bb;
       line-height: 1.85; margin-bottom: clamp(18px, 3.5vh, 36px);
       max-width: 210px; position: relative; z-index: 1;
     }
@@ -285,15 +218,12 @@
         width: 92vw;
       }
 
-      /* 禁用滑动动画，改为简单显隐 */
       .panel {
-        position: relative; left: 0 !important; width: 100%; height: auto;
-        transform: none !important; transition: none !important;
-        backdrop-filter: none; -webkit-backdrop-filter: none;
-        background: rgba(255,255,255,0.75) !important;
-        border: none !important;
+        position: relative; left: 0 !important; width: 100% !important; height: auto;
+        transition: none !important;
+        background: transparent !important;
+        box-shadow: none !important;
       }
-      .liquid-bg { display: none; }
 
       .p-inner { position: relative; inset: auto; padding: 32px 24px; }
       .pB-hello, .pB-welcome { position: relative; inset: auto; }
@@ -307,23 +237,21 @@
       /* 移动端顶部 Tab */
       .mobile-nav {
         display: flex;
-        background: rgba(255,255,255,0.8);
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
+        background: #e8edf4;
         border-radius: 20px 20px 0 0;
         overflow: hidden;
-        border-bottom: 1px solid rgba(200,210,240,0.5);
+        border-bottom: 1px solid rgba(200,212,232,0.6);
       }
       .m-tab {
         flex: 1; padding: 14px; text-align: center;
         font-size: 13px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
-        color: #c0a880; cursor: pointer;
+        color: #9ba4bb; cursor: pointer;
         border-bottom: 2px solid transparent; margin-bottom: -1px;
         transition: color 0.2s, border-color 0.2s;
       }
       .auth-box:not(.signup-mode) .m-tab-si,
       .auth-box.signup-mode       .m-tab-su {
-        color: #7a5530; border-bottom-color: #7a5530;
+        color: #5b7af7; border-bottom-color: #5b7af7;
       }
 
       .fp-title { white-space: normal; text-align: center; }
@@ -356,17 +284,17 @@
       <div class="fp-title">登 入 账 号</div>
       <div class="social-row">
         <div class="s-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#9a7040" stroke-width="1.8" stroke-linecap="round">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#6878c0" stroke-width="1.8" stroke-linecap="round">
             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
           </svg>
         </div>
         <div class="s-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#9a7040" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#6878c0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
           </svg>
         </div>
         <div class="s-icon active">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#9a7040" stroke-width="1.8" stroke-linecap="round">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#6878c0" stroke-width="1.8" stroke-linecap="round">
             <rect x="2" y="6" width="20" height="12" rx="4"/>
             <path d="M8 12h4M10 10v4M15 12h.01M17 12h.01"/>
           </svg>
@@ -384,17 +312,17 @@
       <div class="fp-title">创 建 账 号</div>
       <div class="social-row">
         <div class="s-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#9a7040" stroke-width="1.8" stroke-linecap="round">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#6878c0" stroke-width="1.8" stroke-linecap="round">
             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
           </svg>
         </div>
         <div class="s-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#9a7040" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#6878c0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
           </svg>
         </div>
         <div class="s-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#9a7040" stroke-width="1.8" stroke-linecap="round">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#6878c0" stroke-width="1.8" stroke-linecap="round">
             <rect x="2" y="6" width="20" height="12" rx="4"/>
             <path d="M8 12h4M10 10v4M15 12h.01M17 12h.01"/>
           </svg>
@@ -409,8 +337,10 @@
 
   </div>
 
-  <!-- ★ 面板B：染色磨砂玻璃覆盖层 ★ -->
+  <!-- ★ 面板B：拟态覆盖层 ★ -->
   <div class="panel pB" id="pB">
+    <div class="d1"></div>
+    <div class="d2"></div>
 
     <!-- Hello Friend（登录模式） -->
     <div class="p-inner pB-hello">
