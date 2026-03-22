@@ -8,13 +8,10 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    /* ── 浅色背景 ── */
+    /* ── 奶白背景 ── */
     body {
       min-height: 100vh;
-      background:
-        radial-gradient(ellipse at 20% 30%, rgba(180,190,255,0.55) 0%, transparent 55%),
-        radial-gradient(ellipse at 80% 70%, rgba(200,170,255,0.45) 0%, transparent 55%),
-        #d4daf0;
+      background: #eae5db;
       display: flex; align-items: center; justify-content: center;
       font-family: 'Noto Sans SC', sans-serif;
       overflow: auto;
@@ -29,9 +26,9 @@
       background: rgba(255,255,255,0.28);
       border: 1px solid rgba(255,255,255,0.75);
       box-shadow:
-        8px 8px 32px rgba(100,120,210,0.2),
-        -4px -4px 20px rgba(255,255,255,0.9),
-        inset 0 1px 0 rgba(255,255,255,0.8);
+        8px 8px 32px rgba(160,140,100,0.18),
+        -4px -4px 20px rgba(255,255,255,0.95),
+        inset 0 1px 0 rgba(255,255,255,0.9);
       overflow: hidden;
       position: relative;
       z-index: 1;
@@ -58,27 +55,27 @@
 
     .lb1 {
       width: 420px; height: 370px;
-      background: radial-gradient(circle at 40% 40%, rgba(150,165,255,0.7) 0%, rgba(110,130,240,0.4) 55%, transparent 80%);
+      background: radial-gradient(circle at 40% 40%, rgba(255,218,160,0.55) 0%, rgba(240,195,120,0.28) 55%, transparent 80%);
       top: -110px; left: -90px; opacity: 1;
       animation: ld1 11s ease-in-out infinite alternate, liqMorph 17s ease-in-out infinite;
     }
     .lb2 {
       width: 360px; height: 400px;
-      background: radial-gradient(circle at 50% 40%, rgba(200,160,255,0.65) 0%, rgba(170,120,240,0.38) 55%, transparent 80%);
+      background: radial-gradient(circle at 50% 40%, rgba(255,200,170,0.5) 0%, rgba(240,170,140,0.28) 55%, transparent 80%);
       bottom: -130px; right: -70px; opacity: 1;
       animation: ld2 9s ease-in-out infinite alternate, liqMorph 14s ease-in-out infinite;
       animation-delay: -3s, -5s;
     }
     .lb3 {
       width: 300px; height: 320px;
-      background: radial-gradient(circle at 50% 50%, rgba(120,210,240,0.55) 0%, rgba(80,180,230,0.3) 55%, transparent 80%);
+      background: radial-gradient(circle at 50% 50%, rgba(255,240,190,0.5) 0%, rgba(240,220,150,0.25) 55%, transparent 80%);
       top: 38%; left: 18%; opacity: 1;
       animation: ld3 14s ease-in-out infinite alternate, liqMorph 21s ease-in-out infinite;
       animation-delay: -6s, -9s;
     }
     .lb4 {
       width: 250px; height: 230px;
-      background: radial-gradient(circle at 50% 50%, rgba(255,170,210,0.55) 0%, rgba(240,130,190,0.3) 55%, transparent 80%);
+      background: radial-gradient(circle at 50% 50%, rgba(235,210,185,0.5) 0%, rgba(215,185,155,0.25) 55%, transparent 80%);
       top: 12%; right: 6%; opacity: 1;
       animation: ld1 8s ease-in-out infinite alternate-reverse, liqMorph 12s ease-in-out infinite;
       animation-delay: -1s, -6s;
@@ -133,13 +130,13 @@
       transform: translateX(100%);
     }
 
-    /* 面板B：浅色磨砂玻璃（覆盖层）*/
+    /* 面板B：暖奶白磨砂玻璃（覆盖层）*/
     .pB {
       left: 50%;
-      background: rgba(195,210,245,0.42);
-      backdrop-filter: blur(40px) saturate(1.6);
-      -webkit-backdrop-filter: blur(40px) saturate(1.6);
-      border-left: 1px solid rgba(255,255,255,0.65);
+      background: rgba(245,238,222,0.65);
+      backdrop-filter: blur(40px) saturate(1.4);
+      -webkit-backdrop-filter: blur(40px) saturate(1.4);
+      border-left: 1px solid rgba(255,255,255,0.7);
       z-index: 2;
       overflow: hidden;
     }
@@ -149,10 +146,10 @@
       position: absolute; inset: 0; pointer-events: none; z-index: 0;
       background: linear-gradient(
         135deg,
-        rgba(255,255,255,0.35) 0%,
-        rgba(255,255,255,0.1) 35%,
+        rgba(255,255,255,0.5) 0%,
+        rgba(255,255,255,0.15) 35%,
         transparent 65%,
-        rgba(200,215,255,0.12) 100%
+        rgba(240,222,190,0.15) 100%
       );
     }
     .auth-box.signup-mode .pB {
@@ -183,15 +180,15 @@
     /* ── 表单元素 ── */
     .fp-title {
       font-size: clamp(17px, 2.6vw, 26px); font-weight: 700;
-      color: #1a2050; letter-spacing: 0.18em;
+      color: #2a1e10; letter-spacing: 0.18em;
       margin-bottom: clamp(12px, 2.5vh, 22px); white-space: nowrap;
     }
 
     .social-row { display: flex; gap: clamp(8px, 1.2vw, 14px); margin-bottom: clamp(6px, 1vh, 10px); }
     .s-icon {
       width: clamp(34px, 4.2vw, 44px); height: clamp(34px, 4.2vw, 44px); border-radius: 50%;
-      background: rgba(255,255,255,0.62);
-      border: 1px solid rgba(100,120,220,0.14);
+      background: rgba(255,252,244,0.78);
+      border: 1px solid rgba(180,155,110,0.18);
       display: flex; align-items: center; justify-content: center;
       cursor: pointer;
       backdrop-filter: blur(6px);
@@ -200,63 +197,64 @@
     }
     .s-icon svg { width: 20px; height: 20px; opacity: 0.45; transition: opacity 0.22s; }
     .s-icon:hover {
-      background: rgba(255,255,255,0.9);
+      background: rgba(255,255,255,0.95);
       transform: translateY(-2px);
-      box-shadow: 0 4px 16px rgba(80,100,220,0.18);
+      box-shadow: 0 4px 16px rgba(150,120,60,0.18);
     }
     .s-icon:hover svg { opacity: 0.8; }
     .s-icon.active {
-      background: rgba(238,242,255,0.85);
-      box-shadow: 0 0 0 4px rgba(90,112,232,0.14);
+      background: rgba(255,248,232,0.9);
+      box-shadow: 0 0 0 4px rgba(180,145,80,0.16);
     }
     .s-icon.active svg { opacity: 1; }
 
-    .social-hint { font-size: 11px; color: #a0aec8; letter-spacing: 0.05em; margin-bottom: clamp(10px, 2vh, 20px); }
+    .social-hint { font-size: 11px; color: #b0956e; letter-spacing: 0.05em; margin-bottom: clamp(10px, 2vh, 20px); }
 
     .field { width: 100%; margin-bottom: clamp(6px, 1.3vh, 12px); }
     .field input {
       width: 100%;
-      background: rgba(255,255,255,0.5);
-      border: 1.5px solid rgba(100,120,220,0.18);
+      background: rgba(255,252,244,0.58);
+      border: 1.5px solid rgba(180,155,110,0.22);
       border-radius: 10px;
       padding: clamp(9px, 1.8vh, 13px) 16px;
-      font-family: 'Noto Sans SC', sans-serif; font-size: clamp(13px, 1.5vw, 14px); color: #1a2050;
+      font-family: 'Noto Sans SC', sans-serif; font-size: clamp(13px, 1.5vw, 14px); color: #2a1e10;
       outline: none;
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
       transition: border-color 0.25s, background 0.25s, box-shadow 0.25s;
     }
-    .field input::placeholder { color: #a8b8d8; }
+    .field input::placeholder { color: #c4ae88; }
     .field input:focus {
-      border-color: rgba(90,112,232,0.55);
-      background: rgba(255,255,255,0.82);
-      box-shadow: 0 0 0 3px rgba(90,112,232,0.12);
+      border-color: rgba(160,125,65,0.5);
+      background: rgba(255,252,244,0.88);
+      box-shadow: 0 0 0 3px rgba(160,125,65,0.1);
     }
 
     .forgot {
-      font-size: 12px; color: #7888b8;
+      font-size: 12px; color: #a08860;
       text-decoration: underline; text-underline-offset: 3px;
       cursor: pointer; margin: 2px 0 clamp(12px, 2vh, 20px);
       align-self: flex-start;
       transition: color 0.2s;
     }
-    .forgot:hover { color: #5a70e8; }
+    .forgot:hover { color: #7a5e30; }
 
-    /* 表单面板按钮：蓝色渐变玻璃 */
+    /* 表单面板按钮：暖棕色拟态按钮 */
     .btn-blue {
       padding: clamp(10px, 1.8vh, 13px) clamp(22px, 3.5vw, 48px); border-radius: 100px;
-      border: 1px solid rgba(255,255,255,0.28);
+      border: 1px solid rgba(255,255,255,0.35);
       cursor: pointer;
       font-family: 'Noto Sans SC', sans-serif;
       font-size: 12px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase;
-      background: linear-gradient(135deg, rgba(106,130,236,0.9), rgba(74,94,224,0.9));
-      color: #fff;
-      box-shadow: 0 6px 22px rgba(70,90,220,0.5), inset 0 1px 0 rgba(255,255,255,0.22);
-      transition: box-shadow 0.25s, transform 0.2s;
+      background: #4a3420;
+      color: #fef6e4;
+      box-shadow: 0 6px 22px rgba(80,50,20,0.35), inset 0 1px 0 rgba(255,255,255,0.12);
+      transition: box-shadow 0.25s, transform 0.2s, background 0.2s;
       position: relative; z-index: 1;
     }
     .btn-blue:hover {
-      box-shadow: 0 10px 32px rgba(70,90,220,0.65), inset 0 1px 0 rgba(255,255,255,0.28);
+      background: #5c4228;
+      box-shadow: 0 10px 30px rgba(80,50,20,0.45), inset 0 1px 0 rgba(255,255,255,0.15);
       transform: translateY(-1px);
     }
     .btn-blue:active { transform: translateY(0); }
@@ -264,12 +262,12 @@
 
     /* ── 覆盖层文字 ── */
     .o-title {
-      font-size: clamp(17px, 2.6vw, 26px); font-weight: 700; color: #1a2050;
+      font-size: clamp(17px, 2.6vw, 26px); font-weight: 700; color: #2a1e10;
       letter-spacing: 0.02em; margin-bottom: clamp(10px, 1.5vh, 14px);
       position: relative; z-index: 1;
     }
     .o-sub {
-      font-size: clamp(11px, 1.3vw, 13px); color: #6a7aa8;
+      font-size: clamp(11px, 1.3vw, 13px); color: #8a7458;
       line-height: 1.85; margin-bottom: clamp(18px, 3.5vh, 36px);
       max-width: 210px; position: relative; z-index: 1;
     }
@@ -319,13 +317,13 @@
       .m-tab {
         flex: 1; padding: 14px; text-align: center;
         font-size: 13px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
-        color: #b8c0d8; cursor: pointer;
+        color: #c0a880; cursor: pointer;
         border-bottom: 2px solid transparent; margin-bottom: -1px;
         transition: color 0.2s, border-color 0.2s;
       }
       .auth-box:not(.signup-mode) .m-tab-si,
       .auth-box.signup-mode       .m-tab-su {
-        color: #5a70e8; border-bottom-color: #5a70e8;
+        color: #7a5530; border-bottom-color: #7a5530;
       }
 
       .fp-title { white-space: normal; text-align: center; }
@@ -358,17 +356,17 @@
       <div class="fp-title">登 入 账 号</div>
       <div class="social-row">
         <div class="s-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#5a70e8" stroke-width="1.8" stroke-linecap="round">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#9a7040" stroke-width="1.8" stroke-linecap="round">
             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
           </svg>
         </div>
         <div class="s-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#5a70e8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#9a7040" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
           </svg>
         </div>
         <div class="s-icon active">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#5a70e8" stroke-width="1.8" stroke-linecap="round">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#9a7040" stroke-width="1.8" stroke-linecap="round">
             <rect x="2" y="6" width="20" height="12" rx="4"/>
             <path d="M8 12h4M10 10v4M15 12h.01M17 12h.01"/>
           </svg>
@@ -386,17 +384,17 @@
       <div class="fp-title">创 建 账 号</div>
       <div class="social-row">
         <div class="s-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#5a70e8" stroke-width="1.8" stroke-linecap="round">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#9a7040" stroke-width="1.8" stroke-linecap="round">
             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
           </svg>
         </div>
         <div class="s-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#5a70e8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#9a7040" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
           </svg>
         </div>
         <div class="s-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#5a70e8" stroke-width="1.8" stroke-linecap="round">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#9a7040" stroke-width="1.8" stroke-linecap="round">
             <rect x="2" y="6" width="20" height="12" rx="4"/>
             <path d="M8 12h4M10 10v4M15 12h.01M17 12h.01"/>
           </svg>
