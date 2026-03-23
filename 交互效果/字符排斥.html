@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>字符排斥</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: #050508;
+      overflow: hidden;
+      cursor: none;
+    }
+
+    /* Custom cursor */
+    #cur {
+      position: fixed;
+      width: 44px; height: 44px;
+      border: 1px solid rgba(255,255,255,0.22);
+      border-radius: 50%;
+      transform: translate(-50%,-50%);
+      pointer-events: none;
+      z-index: 200;
+      transition: width 0.12s, height 0.12s;
+    }
+    #curDot {
+      position: fixed;
+      width: 4px; height: 4px;
+      background: rgba(255,255,255,0.55);
+      border-radius: 50%;
+      transform: translate(-50%,-50%);
+      pointer-events: none;
+      z-index: 201;
+    }
+
+    .stage {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      user-select: none;
+    }
+
+    .line { display: flex; justify-content: center; }
+
+    .ch {
+      display: inline-block;
+      font-family: 'Noto Serif SC', serif;
+      font-weight: 300;
+      color: #ccccc4;
+      will-change: transform;
+    }
+    .line-xl .ch { font-size: clamp(56px,8vw,96px); letter-spacing: 0.04em; }
+    .line-lg .ch { font-size: clamp(28px,4vw,48px); letter-spacing: 0.06em; color: #888882; }
+    .line-sm .ch {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; letter-spacing: 0.35em;
+      color: #2a2a28;
+      margin-top: 8px;
+    }
+
+    .hint {
+      position: fixed;
+      bottom: 32px; left: 50%;
+      transform: translateX(-50%);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px; letter-spacing: 0.3em;
+      color: #1e1e1c;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+  <div id="cur"></div>
+  <div id="curDot"></div>
+
+  <div class="stage">
+    <div class="line line-xl" data-text="触碰之间"></div>
+    <div class="line line-lg" data-text="有无声的语言"></div>
+    <div class="line line-sm" data-text="MOVE  YOUR  CURSOR  NEAR  THE  TEXT"></div>
+  </div>
+
+  <div class="hint">字符将逃离光标 · 松手回归原位</div>
+
+  <script>
+    // ── Build char spans ──
+    document.querySelectorAll('[data-text]').forEach(row => {
+      [...row.dataset.text].forEach(c => {
+        const s = document.createElement('span');
+        s.className = 'ch';
+        s.textContent = c === ' ' ? '\u00A0' : c;
+        row.appendChild(s);
+      });
+    });
+
+    const spans = [...document.querySelectorAll('.ch')];
+    const cur    = document.getElementById('cur');
+    const curDot = document.getElementById('curDot');
+
+    // Per-char physics state
+    const state = spans.map(span => ({
+      span,
+      ox: 0, oy: 0,       // original viewport center
+      x: 0, y: 0, r: 0,  // displacement & rotation
+      vx: 0, vy: 0, vr: 0,
+    }));
+
+    function measure() {
+      state.forEach(s => {
+        const rect = s.span.getBoundingClientRect();
+        s.ox = rect.left + rect.width  / 2;
+        s.oy = rect.top  + rect.height / 2;
+      });
+    }
+
+    let mx = -9999, my = -9999;
+
+    document.addEventListener('mousemove', e => {
+      mx = e.clientX; my = e.clientY;
+      cur.style.left    = mx + 'px';
+      cur.style.top     = my + 'px';
+      curDot.style.left = mx + 'px';
+      curDot.style.top  = my + 'px';
+    });
+
+    // Remeasure on resize (reset displacement first)
+    let resizeT;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeT);
+      resizeT = setTimeout(() => {
+        state.forEach(s => {
+          s.x = s.y = s.r = s.vx = s.vy = s.vr = 0;
+          s.span.style.transform = '';
+          s.span.style.color = '';
+        });
+        requestAnimationFrame(measure);
+      }, 100);
+    });
+
+    // ── Animation loop ──
+    function tick() {
+      state.forEach(s => {
+        // Current world position
+        const cx = s.ox + s.x;
+        const cy = s.oy + s.y;
+        const dx = cx - mx;
+        const dy = cy - my;
+        const dist = Math.hypot(dx, dy);
+        const R = 150;
+
+        if (dist < R && dist > 0.5) {
+          const f = (1 - dist / R) ** 2 * 16;
+          s.vx += (dx / dist) * f;
+          s.vy += (dy / dist) * f;
+          s.vr += (Math.random() - 0.5) * f * 0.55;
+        }
+
+        // Spring back to origin
+        s.vx += -s.x * 0.065;
+        s.vy += -s.y * 0.065;
+        s.vr += -s.r * 0.10;
+
+        // Damping
+        s.vx *= 0.84; s.vy *= 0.84; s.vr *= 0.84;
+
+        s.x += s.vx; s.y += s.vy; s.r += s.vr;
+
+        s.span.style.transform = `translate(${s.x}px,${s.y}px) rotate(${s.r}deg)`;
+
+        // Brightness: brighter when displaced
+        const d = Math.hypot(s.x, s.y);
+        const v = Math.round(Math.min(255, 204 + d * 1.2));
+        s.span.style.color = `rgb(${v},${v - 6},${v - 10})`;
+      });
+      requestAnimationFrame(tick);
+    }
+
+    // Wait for fonts
+    document.fonts.ready.then(() => {
+      requestAnimationFrame(() => { measure(); tick(); });
+    });
+  </script>
+</body>
+</html>
