@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>霓虹按钮</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: #070310;
+      background-image: radial-gradient(ellipse 65% 55% at 50% 50%, rgba(192,132,252,0.08) 0%, transparent 65%);
+      font-family: 'JetBrains Mono', monospace;
+      overflow: hidden;
+    }
+
+    /* Dark room ambiance */
+    .ambient {
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 40% at 50% 100%, rgba(192,132,252,0.05) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .btn {
+      color: #c084fc;
+      border: 1px solid #c084fc;
+      background: transparent;
+      padding: 18px 48px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      cursor: pointer;
+      outline: none;
+      position: relative;
+      text-shadow: 0 0 10px rgba(192,132,252,0.9);
+      box-shadow:
+        0 0 10px rgba(192,132,252,0.28),
+        0 0 30px rgba(192,132,252,0.1),
+        inset 0 0 10px rgba(192,132,252,0.05);
+      animation: neonIdle 7s infinite;
+      transition: none;
+    }
+
+    @keyframes neonIdle {
+      0%, 85%, 100% {
+        opacity: 1;
+        border-color: #c084fc;
+        color: #c084fc;
+        text-shadow: 0 0 10px rgba(192,132,252,0.9), 0 0 28px rgba(192,132,252,0.5);
+        box-shadow:
+          0 0 10px rgba(192,132,252,0.28),
+          0 0 30px rgba(192,132,252,0.12),
+          inset 0 0 10px rgba(192,132,252,0.05);
+      }
+      86%  { opacity: 0.25; text-shadow: none; box-shadow: none; border-color: #4a2570; color: #7a5a9a; }
+      87%  { opacity: 1; text-shadow: 0 0 10px rgba(192,132,252,0.9); border-color: #c084fc; color: #c084fc; }
+      88%  { opacity: 0.15; text-shadow: none; }
+      89%  { opacity: 1; text-shadow: 0 0 10px rgba(192,132,252,0.9); border-color: #c084fc; color: #c084fc; }
+      90%  { opacity: 0.4; }
+      91%  { opacity: 1; border-color: #c084fc; }
+    }
+
+    .btn:hover {
+      animation: none;
+      background: rgba(192,132,252,0.07);
+      color: #e0aaff;
+      border-color: #e0aaff;
+      text-shadow:
+        0 0 14px #c084fc,
+        0 0 30px rgba(192,132,252,0.7),
+        0 0 60px rgba(192,132,252,0.3);
+      box-shadow:
+        0 0 16px rgba(192,132,252,0.6),
+        0 0 40px rgba(192,132,252,0.28),
+        0 0 80px rgba(192,132,252,0.12),
+        inset 0 0 16px rgba(192,132,252,0.1);
+    }
+
+    .hint {
+      margin-top: 28px;
+      font-size: 9px;
+      letter-spacing: 0.3em;
+      color: rgba(192,132,252,0.18);
+      text-transform: uppercase;
+    }
+
+    .corner {
+      position: fixed;
+      font-size: 9px;
+      letter-spacing: 0.2em;
+      color: rgba(192,132,252,0.13);
+      text-transform: uppercase;
+    }
+    .corner-bl { bottom: 32px; left: 40px; }
+    .corner-br { bottom: 32px; right: 40px; }
+  </style>
+</head>
+<body>
+  <div class="ambient"></div>
+  <button class="btn">NEON</button>
+  <div class="hint">— idle flicker · hover to glow —</div>
+
+  <div class="corner corner-bl">霓虹闪烁</div>
+  <div class="corner corner-br">05 / 08</div>
+</body>
+</html>

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>磁吸按钮</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: #030d05;
+      background-image:
+        radial-gradient(ellipse 60% 50% at 50% 50%, rgba(74,222,128,0.06) 0%, transparent 70%);
+      font-family: 'JetBrains Mono', monospace;
+      overflow: hidden;
+    }
+
+    /* crosshair lines */
+    body::before {
+      content: '';
+      position: fixed;
+      left: 50%; top: 0;
+      width: 1px; height: 100%;
+      background: linear-gradient(to bottom, transparent, rgba(74,222,128,0.06) 40%, rgba(74,222,128,0.06) 60%, transparent);
+      pointer-events: none;
+    }
+    body::after {
+      content: '';
+      position: fixed;
+      top: 50%; left: 0;
+      height: 1px; width: 100%;
+      background: linear-gradient(to right, transparent, rgba(74,222,128,0.06) 40%, rgba(74,222,128,0.06) 60%, transparent);
+      pointer-events: none;
+    }
+
+    .btn {
+      color: #4ade80;
+      border: 1px solid #4ade80;
+      background: transparent;
+      padding: 18px 48px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      cursor: pointer;
+      outline: none;
+      position: relative;
+      transition: box-shadow 0.35s ease;
+      will-change: transform;
+    }
+
+    .btn::before {
+      content: '';
+      position: absolute;
+      inset: -6px;
+      border: 1px dashed rgba(74,222,128,0.15);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .btn:hover::before { opacity: 1; }
+    .btn:hover {
+      box-shadow: 0 0 30px rgba(74,222,128,0.22), 0 10px 40px rgba(74,222,128,0.1);
+    }
+
+    .cursor-dot {
+      position: fixed;
+      width: 5px; height: 5px;
+      background: #4ade80;
+      border-radius: 50%;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 12px #4ade80;
+      opacity: 0;
+      transition: opacity 0.25s;
+      z-index: 100;
+    }
+
+    .hint {
+      margin-top: 28px;
+      font-size: 9px;
+      letter-spacing: 0.3em;
+      color: rgba(74,222,128,0.2);
+      text-transform: uppercase;
+    }
+
+    .corner {
+      position: fixed;
+      font-size: 9px;
+      letter-spacing: 0.2em;
+      color: rgba(74,222,128,0.15);
+      text-transform: uppercase;
+    }
+    .corner-bl { bottom: 32px; left: 40px; }
+    .corner-br { bottom: 32px; right: 40px; }
+  </style>
+</head>
+<body>
+  <div class="cursor-dot" id="dot"></div>
+  <button class="btn" id="btn">MAGNETIC</button>
+  <div class="hint">— hover —</div>
+
+  <div class="corner corner-bl">磁吸跟随</div>
+  <div class="corner corner-br">01 / 08</div>
+
+  <script>
+    const btn = document.getElementById('btn');
+    const dot = document.getElementById('dot');
+
+    btn.addEventListener('mousemove', e => {
+      const r = btn.getBoundingClientRect();
+      const x = (e.clientX - r.left - r.width  / 2) * 0.42;
+      const y = (e.clientY - r.top  - r.height / 2) * 0.42;
+      btn.style.transition = 'transform 0.1s cubic-bezier(0.23,1,0.32,1), box-shadow 0.35s';
+      btn.style.transform  = `translate(${x}px,${y}px)`;
+      dot.style.left    = e.clientX + 'px';
+      dot.style.top     = e.clientY + 'px';
+      dot.style.opacity = '1';
+    });
+
+    btn.addEventListener('mouseleave', () => {
+      btn.style.transition = 'transform 0.65s cubic-bezier(0.23,1,0.32,1), box-shadow 0.35s';
+      btn.style.transform  = 'translate(0,0)';
+      dot.style.opacity = '0';
+    });
+  </script>
+</body>
+</html>

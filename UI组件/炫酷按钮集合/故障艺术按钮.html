@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>故障艺术按钮</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: #0d0306;
+      background-image: radial-gradient(ellipse 60% 50% at 50% 50%, rgba(244,63,94,0.06) 0%, transparent 65%);
+      font-family: 'JetBrains Mono', monospace;
+      overflow: hidden;
+    }
+
+    /* Scanlines */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.15) 2px,
+        rgba(0,0,0,0.15) 4px
+      );
+      pointer-events: none;
+      z-index: 50;
+    }
+
+    .btn {
+      color: #f43f5e;
+      border: 1px solid #f43f5e;
+      background: transparent;
+      padding: 18px 48px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      cursor: pointer;
+      outline: none;
+      position: relative;
+    }
+
+    .gt {
+      position: relative;
+      display: inline-block;
+    }
+
+    .gt::before,
+    .gt::after {
+      content: attr(data-t);
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      opacity: 0;
+    }
+
+    .gt::before {
+      color: #00e5ff;
+      clip-path: polygon(0 12%, 100% 12%, 100% 40%, 0 40%);
+    }
+    .gt::after {
+      color: #ff0055;
+      clip-path: polygon(0 58%, 100% 58%, 100% 84%, 0 84%);
+    }
+
+    .btn:hover .gt::before { opacity: 1; animation: gTop 0.2s steps(2) infinite; }
+    .btn:hover .gt::after  { opacity: 1; animation: gBot 0.2s steps(2) infinite; }
+    .btn:hover .gt          { animation: gShake 0.2s steps(2) infinite; }
+    .btn:hover              { animation: borderFlicker 0.2s steps(2) infinite; }
+
+    @keyframes gTop {
+      0%   { transform: translateX(-4px); }
+      50%  { transform: translateX(4px); }
+      100% { transform: translateX(-4px); }
+    }
+    @keyframes gBot {
+      0%   { transform: translateX(4px); }
+      50%  { transform: translateX(-4px); }
+      100% { transform: translateX(4px); }
+    }
+    @keyframes gShake {
+      0%   { transform: translateX(0); }
+      33%  { transform: translateX(-2px); }
+      66%  { transform: translateX(2px); }
+      100% { transform: translateX(0); }
+    }
+    @keyframes borderFlicker {
+      0%   { border-color: #f43f5e; box-shadow: none; }
+      40%  { border-color: #00e5ff; box-shadow: 0 0 12px rgba(0,229,255,0.3); }
+      41%  { border-color: #ff0055; }
+      80%  { border-color: #f43f5e; box-shadow: 0 0 8px rgba(244,63,94,0.3); }
+      100% { border-color: #f43f5e; }
+    }
+
+    /* Random noise block that flashes on hover */
+    .noise-block {
+      position: absolute;
+      pointer-events: none;
+      background: rgba(244,63,94,0.6);
+      mix-blend-mode: screen;
+      opacity: 0;
+    }
+    .btn:hover .noise-block { animation: noiseFlash 0.2s steps(1) infinite; }
+    @keyframes noiseFlash {
+      0%   { opacity: 0; top: 20%; left: -100%; width: 120%; height: 3px; }
+      25%  { opacity: 1; top: 55%; left: -5%; width: 80%; height: 2px; }
+      50%  { opacity: 0; }
+      75%  { opacity: 0.7; top: 80%; left: 10%; width: 60%; height: 2px; }
+      100% { opacity: 0; }
+    }
+
+    .hint {
+      margin-top: 28px;
+      font-size: 9px;
+      letter-spacing: 0.3em;
+      color: rgba(244,63,94,0.2);
+      text-transform: uppercase;
+    }
+
+    .corner {
+      position: fixed;
+      font-size: 9px;
+      letter-spacing: 0.2em;
+      color: rgba(244,63,94,0.14);
+      text-transform: uppercase;
+    }
+    .corner-bl { bottom: 32px; left: 40px; }
+    .corner-br { bottom: 32px; right: 40px; }
+  </style>
+</head>
+<body>
+  <button class="btn">
+    <span class="gt" data-t="GLITCH">GLITCH</span>
+    <div class="noise-block"></div>
+  </button>
+  <div class="hint">— hover —</div>
+
+  <div class="corner corner-bl">故障艺术</div>
+  <div class="corner corner-br">03 / 08</div>
+</body>
+</html>

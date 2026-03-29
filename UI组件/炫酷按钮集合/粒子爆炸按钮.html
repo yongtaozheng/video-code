@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>粒子爆炸按钮</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: #0d0700;
+      background-image: radial-gradient(ellipse 60% 50% at 50% 50%, rgba(251,146,60,0.07) 0%, transparent 65%);
+      font-family: 'JetBrains Mono', monospace;
+      overflow: hidden;
+    }
+
+    .btn {
+      color: #fb923c;
+      border: 1px solid #fb923c;
+      background: transparent;
+      padding: 18px 48px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      cursor: pointer;
+      outline: none;
+      position: relative;
+      transition: background 0.15s, box-shadow 0.3s;
+      overflow: visible;
+    }
+
+    .btn:hover {
+      box-shadow: 0 0 24px rgba(251,146,60,0.18);
+    }
+
+    .btn:active {
+      background: rgba(251,146,60,0.1);
+    }
+
+    /* Particle DOM elements injected by JS */
+    .p-dot {
+      position: fixed;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 1000;
+      transform: translate(-50%, -50%);
+    }
+
+    /* Click count display */
+    .click-count {
+      margin-top: 20px;
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      color: rgba(251,146,60,0.3);
+      transition: color 0.3s;
+      min-height: 18px;
+    }
+    .click-count.flash { color: rgba(251,146,60,0.7); }
+
+    .hint {
+      margin-top: 16px;
+      font-size: 9px;
+      letter-spacing: 0.3em;
+      color: rgba(251,146,60,0.18);
+      text-transform: uppercase;
+    }
+
+    .corner {
+      position: fixed;
+      font-size: 9px;
+      letter-spacing: 0.2em;
+      color: rgba(251,146,60,0.13);
+      text-transform: uppercase;
+    }
+    .corner-bl { bottom: 32px; left: 40px; }
+    .corner-br { bottom: 32px; right: 40px; }
+  </style>
+</head>
+<body>
+  <button class="btn" id="btn">PARTICLE</button>
+  <div class="click-count" id="counter"></div>
+  <div class="hint">— click —</div>
+
+  <div class="corner corner-bl">粒子爆炸</div>
+  <div class="corner corner-br">04 / 08</div>
+
+  <script>
+    const btn     = document.getElementById('btn');
+    const counter = document.getElementById('counter');
+    const palette = ['#fb923c','#fbbf24','#f87171','#34d399','#60a5fa','#f472b6','#e879f9'];
+    let clicks = 0;
+
+    btn.addEventListener('click', e => {
+      clicks++;
+      counter.textContent = `× ${clicks}`;
+      counter.classList.add('flash');
+      setTimeout(() => counter.classList.remove('flash'), 300);
+
+      const r  = btn.getBoundingClientRect();
+      const cx = r.left + r.width / 2;
+      const cy = r.top  + r.height / 2;
+
+      // Main burst
+      for (let i = 0; i < 28; i++) spawn(cx, cy, 1);
+
+      // Second wave with delay
+      setTimeout(() => {
+        for (let i = 0; i < 10; i++) spawn(cx, cy, 0.6);
+      }, 80);
+    });
+
+    function spawn(cx, cy, scale) {
+      const dot   = document.createElement('div');
+      dot.className = 'p-dot';
+      const sz    = (Math.random() * 8 + 3) * scale;
+      const color = palette[Math.floor(Math.random() * palette.length)];
+      dot.style.cssText = `
+        width: ${sz}px; height: ${sz}px;
+        background: ${color};
+        left: ${cx}px; top: ${cy}px;
+        box-shadow: 0 0 ${sz * 1.5}px ${color};
+      `;
+      document.body.appendChild(dot);
+
+      const angle = Math.random() * Math.PI * 2;
+      const dist  = (Math.random() * 120 + 50) * scale;
+      const dx    = Math.cos(angle) * dist;
+      const dy    = Math.sin(angle) * dist;
+      const dur   = Math.random() * 600 + 400;
+
+      dot.animate([
+        { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 },
+        { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(0)`, opacity: 0 }
+      ], { duration: dur, easing: 'cubic-bezier(0,.9,.57,1)', fill: 'forwards' })
+      .onfinish = () => dot.remove();
+    }
+  </script>
+</body>
+</html>

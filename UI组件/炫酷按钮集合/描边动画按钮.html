@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>描边动画按钮</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: #010d0b;
+      background-image: radial-gradient(ellipse 65% 55% at 50% 50%, rgba(45,212,191,0.07) 0%, transparent 65%);
+      font-family: 'JetBrains Mono', monospace;
+      overflow: hidden;
+    }
+
+    .btn {
+      color: #2dd4bf;
+      background: transparent;
+      padding: 18px 48px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      cursor: pointer;
+      outline: none;
+      border: none;
+      position: relative;
+      overflow: visible;
+      transition: color 0.3s;
+    }
+
+    .btn:hover { color: #5eead4; }
+
+    .bsvg {
+      position: absolute;
+      inset: -4px;
+      width: calc(100% + 8px);
+      height: calc(100% + 8px);
+      overflow: visible;
+      pointer-events: none;
+    }
+
+    .bsvg rect {
+      fill: none;
+      stroke: #2dd4bf;
+      stroke-width: 1.5;
+      filter: drop-shadow(0 0 6px rgba(45,212,191,0.8));
+    }
+
+    /* Inner second border that trails behind */
+    .bsvg rect.inner {
+      stroke: rgba(45,212,191,0.3);
+      stroke-width: 1;
+      filter: drop-shadow(0 0 3px rgba(45,212,191,0.4));
+    }
+
+    .hint {
+      margin-top: 28px;
+      font-size: 9px;
+      letter-spacing: 0.3em;
+      color: rgba(45,212,191,0.18);
+      text-transform: uppercase;
+    }
+
+    .corner {
+      position: fixed;
+      font-size: 9px;
+      letter-spacing: 0.2em;
+      color: rgba(45,212,191,0.13);
+      text-transform: uppercase;
+    }
+    .corner-bl { bottom: 32px; left: 40px; }
+    .corner-br { bottom: 32px; right: 40px; }
+  </style>
+</head>
+<body>
+  <button class="btn" id="btn">
+    <svg class="bsvg" id="svg">
+      <rect id="outer" x="4" y="4" rx="0" ry="0" />
+      <rect class="inner" id="inner" x="4" y="4" rx="0" ry="0" />
+    </svg>
+    SNAKE
+  </button>
+  <div class="hint">— hover —</div>
+
+  <div class="corner corner-bl">描边动画</div>
+  <div class="corner corner-br">07 / 08</div>
+
+  <script>
+    const btn   = document.getElementById('btn');
+    const outer = document.getElementById('outer');
+    const inner = document.getElementById('inner');
+
+    function init() {
+      const w = btn.offsetWidth;
+      const h = btn.offsetHeight;
+      const p = 2 * (w + h);
+
+      [outer, inner].forEach(rect => {
+        rect.setAttribute('width',  w);
+        rect.setAttribute('height', h);
+      });
+
+      outer.style.strokeDasharray  = p;
+      outer.style.strokeDashoffset = p;
+      outer.style.transition = 'stroke-dashoffset 0.7s cubic-bezier(0.23,1,0.32,1)';
+
+      inner.style.strokeDasharray  = p;
+      inner.style.strokeDashoffset = p;
+      inner.style.transition = 'stroke-dashoffset 0.9s cubic-bezier(0.23,1,0.32,1) 0.1s';
+
+      btn.addEventListener('mouseenter', () => {
+        outer.style.strokeDashoffset = '0';
+        inner.style.strokeDashoffset = '0';
+      });
+
+      btn.addEventListener('mouseleave', () => {
+        outer.style.strokeDashoffset = p;
+        inner.style.strokeDashoffset = p;
+      });
+    }
+
+    init();
+  </script>
+</body>
+</html>
