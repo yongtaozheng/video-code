@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
@@ -76,8 +76,12 @@
         box-shadow: 0 0 20px rgba(0, 255, 70, 0.2);
       }
 
-      .nav-btn.prev { left: 16px; }
-      .nav-btn.next { right: 16px; }
+      .nav-btn.prev {
+        left: 16px;
+      }
+      .nav-btn.next {
+        right: 16px;
+      }
 
       /* 指示器 */
       .indicators {
@@ -160,7 +164,8 @@
       const loadedImages = [];
 
       // 矩阵字符集（中文 + 英文 + 符号）
-      const MATRIX_CHARS = "天地玄黄宇宙洪荒日月盈昃辰宿列张寒来暑往秋收冬藏闰余成岁律吕调阳云腾致雨露结为霜金生丽水玉出昆冈剑号巨阙珠称夜光ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<>{}[]|/\\=+*@#$%";
+      const MATRIX_CHARS =
+        "天地玄黄宇宙洪荒日月盈昃辰宿列张寒来暑往秋收冬藏闰余成岁律吕调阳云腾致雨露结为霜金生丽水玉出昆冈剑号巨阙珠称夜光ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<>{}[]|/\\=+*@#$%";
       const CHAR_SIZE = 14;
 
       function resizeCanvas() {
@@ -207,11 +212,15 @@
         const canvasRatio = w / h;
         let sx, sy, sw, sh;
         if (imgRatio > canvasRatio) {
-          sh = imgH; sw = sh * canvasRatio;
-          sx = (imgW - sw) / 2; sy = 0;
+          sh = imgH;
+          sw = sh * canvasRatio;
+          sx = (imgW - sw) / 2;
+          sy = 0;
         } else {
-          sw = imgW; sh = sw / canvasRatio;
-          sx = 0; sy = (imgH - sh) / 2;
+          sw = imgW;
+          sh = sw / canvasRatio;
+          sx = 0;
+          sy = (imgH - sh) / 2;
         }
         targetCtx.drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
       }
@@ -262,7 +271,7 @@
           });
           for (let row = 0; row < rows; row++) {
             columns[col].chars.push(
-              MATRIX_CHARS[Math.floor(Math.random() * MATRIX_CHARS.length)]
+              MATRIX_CHARS[Math.floor(Math.random() * MATRIX_CHARS.length)],
             );
           }
         }
@@ -292,9 +301,14 @@
                 const y = row * CHAR_SIZE;
                 ctx.drawImage(
                   toCanvas,
-                  x * devicePixelRatio, y * devicePixelRatio,
-                  CHAR_SIZE * devicePixelRatio, CHAR_SIZE * devicePixelRatio,
-                  x, y, CHAR_SIZE, CHAR_SIZE
+                  x * devicePixelRatio,
+                  y * devicePixelRatio,
+                  CHAR_SIZE * devicePixelRatio,
+                  CHAR_SIZE * devicePixelRatio,
+                  x,
+                  y,
+                  CHAR_SIZE,
+                  CHAR_SIZE,
                 );
               }
             }
@@ -324,7 +338,8 @@
                   MATRIX_CHARS[Math.floor(Math.random() * MATRIX_CHARS.length)];
               }
 
-              const brightness = i === 0 ? 1.0 : Math.max(0, 1 - i / trailLength);
+              const brightness =
+                i === 0 ? 1.0 : Math.max(0, 1 - i / trailLength);
 
               if (i === 0) {
                 ctx.fillStyle = `rgba(200, 255, 200, ${brightness})`;
@@ -360,8 +375,7 @@
           // 检查是否全部揭示
           let allRevealed = true;
           if (progress > 0.7) {
-            outer:
-            for (let col = 0; col < cols; col++) {
+            outer: for (let col = 0; col < cols; col++) {
               for (let row = 0; row < rows; row++) {
                 if (!columns[col].revealed[row]) {
                   allRevealed = false;
@@ -393,10 +407,14 @@
         dots[currentIndex].classList.remove("active");
         dots[targetIndex].classList.add("active");
 
-        matrixTransition(loadedImages[currentIndex], loadedImages[targetIndex], () => {
-          currentIndex = targetIndex;
-          isTransitioning = false;
-        });
+        matrixTransition(
+          loadedImages[currentIndex],
+          loadedImages[targetIndex],
+          () => {
+            currentIndex = targetIndex;
+            isTransitioning = false;
+          },
+        );
       }
 
       function next() {
@@ -479,12 +497,22 @@
         startAutoPlay();
       });
 
-      document.querySelector(".carousel-container").addEventListener("mouseenter", stopAutoPlay);
-      document.querySelector(".carousel-container").addEventListener("mouseleave", startAutoPlay);
+      document
+        .querySelector(".carousel-container")
+        .addEventListener("mouseenter", stopAutoPlay);
+      document
+        .querySelector(".carousel-container")
+        .addEventListener("mouseleave", startAutoPlay);
 
       document.addEventListener("keydown", (e) => {
-        if (e.key === "ArrowLeft") { prev(); startAutoPlay(); }
-        if (e.key === "ArrowRight") { next(); startAutoPlay(); }
+        if (e.key === "ArrowLeft") {
+          prev();
+          startAutoPlay();
+        }
+        if (e.key === "ArrowRight") {
+          next();
+          startAutoPlay();
+        }
       });
 
       document.addEventListener("visibilitychange", () => {
