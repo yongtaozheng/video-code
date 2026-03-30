@@ -1,0 +1,710 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>终端扫描登录</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        background: #020d06;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: "JetBrains Mono", monospace;
+        overflow: hidden;
+      }
+
+      body::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background: repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 2px,
+          rgba(0, 0, 0, 0.12) 2px,
+          rgba(0, 0, 0, 0.12) 4px
+        );
+        pointer-events: none;
+        z-index: 1000;
+      }
+
+      .scan-line {
+        position: fixed;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(
+          to right,
+          transparent,
+          rgba(0, 255, 80, 0.5),
+          transparent
+        );
+        animation: scanSweep 4s linear infinite;
+        pointer-events: none;
+        z-index: 999;
+      }
+      @keyframes scanSweep {
+        from {
+          top: -2px;
+        }
+        to {
+          top: 100vh;
+        }
+      }
+
+      #matrixCanvas {
+        position: fixed;
+        inset: 0;
+        opacity: 0.12;
+      }
+
+      .panel-wrapper {
+        position: relative;
+        z-index: 1;
+        width: min(480px, 92vw);
+        perspective: 1200px;
+      }
+
+      .panel-flipper {
+        position: relative;
+        width: 100%;
+        transform-style: preserve-3d;
+      }
+      .panel-flipper.flip-out {
+        transition: transform 0.32s cubic-bezier(0.4, 0, 1, 1);
+        transform: rotateY(90deg);
+      }
+      .panel-flipper.flip-in {
+        transition: transform 0.32s cubic-bezier(0, 0, 0.2, 1);
+        transform: rotateY(0deg);
+      }
+
+      .panel {
+        width: 100%;
+        border: 1px solid rgba(0, 255, 80, 0.18);
+        background: rgba(2, 13, 6, 0.95);
+        padding: 44px 44px 36px;
+      }
+      .panel.panel-register {
+        display: none;
+      }
+
+      .panel::before {
+        content: "";
+        position: absolute;
+        top: -1px;
+        left: -1px;
+        width: 18px;
+        height: 18px;
+        border-top: 2px solid #00ff50;
+        border-left: 2px solid #00ff50;
+      }
+      .panel::after {
+        content: "";
+        position: absolute;
+        bottom: -1px;
+        right: -1px;
+        width: 18px;
+        height: 18px;
+        border-bottom: 2px solid #00ff50;
+        border-right: 2px solid #00ff50;
+      }
+
+      .sys-tag {
+        font-size: 8px;
+        letter-spacing: 0.3em;
+        color: rgba(0, 255, 80, 0.35);
+        text-transform: uppercase;
+        margin-bottom: 10px;
+      }
+
+      .panel-title {
+        font-size: 20px;
+        font-weight: 700;
+        color: #00ff50;
+        text-shadow: 0 0 18px rgba(0, 255, 80, 0.5);
+        letter-spacing: 0.1em;
+      }
+
+      .status-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 8px;
+        margin-bottom: 36px;
+      }
+      .status-dot {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: #00ff50;
+        box-shadow: 0 0 8px #00ff50;
+        animation: blink 1.4s ease-in-out infinite;
+      }
+      @keyframes blink {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.15;
+        }
+      }
+      .status-txt {
+        font-size: 8px;
+        letter-spacing: 0.22em;
+        color: rgba(0, 255, 80, 0.4);
+        text-transform: uppercase;
+      }
+
+      .field {
+        margin-bottom: 22px;
+      }
+      .field-label {
+        font-size: 8px;
+        letter-spacing: 0.3em;
+        color: rgba(0, 255, 80, 0.35);
+        text-transform: uppercase;
+        margin-bottom: 8px;
+      }
+      .field-row {
+        display: flex;
+        align-items: center;
+        border-bottom: 1px solid rgba(0, 255, 80, 0.18);
+        padding-bottom: 8px;
+        transition: border-color 0.25s;
+      }
+      .field-row:focus-within {
+        border-bottom-color: rgba(0, 255, 80, 0.6);
+      }
+      .field-prompt {
+        font-size: 12px;
+        color: rgba(0, 255, 80, 0.4);
+        margin-right: 10px;
+        user-select: none;
+        white-space: nowrap;
+      }
+      .field-input {
+        flex: 1;
+        background: none;
+        border: none;
+        outline: none;
+        color: #00ff50;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 14px;
+        caret-color: #00ff50;
+      }
+      .field-input::placeholder {
+        color: rgba(0, 255, 80, 0.18);
+      }
+
+      .action-btn {
+        width: 100%;
+        margin-top: 30px;
+        padding: 13px;
+        background: transparent;
+        border: 1px solid rgba(0, 255, 80, 0.35);
+        color: #00ff50;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 11px;
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition: all 0.25s;
+        position: relative;
+        overflow: hidden;
+      }
+      .action-btn::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(
+          to right,
+          transparent,
+          rgba(0, 255, 80, 0.08),
+          transparent
+        );
+        transition: left 0.45s;
+      }
+      .action-btn:hover::before {
+        left: 100%;
+      }
+      .action-btn:hover {
+        border-color: rgba(0, 255, 80, 0.7);
+        box-shadow:
+          0 0 20px rgba(0, 255, 80, 0.1),
+          inset 0 0 16px rgba(0, 255, 80, 0.04);
+        text-shadow: 0 0 8px rgba(0, 255, 80, 0.6);
+      }
+      .action-btn.executing {
+        animation: exec 0.6s ease;
+      }
+      @keyframes exec {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.4;
+        }
+      }
+
+      .panel-footer {
+        margin-top: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .footer-link {
+        font-size: 8px;
+        letter-spacing: 0.2em;
+        color: rgba(0, 255, 80, 0.25);
+        text-transform: uppercase;
+        cursor: pointer;
+        transition: color 0.2s;
+      }
+      .footer-link:hover {
+        color: rgba(0, 255, 80, 0.6);
+      }
+
+      .switch-link {
+        font-size: 9px;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        font-family: "JetBrains Mono", monospace;
+        color: #00ff50;
+        cursor: pointer;
+        padding: 6px 14px;
+        border: 1px solid rgba(0, 255, 80, 0.3);
+        background: rgba(0, 255, 80, 0.04);
+        position: relative;
+        overflow: hidden;
+        transition: all 0.25s;
+      }
+      .switch-link::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(
+          to right,
+          transparent,
+          rgba(0, 255, 80, 0.1),
+          transparent
+        );
+        transition: left 0.4s;
+      }
+      .switch-link:hover::before {
+        left: 100%;
+      }
+      .switch-link:hover {
+        border-color: rgba(0, 255, 80, 0.65);
+        color: #00ff50;
+        text-shadow: 0 0 8px rgba(0, 255, 80, 0.5);
+        box-shadow:
+          0 0 14px rgba(0, 255, 80, 0.08),
+          inset 0 0 12px rgba(0, 255, 80, 0.03);
+      }
+
+      .log {
+        margin-top: 28px;
+        border-top: 1px solid rgba(0, 255, 80, 0.08);
+        padding-top: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .log-line {
+        font-size: 8px;
+        letter-spacing: 0.1em;
+        color: rgba(0, 255, 80, 0.25);
+        line-height: 1.7;
+      }
+      .log-line.ok {
+        color: rgba(0, 255, 80, 0.5);
+      }
+      .log-line.warn {
+        color: rgba(255, 200, 0, 0.45);
+      }
+      .log-line.err {
+        color: rgba(255, 60, 60, 0.5);
+      }
+
+      /* Glitch flash on switch */
+      .panel-wrapper.switching .panel-flipper {
+        animation: glitchFlash 0.7s ease;
+      }
+      @keyframes glitchFlash {
+        0% {
+          filter: brightness(1);
+        }
+        15% {
+          filter: brightness(2.5) hue-rotate(20deg);
+        }
+        30% {
+          filter: brightness(0.6);
+        }
+        50% {
+          filter: brightness(1.8) hue-rotate(-10deg);
+        }
+        100% {
+          filter: brightness(1);
+        }
+      }
+
+      .strength-bar-container {
+        margin-top: 6px;
+        height: 2px;
+        background: rgba(0, 255, 80, 0.08);
+        overflow: hidden;
+      }
+      .strength-bar {
+        height: 100%;
+        width: 0%;
+        transition:
+          width 0.3s,
+          background 0.3s;
+        background: rgba(255, 60, 60, 0.6);
+      }
+      .strength-bar.weak {
+        width: 33%;
+        background: rgba(255, 60, 60, 0.6);
+      }
+      .strength-bar.medium {
+        width: 66%;
+        background: rgba(255, 200, 0, 0.6);
+      }
+      .strength-bar.strong {
+        width: 100%;
+        background: rgba(0, 255, 80, 0.6);
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="matrixCanvas"></canvas>
+    <div class="scan-line"></div>
+
+    <div class="panel-wrapper">
+      <div class="panel-flipper" id="panelFlipper">
+        <!-- ═══════════ 登录面板 ═══════════ -->
+        <div class="panel panel-login">
+          <div class="sys-tag">系统/认证 v2.1.4 · 安全通道 · AES-256</div>
+          <div class="panel-title">身份认证</div>
+          <div class="status-row">
+            <div class="status-dot"></div>
+            <div class="status-txt">系统在线 · 已加密 · 等待输入</div>
+          </div>
+
+          <div class="field">
+            <div class="field-label">用户名</div>
+            <div class="field-row">
+              <span class="field-prompt">root@sys:~$</span>
+              <input
+                class="field-input"
+                id="loginUser"
+                type="text"
+                placeholder="请输入用户名"
+                autocomplete="off"
+              />
+            </div>
+          </div>
+
+          <div class="field">
+            <div class="field-label">密码</div>
+            <div class="field-row">
+              <span class="field-prompt">passwd: &nbsp;</span>
+              <input
+                class="field-input"
+                id="loginPass"
+                type="password"
+                placeholder="••••••••"
+              />
+            </div>
+          </div>
+
+          <button class="action-btn" id="loginBtn">[ 执行认证 ]</button>
+
+          <div class="panel-footer">
+            <span class="footer-link">找回密码</span>
+            <span class="switch-link" id="toRegister">&gt; 注册账号</span>
+          </div>
+
+          <div class="log" id="loginLog">
+            <div class="log-line ok">[完成] TLS 1.3 连接已建立</div>
+            <div class="log-line">[信息] RSA-4096 验证就绪</div>
+            <div class="log-line warn" id="loginLogStatus">
+              [等待] 等待输入凭证...
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══════════ 注册面板 ═══════════ -->
+        <div class="panel panel-register">
+          <div class="sys-tag">系统/注册 v2.1.4 · 安全通道 · AES-256</div>
+          <div class="panel-title">注册新账号</div>
+          <div class="status-row">
+            <div class="status-dot"></div>
+            <div class="status-txt">系统在线 · 已加密 · 注册模式</div>
+          </div>
+
+          <div class="field">
+            <div class="field-label">用户名</div>
+            <div class="field-row">
+              <span class="field-prompt">new@sys:~$</span>
+              <input
+                class="field-input"
+                id="regUser"
+                type="text"
+                placeholder="请设置用户名"
+                autocomplete="off"
+              />
+            </div>
+          </div>
+
+          <div class="field">
+            <div class="field-label">邮箱</div>
+            <div class="field-row">
+              <span class="field-prompt">mail:&nbsp;&nbsp;&nbsp;</span>
+              <input
+                class="field-input"
+                id="regEmail"
+                type="email"
+                placeholder="user@example.com"
+                autocomplete="off"
+              />
+            </div>
+          </div>
+
+          <div class="field">
+            <div class="field-label">密码</div>
+            <div class="field-row">
+              <span class="field-prompt">passwd: &nbsp;</span>
+              <input
+                class="field-input"
+                id="regPass"
+                type="password"
+                placeholder="••••••••"
+              />
+            </div>
+            <div class="strength-bar-container">
+              <div class="strength-bar" id="strengthBar"></div>
+            </div>
+          </div>
+
+          <div class="field">
+            <div class="field-label">确认密码</div>
+            <div class="field-row">
+              <span class="field-prompt">verify: &nbsp;</span>
+              <input
+                class="field-input"
+                id="regPassConfirm"
+                type="password"
+                placeholder="••••••••"
+              />
+            </div>
+          </div>
+
+          <button class="action-btn" id="registerBtn">[ 执行注册 ]</button>
+
+          <div class="panel-footer">
+            <span class="switch-link" id="toLogin">&lt; 返回登录</span>
+            <span class="footer-link">系统信息</span>
+          </div>
+
+          <div class="log" id="regLog">
+            <div class="log-line ok">[完成] 安全通道已建立</div>
+            <div class="log-line">[信息] 注册模块已加载</div>
+            <div class="log-line warn" id="regLogStatus">
+              [等待] 等待输入注册信息...
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("matrixCanvas");
+      const ctx = canvas.getContext("2d");
+      const chars = "アイウエオカキクケコサシスセソ0123456789ABCDEF";
+      let drops = [];
+
+      function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const cols = Math.floor(canvas.width / 18);
+        drops = Array.from({ length: cols }, () => Math.random() * -60);
+      }
+      resize();
+      window.addEventListener("resize", resize);
+
+      (function drawMatrix() {
+        ctx.fillStyle = "rgba(2,13,6,0.07)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#00c840";
+        ctx.font = "11px JetBrains Mono, monospace";
+        drops.forEach((y, i) => {
+          ctx.globalAlpha = Math.random() * 0.4 + 0.1;
+          ctx.fillText(
+            chars[Math.floor(Math.random() * chars.length)],
+            i * 18,
+            y * 18,
+          );
+          ctx.globalAlpha = 1;
+          if (y * 18 > canvas.height && Math.random() > 0.975) drops[i] = 0;
+          drops[i] += 0.4;
+        });
+        requestAnimationFrame(drawMatrix);
+      })();
+
+      const flipper = document.getElementById("panelFlipper");
+      const wrapper = document.querySelector(".panel-wrapper");
+      const loginPanel = document.querySelector(".panel-login");
+      const regPanel = document.querySelector(".panel-register");
+      const toReg = document.getElementById("toRegister");
+      const toLog = document.getElementById("toLogin");
+      let switching = false;
+
+      function switchPanel(showRegister) {
+        if (switching) return;
+        switching = true;
+
+        wrapper.classList.add("switching");
+
+        flipper.classList.remove("flip-in");
+        flipper.classList.add("flip-out");
+
+        function onHalf() {
+          flipper.removeEventListener("transitionend", onHalf);
+
+          if (showRegister) {
+            loginPanel.style.display = "none";
+            regPanel.style.display = "block";
+          } else {
+            regPanel.style.display = "none";
+            loginPanel.style.display = "block";
+          }
+
+          flipper.classList.remove("flip-out");
+          flipper.style.transition = "none";
+          flipper.style.transform = "rotateY(-90deg)";
+
+          void flipper.offsetHeight;
+
+          flipper.style.transition = "";
+          flipper.style.transform = "";
+          flipper.classList.add("flip-in");
+
+          function onDone() {
+            flipper.removeEventListener("transitionend", onDone);
+            flipper.classList.remove("flip-in");
+            wrapper.classList.remove("switching");
+            switching = false;
+          }
+          flipper.addEventListener("transitionend", onDone, { once: true });
+        }
+
+        flipper.addEventListener("transitionend", onHalf, { once: true });
+      }
+
+      toReg.addEventListener("click", () => switchPanel(true));
+      toLog.addEventListener("click", () => switchPanel(false));
+
+      const loginBtn = document.getElementById("loginBtn");
+      const loginStatus = document.getElementById("loginLogStatus");
+      const loginSteps = [
+        ["[等待] 等待输入凭证...", "warn"],
+        ["[认证] 正在发送凭证...", ""],
+        ["[认证] 正在验证哈希...", ""],
+        ["[认证] 正在检查权限...", ""],
+        ["[完成] 认证成功 ✓", "ok"],
+      ];
+      let loginStep = 0;
+
+      loginBtn.addEventListener("click", () => {
+        loginBtn.classList.add("executing");
+        loginBtn.disabled = true;
+        setTimeout(() => {
+          loginBtn.classList.remove("executing");
+          loginBtn.disabled = false;
+        }, 600);
+
+        loginStep = (loginStep + 1) % loginSteps.length;
+        const [msg, cls] = loginSteps[loginStep];
+        loginStatus.innerHTML = msg;
+        loginStatus.className = "log-line" + (cls ? " " + cls : "");
+      });
+
+      const registerBtn = document.getElementById("registerBtn");
+      const regStatus = document.getElementById("regLogStatus");
+      const regSteps = [
+        ["[等待] 等待输入注册信息...", "warn"],
+        ["[注册] 正在验证用户名...", ""],
+        ["[注册] 正在生成密钥对...", ""],
+        ["[注册] 正在写入注册表...", ""],
+        ["[完成] 注册成功 ✓", "ok"],
+      ];
+      let regStep = 0;
+
+      registerBtn.addEventListener("click", () => {
+        const pass = document.getElementById("regPass").value;
+        const confirm = document.getElementById("regPassConfirm").value;
+
+        if (pass && confirm && pass !== confirm) {
+          regStatus.innerHTML = "[错误] 两次密码不一致 — 请重新输入";
+          regStatus.className = "log-line err";
+          return;
+        }
+
+        registerBtn.classList.add("executing");
+        registerBtn.disabled = true;
+        setTimeout(() => {
+          registerBtn.classList.remove("executing");
+          registerBtn.disabled = false;
+        }, 600);
+
+        regStep = (regStep + 1) % regSteps.length;
+        const [msg, cls] = regSteps[regStep];
+        regStatus.innerHTML = msg;
+        regStatus.className = "log-line" + (cls ? " " + cls : "");
+      });
+
+      const regPassInput = document.getElementById("regPass");
+      const strengthBar = document.getElementById("strengthBar");
+
+      regPassInput.addEventListener("input", () => {
+        const val = regPassInput.value;
+        let score = 0;
+        if (val.length >= 6) score++;
+        if (val.length >= 10) score++;
+        if (/[A-Z]/.test(val) && /[a-z]/.test(val)) score++;
+        if (/\d/.test(val)) score++;
+        if (/[^A-Za-z0-9]/.test(val)) score++;
+
+        strengthBar.className = "strength-bar";
+        if (val.length === 0) return;
+        if (score <= 2) strengthBar.classList.add("weak");
+        else if (score <= 3) strengthBar.classList.add("medium");
+        else strengthBar.classList.add("strong");
+      });
+    </script>
+  </body>
+</html>
