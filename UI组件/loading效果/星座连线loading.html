@@ -26,10 +26,11 @@
 
         .loading-info {
             position: fixed;
-            bottom: 12%;
+            bottom: 10%;
             left: 50%;
             transform: translateX(-50%);
             text-align: center;
+            pointer-events: none;
         }
 
         .constellation-name-cn {
@@ -37,9 +38,9 @@
             font-size: 28px;
             color: rgba(200, 230, 255, 0.85);
             letter-spacing: 12px;
-            margin-bottom: 6px;
-            animation: fadeInOut 4s ease-in-out infinite;
+            margin-bottom: 4px;
             text-shadow: 0 0 20px rgba(100, 180, 255, 0.4), 0 0 40px rgba(100, 180, 255, 0.15);
+            transition: opacity 0.5s;
         }
 
         .constellation-name {
@@ -47,14 +48,44 @@
             font-size: 14px;
             color: rgba(255, 255, 255, 0.45);
             letter-spacing: 6px;
+            margin-bottom: 6px;
+            transition: opacity 0.5s;
+        }
+
+        .constellation-desc {
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.28);
+            letter-spacing: 3px;
             margin-bottom: 14px;
-            animation: fadeInOut 4s ease-in-out infinite;
+            min-height: 18px;
+            transition: opacity 0.5s;
+        }
+
+        .loading-row {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .loading-text {
+            font-family: 'Georgia', serif;
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.35);
+            letter-spacing: 4px;
+            animation: fadeInOut 2.5s ease-in-out infinite;
+        }
+
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0.25; }
+            50% { opacity: 0.6; }
         }
 
         .loading-dots {
             display: flex;
-            justify-content: center;
-            gap: 8px;
+            align-items: center;
+            gap: 5px;
         }
 
         .loading-dots span {
@@ -68,6 +99,7 @@
         .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
         .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
 
+
         @keyframes dotBounce {
             0%, 80%, 100% {
                 transform: scale(0.6);
@@ -78,11 +110,6 @@
                 opacity: 1;
             }
         }
-
-        @keyframes fadeInOut {
-            0%, 100% { opacity: 0.3; }
-            50% { opacity: 0.9; }
-        }
     </style>
 </head>
 <body>
@@ -90,10 +117,14 @@
     <div class="loading-info">
         <div class="constellation-name-cn" id="constellationNameCN">猎户座</div>
         <div class="constellation-name" id="constellationName">ORION</div>
-        <div class="loading-dots">
-            <span></span>
-            <span></span>
-            <span></span>
+        <div class="constellation-desc" id="constellationDesc">冬季之王 · 腰带三星最易辨认</div>
+        <div class="loading-row">
+            <div class="loading-text">Loading</div>
+            <div class="loading-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
         </div>
     </div>
 
@@ -105,365 +136,594 @@
         const bgStars = [];
 
         function resizeCanvas() {
-            const oldW = W || window.innerWidth;
-            const oldH = H || window.innerHeight;
             W = canvas.width = window.innerWidth;
             H = canvas.height = window.innerHeight;
             cx = W / 2;
             cy = H / 2;
-
-            // 重新分布背景星星坐标，按比例缩放
-            if (bgStars && bgStars.length > 0) {
-                bgStars.forEach(star => {
-                    star.x = (star.x / oldW) * W;
-                    star.y = (star.y / oldH) * H;
-                });
-            }
         }
 
-        // 初始化尺寸
         resizeCanvas();
 
-        // 防抖处理 resize 事件
         let resizeTimer = null;
         window.addEventListener('resize', () => {
-            // 立即更新画布尺寸，避免闪烁
             resizeCanvas();
-            // 防抖处理重新生成背景星星（补充边缘区域）
             clearTimeout(resizeTimer);
-            resizeTimer = setTimeout(() => {
-                regenerateBgStars();
-            }, 200);
+            resizeTimer = setTimeout(() => { regenerateBgStars(); }, 200);
         });
 
-        // 星座数据 (归一化坐标 0~1)
+        /* ============================================================
+         *  星座数据 — 坐标严格来自图谱 SVG
+         *  每个 SVG viewBox 归一化到 0~1
+         * ============================================================ */
         const constellations = [
+            // ——— 1. 猎户座 Orion (SVG 320×360, H>W, 统一除以360, offset_x=0.0556) ———
             {
-                name: 'ORION',
-                nameCN: '猎户座',
+                name: 'ORION', nameCN: '猎户座',
+                desc: '冬季之王 · 腰带三星最易辨认',
+                season: '冬', themeColor: [100, 180, 255],
                 stars: [
-                    { x: 0.40, y: 0.15 }, // 参宿四
-                    { x: 0.60, y: 0.18 }, // 参宿五
-                    { x: 0.45, y: 0.40 }, // 腰带左
-                    { x: 0.50, y: 0.42 }, // 腰带中
-                    { x: 0.55, y: 0.44 }, // 腰带右
-                    { x: 0.38, y: 0.70 }, // 参宿七
-                    { x: 0.62, y: 0.75 }, // 参宿六
-                    { x: 0.48, y: 0.55 }, // 剑
+                    { x: 0.3333, y: 0.1333, mag: 0.5,  color: '#ff9944', label: '参宿四' },  // 0 Betelgeuse
+                    { x: 0.6667, y: 0.1806, mag: 2.0,  color: '#ffffff' },                   // 1 参宿五
+                    { x: 0.2500, y: 0.3750, mag: 2.1,  color: '#ffffff' },                   // 2 左腰(σ Ori附近)
+                    { x: 0.7778, y: 0.3611, mag: 2.2,  color: '#ccd8ff' },                   // 3 右腰(Mintaka侧)
+                    { x: 0.3889, y: 0.4944, mag: 2.2,  color: '#ccd8ff' },                   // 4 参宿一 belt
+                    { x: 0.5000, y: 0.4944, mag: 2.2,  color: '#ccd8ff' },                   // 5 参宿二 belt
+                    { x: 0.6111, y: 0.4861, mag: 2.2,  color: '#ccd8ff' },                   // 6 参宿三 belt
+                    { x: 0.2917, y: 0.8056, mag: 2.1,  color: '#ffffff' },                   // 7 参宿六 Saiph(κ Ori)
+                    { x: 0.7083, y: 0.8194, mag: 0.18, color: '#b8d4ff', label: '参宿七' },  // 8 Rigel
                 ],
-                links: [[0,2],[1,4],[2,3],[3,4],[2,5],[4,6],[3,7]],
-                brightStars: [0, 1, 5, 6]
+                links: [[0,1],[0,2],[1,3],[2,4],[4,5],[5,6],[3,6],[4,7],[6,8]],
+                // M42 星云位置
+                nebula: { x: 0.4944, y: 0.6667, rx: 0.04, ry: 0.03, color: 'rgba(255,130,130,0.12)' }
             },
+            // ——— 2. 大熊座 / 北斗七星 (参考真实天文坐标重排) ———
             {
-                name: 'CASSIOPEIA',
-                nameCN: '仙后座',
+                name: 'URSA MAJOR', nameCN: '大熊座',
+                desc: '北斗七星 · 全年可见的导航星座',
+                season: '全年', themeColor: [140, 190, 255],
                 stars: [
-                    { x: 0.25, y: 0.40 },
-                    { x: 0.38, y: 0.25 },
-                    { x: 0.50, y: 0.45 },
-                    { x: 0.62, y: 0.30 },
-                    { x: 0.75, y: 0.42 },
+                    { x: 0.1500, y: 0.4300, mag: 2.4, color: '#ffffff', label: '天璇' },   // 0 β Merak (斗前下)
+                    { x: 0.2000, y: 0.2800, mag: 1.8, color: '#ffffff', label: '天枢' },   // 1 α Dubhe (斗前上)
+                    { x: 0.4200, y: 0.4800, mag: 2.4, color: '#ffffff' },                  // 2 γ Phecda 天玑 (斗后下)
+                    { x: 0.4000, y: 0.3300, mag: 2.4, color: '#ffffff' },                  // 3 δ Megrez 天权 (斗后上→柄)
+                    { x: 0.5800, y: 0.3800, mag: 1.8, color: '#ffffff', label: '玉衡' },   // 4 ε Alioth
+                    { x: 0.7400, y: 0.3200, mag: 2.2, color: '#ffffff', label: '开阳' },   // 5 ζ Mizar
+                    { x: 0.8700, y: 0.2500, mag: 1.9, color: '#ffffff', label: '摇光' },   // 6 η Alkaid
                 ],
-                links: [[0,1],[1,2],[2,3],[3,4]],
-                brightStars: [0, 2, 4]
+                links: [[0,1],[1,3],[3,2],[2,0],[3,4],[4,5],[5,6]],
+                // 指向北极星的虚线引导：从天璇经天枢延长5倍即北极星方向
+                pointer: { fromA: 0, fromB: 1, label: '→ 北极星' }
             },
+            // ——— 3. 仙后座 Cassiopeia (SVG 320×220, 统一除以320, offset_y=0.1563) ———
             {
-                name: 'URSA MAJOR',
-                nameCN: '大熊座',
+                name: 'CASSIOPEIA', nameCN: '仙后座',
+                desc: 'W 形标志 · 北天拱极星座',
+                season: '全年', themeColor: [180, 200, 255],
                 stars: [
-                    { x: 0.30, y: 0.30 },
-                    { x: 0.38, y: 0.28 },
-                    { x: 0.45, y: 0.35 },
-                    { x: 0.42, y: 0.50 },
-                    { x: 0.55, y: 0.52 },
-                    { x: 0.62, y: 0.48 },
-                    { x: 0.68, y: 0.55 },
+                    { x: 0.1250, y: 0.4063, mag: 2.3, color: '#ffffff', label: '策' },       // 0 Caph
+                    { x: 0.3125, y: 0.5938, mag: 2.2, color: '#fff0dd', label: '王良一' },   // 1 Schedar
+                    { x: 0.5000, y: 0.3594, mag: 2.5, color: '#ccd8ff' },                    // 2 γ
+                    { x: 0.6875, y: 0.6094, mag: 2.7, color: '#ffffff' },                    // 3 Ruchbah
+                    { x: 0.8906, y: 0.3906, mag: 3.3, color: '#ffffff', label: '阁道二' },   // 4 Segin
                 ],
-                links: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[2,4]],
-                brightStars: [0, 1, 5, 6]
+                links: [[0,1],[1,2],[2,3],[3,4]]
             },
+            // ——— 4. 天蝎座 Scorpius (SVG 320×320, 正方形无需修正) ———
             {
-                name: 'SCORPIUS',
-                nameCN: '天蝎座',
+                name: 'SCORPIUS', nameCN: '天蝎座',
+                desc: '夏季之王 · S 形蝎尾极壮观',
+                season: '夏', themeColor: [255, 120, 80],
                 stars: [
-                    { x: 0.50, y: 0.15 },
-                    { x: 0.48, y: 0.28 },
-                    { x: 0.46, y: 0.38 },
-                    { x: 0.42, y: 0.48 },
-                    { x: 0.38, y: 0.55 },
-                    { x: 0.35, y: 0.65 },
-                    { x: 0.40, y: 0.73 },
-                    { x: 0.48, y: 0.78 },
-                    { x: 0.55, y: 0.75 },
+                    { x: 0.1563, y: 0.1563, mag: 2.9, color: '#ccd8ff' },                    // 0 房宿
+                    { x: 0.2656, y: 0.2031, mag: 2.6, color: '#ccd8ff' },                    // 1
+                    { x: 0.3438, y: 0.1406, mag: 2.9, color: '#ccd8ff' },                    // 2
+                    { x: 0.3125, y: 0.2969, mag: 0.96, color: '#ff6644', label: '心宿二' },  // 3 Antares
+                    { x: 0.3594, y: 0.4063, mag: 2.8, color: '#aabbcc' },                    // 4
+                    { x: 0.3750, y: 0.5156, mag: 2.7, color: '#aabbcc' },                    // 5
+                    { x: 0.4375, y: 0.6094, mag: 2.4, color: '#ccd8ff' },                    // 6
+                    { x: 0.5313, y: 0.6719, mag: 2.7, color: '#aabbcc' },                    // 7
+                    { x: 0.6563, y: 0.7031, mag: 2.4, color: '#ccd8ff' },                    // 8
+                    { x: 0.7656, y: 0.7656, mag: 2.7, color: '#aabbcc' },                    // 9
+                    { x: 0.8125, y: 0.8594, mag: 2.7, color: '#aabbcc' },                    // 10
+                    { x: 0.7813, y: 0.9375, mag: 2.7, color: '#aabbcc' },                    // 11
+                    { x: 0.8438, y: 0.9063, mag: 1.6, color: '#ccd8ff', label: '尾宿' },    // 12 毒钩
                 ],
-                links: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,8]],
-                brightStars: [0, 2, 7, 8]
-            }
+                links: [[0,1],[1,2],[1,3],[3,4],[4,5],[5,6],[6,7],[7,8],[8,9],[9,10],[10,11],[11,12]]
+            },
+            // ——— 5. 天鹅座 Cygnus / 北十字 (SVG 320×300, 统一除以320, offset_y=0.0313) ———
+            {
+                name: 'CYGNUS', nameCN: '天鹅座',
+                desc: '北十字 · 夏季大三角成员',
+                season: '夏', themeColor: [130, 200, 255],
+                stars: [
+                    { x: 0.5000, y: 0.1250, mag: 1.25, color: '#ffd700', label: '天津四' },  // 0 Deneb
+                    { x: 0.5000, y: 0.3438, mag: 2.5,  color: '#ccd8ff' },                   // 1
+                    { x: 0.5000, y: 0.5938, mag: 2.2,  color: '#ffffff' },                   // 2 γ十字中心
+                    { x: 0.5000, y: 0.8438, mag: 3.0,  color: '#aabbcc' },                   // 3 头(辇道增七)
+                    { x: 0.1875, y: 0.4531, mag: 2.5,  color: '#ccd8ff' },                   // 4 左翅
+                    { x: 0.8438, y: 0.4375, mag: 2.5,  color: '#ccd8ff' },                   // 5 右翅
+                ],
+                links: [[0,1],[1,2],[2,3],[4,2],[2,5]]
+            },
+            // ——— 6. 狮子座 Leo (SVG 320×260, 统一除以320, offset_y=0.0938) ———
+            {
+                name: 'LEO', nameCN: '狮子座',
+                desc: '春季代表 · 反问号形镰刀',
+                season: '春', themeColor: [255, 215, 130],
+                stars: [
+                    { x: 0.2188, y: 0.7031, mag: 1.35, color: '#b8d4ff', label: '轩辕十四' }, // 0 Regulus
+                    { x: 0.2656, y: 0.5313, mag: 2.9,  color: '#aabbcc' },                    // 1
+                    { x: 0.3438, y: 0.3906, mag: 2.6,  color: '#ccd8ff' },                    // 2
+                    { x: 0.4063, y: 0.2813, mag: 3.0,  color: '#aabbcc' },                    // 3
+                    { x: 0.4844, y: 0.2656, mag: 3.4,  color: '#aabbcc' },                    // 4
+                    { x: 0.5156, y: 0.3438, mag: 2.6,  color: '#ccd8ff' },                    // 5
+                    { x: 0.4844, y: 0.4531, mag: 2.6,  color: '#ccd8ff' },                    // 6
+                    { x: 0.6875, y: 0.4688, mag: 2.1,  color: '#ffffff', label: '五帝座一' }, // 7 Denebola
+                    { x: 0.8594, y: 0.4063, mag: 2.6,  color: '#ccd8ff' },                    // 8
+                    { x: 0.8438, y: 0.5469, mag: 3.3,  color: '#aabbcc' },                    // 9
+                ],
+                links: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,8],[8,9],[9,7]]
+            },
+            // ——— 7. 金牛座 Taurus (SVG 280×180, 统一除以280, offset_y=0.1786) ———
+            {
+                name: 'TAURUS', nameCN: '金牛座',
+                desc: '冬季 · V 形牛脸 · 昴星团',
+                season: '冬', themeColor: [255, 180, 100],
+                stars: [
+                    { x: 0.4643, y: 0.5000, mag: 0.85, color: '#ff9944', label: '毕宿五' }, // 0 Aldebaran
+                    { x: 0.3571, y: 0.3571, mag: 2.9,  color: '#aabbcc' },                  // 1 horn
+                    { x: 0.6071, y: 0.3750, mag: 2.9,  color: '#aabbcc' },                  // 2 horn
+                    { x: 0.6071, y: 0.5357, mag: 3.0,  color: '#aabbcc' },                  // 3
+                    { x: 0.7500, y: 0.5536, mag: 3.4,  color: '#aabbcc' },                  // 4
+                    { x: 0.2500, y: 0.2857, mag: 2.8,  color: '#ccd8ff' },                  // 5 角尖左
+                    { x: 0.6964, y: 0.2679, mag: 2.8,  color: '#ccd8ff' },                  // 6 角尖右
+                ],
+                links: [[0,1],[0,2],[0,3],[3,4],[1,5],[2,6]],
+                // 昴星团 M45
+                cluster: { x: 0.8643, y: 0.4286, r: 0.05, count: 8, label: '昴星团' }
+            },
+            // ——— 8. 双子座 Gemini (SVG 280×200, 统一除以280, offset_y=0.1429) ———
+            {
+                name: 'GEMINI', nameCN: '双子座',
+                desc: '冬季 · 北河二北河三并肩',
+                season: '冬', themeColor: [200, 220, 255],
+                stars: [
+                    { x: 0.3036, y: 0.2429, mag: 1.9,  color: '#ffffff', label: '北河二' }, // 0 Castor
+                    { x: 0.5179, y: 0.2429, mag: 1.14, color: '#ffd700', label: '北河三' }, // 1 Pollux
+                    { x: 0.3214, y: 0.3929, mag: 2.9,  color: '#aabbcc' },                  // 2
+                    { x: 0.5000, y: 0.3857, mag: 2.9,  color: '#aabbcc' },                  // 3
+                    { x: 0.2857, y: 0.5536, mag: 3.0,  color: '#aabbcc' },                  // 4
+                    { x: 0.5536, y: 0.5536, mag: 3.0,  color: '#aabbcc' },                  // 5
+                    { x: 0.2321, y: 0.7321, mag: 3.5,  color: '#889999' },                  // 6
+                    { x: 0.6071, y: 0.7500, mag: 3.5,  color: '#889999' },                  // 7
+                ],
+                links: [[0,2],[2,4],[4,6],[1,3],[3,5],[5,7],[2,3],[4,5]]
+            },
+            // ——— 9. 室女座 Virgo (SVG 280×210, 统一除以280, offset_y=0.1250) ———
+            {
+                name: 'VIRGO', nameCN: '室女座',
+                desc: '春季 · 第二大星座 · 星系团方向',
+                season: '春', themeColor: [180, 200, 255],
+                stars: [
+                    { x: 0.4643, y: 0.2143, mag: 3.4, color: '#aabbcc' },                    // 0
+                    { x: 0.4643, y: 0.3750, mag: 2.7, color: '#ccd8ff' },                    // 1
+                    { x: 0.3214, y: 0.5179, mag: 2.8, color: '#ccd8ff' },                    // 2
+                    { x: 0.6071, y: 0.5357, mag: 3.0, color: '#aabbcc' },                    // 3
+                    { x: 0.2143, y: 0.7321, mag: 0.97, color: '#b8d4ff', label: '角宿一' }, // 4 Spica
+                    { x: 0.7143, y: 0.7321, mag: 3.4, color: '#aabbcc' },                    // 5
+                    { x: 0.8214, y: 0.5000, mag: 3.4, color: '#aabbcc' },                    // 6
+                ],
+                links: [[0,1],[1,2],[1,3],[2,4],[3,5],[3,6]]
+            },
+            // ——— 10. 天琴座 Lyra（手动创建，无需修正）———
+            {
+                name: 'LYRA', nameCN: '天琴座',
+                desc: '夏季大三角 · 织女星璀璨夺目',
+                season: '夏', themeColor: [200, 230, 255],
+                stars: [
+                    { x: 0.5000, y: 0.1200, mag: 0.03, color: '#fffff0', label: '织女星' }, // 0 Vega
+                    { x: 0.3500, y: 0.4200, mag: 3.3,  color: '#aabbcc' },                  // 1
+                    { x: 0.6200, y: 0.3800, mag: 3.5,  color: '#aabbcc' },                  // 2
+                    { x: 0.3200, y: 0.7200, mag: 3.2,  color: '#aabbcc' },                  // 3
+                    { x: 0.6500, y: 0.6800, mag: 3.4,  color: '#aabbcc' },                  // 4
+                ],
+                links: [[0,1],[0,2],[1,2],[1,3],[2,4],[3,4]],
+                // M57 环状星云
+                nebula: { x: 0.485, y: 0.55, rx: 0.02, ry: 0.02, color: 'rgba(130,180,255,0.10)' }
+            },
+            // ——— 11. 人马座 Sagittarius / 茶壶 (SVG 280×200, 统一除以280, offset_y=0.1429) ———
+            {
+                name: 'SAGITTARIUS', nameCN: '人马座',
+                desc: '夏季 · 茶壶星群 · 银河系中心',
+                season: '夏', themeColor: [255, 200, 130],
+                stars: [
+                    { x: 0.3571, y: 0.3750, mag: 2.8, color: '#aabbcc' },                    // 0 壶盖左
+                    { x: 0.5714, y: 0.3214, mag: 2.6, color: '#ccd8ff' },                    // 1 壶盖右
+                    { x: 0.2857, y: 0.5357, mag: 2.7, color: '#aabbcc' },                    // 2 左壁
+                    { x: 0.4286, y: 0.6429, mag: 1.8, color: '#ffffff', label: '箕宿三' },   // 3 底左
+                    { x: 0.6607, y: 0.6250, mag: 2.6, color: '#ccd8ff' },                    // 4 底右
+                    { x: 0.7143, y: 0.4821, mag: 2.6, color: '#ccd8ff' },                    // 5 右壁
+                    { x: 0.1786, y: 0.4286, mag: 3.0, color: '#aabbcc' },                    // 6 壶嘴
+                    { x: 0.8214, y: 0.4286, mag: 3.0, color: '#aabbcc' },                    // 7 壶柄上
+                    { x: 0.8036, y: 0.5714, mag: 3.0, color: '#aabbcc' },                    // 8 壶柄下
+                ],
+                links: [[0,1],[0,2],[2,3],[3,4],[4,5],[5,1],[2,6],[5,7],[7,8],[8,4]]
+            },
+            // ——— 12. 南十字座 Crux (SVG 320×260, 统一除以320, offset_y=0.0938) ———
+            {
+                name: 'CRUX', nameCN: '南十字座',
+                desc: '面积最小 · 南半球标志星座',
+                season: '南天', themeColor: [160, 210, 255],
+                stars: [
+                    { x: 0.5000, y: 0.1875, mag: 2.8,  color: '#ccd8ff' },                    // 0 十字架一(顶)
+                    { x: 0.5000, y: 0.7188, mag: 0.76, color: '#b8d4ff', label: '十字架二' }, // 1 Acrux(底)
+                    { x: 0.2813, y: 0.4531, mag: 2.8,  color: '#ccd8ff' },                    // 2 十字架四(左)
+                    { x: 0.7344, y: 0.4375, mag: 1.25, color: '#ffffff', label: '十字架三' }, // 3 Mimosa(右)
+                    { x: 0.5469, y: 0.4688, mag: 3.6,  color: '#889999' },                    // 4 ε
+                ],
+                links: [[0,1],[2,3]],
+                // 煤袋暗星云
+                darkNebula: { x: 0.41, y: 0.549, rx: 0.08, ry: 0.07 }
+            },
         ];
 
-        // 背景星空
-        const BG_STAR_DENSITY = 200; // 基于初始分辨率的数量基准
+        // ============================================================
+        //  背景星空
+        // ============================================================
+        const BG_STAR_COUNT = 300;
 
         function createBgStar() {
+            // 少量彩色星
+            const colorRoll = Math.random();
+            let r = 255, g = 255, b = 255;
+            if (colorRoll < 0.08) { r = 180; g = 200; b = 255; }       // 偏蓝
+            else if (colorRoll < 0.14) { r = 255; g = 230; b = 180; }  // 偏黄
+            else if (colorRoll < 0.17) { r = 255; g = 200; b = 180; }  // 偏橙
             return {
                 x: Math.random() * W,
                 y: Math.random() * H,
-                // 保存归一化坐标，方便 resize 时重算
-                nx: 0,
-                ny: 0,
-                size: Math.random() * 1.5 + 0.5,
-                alpha: Math.random() * 0.5 + 0.2,
-                twinkleSpeed: Math.random() * 0.02 + 0.005,
+                size: Math.random() * 1.4 + 0.4,
+                alpha: Math.random() * 0.5 + 0.15,
+                twinkleSpeed: Math.random() * 0.025 + 0.005,
                 twinklePhase: Math.random() * Math.PI * 2,
+                r, g, b
             };
         }
 
         function initBgStars() {
             bgStars.length = 0;
-            for (let i = 0; i < BG_STAR_DENSITY; i++) {
-                const star = createBgStar();
-                star.nx = star.x / W;
-                star.ny = star.y / H;
-                bgStars.push(star);
-            }
+            for (let i = 0; i < BG_STAR_COUNT; i++) bgStars.push(createBgStar());
         }
-
-        function regenerateBgStars() {
-            bgStars.length = 0;
-            for (let i = 0; i < BG_STAR_DENSITY; i++) {
-                const star = createBgStar();
-                star.nx = star.x / W;
-                star.ny = star.y / H;
-                bgStars.push(star);
-            }
-        }
-
+        function regenerateBgStars() { initBgStars(); }
         initBgStars();
 
-        // 状态管理
+
+        // ============================================================
+        //  状态管理
+        // ============================================================
         let currentIndex = 0;
-        let phase = 'drawing'; // drawing | holding | fading
+        let phase = 'drawing'; // drawing | labeling | holding | fading
         let drawProgress = 0;
         let holdTimer = 0;
         let fadeAlpha = 1;
-        let starParticles = []; // 星光粒子
+        let labelAlpha = 0;    // 星名标注透明度
 
-        const nameEl = document.getElementById('constellationName');
+        const nameEl   = document.getElementById('constellationName');
         const nameCNEl = document.getElementById('constellationNameCN');
+        const descEl   = document.getElementById('constellationDesc');
 
-        function getCurrentConstellation() {
-            return constellations[currentIndex % constellations.length];
-        }
+        function getCurrent() { return constellations[currentIndex % constellations.length]; }
 
-        // 将归一化坐标转为画布坐标（居中显示，适配尺寸）
+        // ============================================================
+        //  坐标转换：归一化 → 画布（居中，保持长宽比）
+        // ============================================================
         function toCanvas(star) {
-            const scale = Math.min(W, H) * 0.5;
-            const offsetX = (W - scale) / 2;
-            const offsetY = (H - scale) / 2;
-            return {
-                x: offsetX + star.x * scale,
-                y: offsetY + star.y * scale,
-            };
+            const scale = Math.min(W, H) * 0.48;
+            const ox = (W - scale) / 2;
+            const oy = (H - scale) / 2;
+            return { x: ox + star.x * scale, y: oy + star.y * scale };
         }
 
-        // 绘制背景星空
-        function drawBackground(time) {
+        // ============================================================
+        //  绘制背景
+        // ============================================================
+        function drawBackground(t) {
             ctx.fillStyle = '#070b1a';
             ctx.fillRect(0, 0, W, H);
-
-            bgStars.forEach(star => {
-                const twinkle = Math.sin(time * star.twinkleSpeed + star.twinklePhase);
-                const alpha = star.alpha * (0.5 + twinkle * 0.5);
+            bgStars.forEach(s => {
+                const tw = Math.sin(t * s.twinkleSpeed + s.twinklePhase);
+                const a = s.alpha * (0.5 + tw * 0.5);
                 ctx.beginPath();
-                ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
-                ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(${s.r},${s.g},${s.b},${a})`;
                 ctx.fill();
             });
         }
 
-        // 绘制星座
-        function drawConstellation(time, constellation, progress, alpha) {
-            const totalSegments = constellation.links.length;
+        // ============================================================
+        //  绘制星座
+        // ============================================================
+        function drawConstellation(t, c, progress, alpha, showLabels) {
+            const totalSeg = c.links.length;
             const starsDrawn = new Set();
+            const tc = c.themeColor || [100, 180, 255];
 
-            // 绘制连线
-            constellation.links.forEach((link, i) => {
-                const segProgress = Math.max(0, Math.min(1,
-                    (progress * totalSegments) - i
-                ));
+            // --- 连线 ---
+            c.links.forEach((link, i) => {
+                const seg = Math.max(0, Math.min(1, progress * totalSeg - i));
+                if (seg <= 0) return;
 
-                if (segProgress <= 0) return;
+                const from = toCanvas(c.stars[link[0]]);
+                const to   = toCanvas(c.stars[link[1]]);
+                const curX = from.x + (to.x - from.x) * seg;
+                const curY = from.y + (to.y - from.y) * seg;
 
-                const from = toCanvas(constellation.stars[link[0]]);
-                const to = toCanvas(constellation.stars[link[1]]);
-
-                const currentX = from.x + (to.x - from.x) * segProgress;
-                const currentY = from.y + (to.y - from.y) * segProgress;
-
-                // 连线光效
-                ctx.beginPath();
-                ctx.moveTo(from.x, from.y);
-                ctx.lineTo(currentX, currentY);
-
-                const gradient = ctx.createLinearGradient(from.x, from.y, currentX, currentY);
-                gradient.addColorStop(0, `rgba(100, 180, 255, ${0.6 * alpha})`);
-                gradient.addColorStop(1, `rgba(150, 220, 255, ${0.8 * alpha})`);
-                ctx.strokeStyle = gradient;
-                ctx.lineWidth = 1.5;
-                ctx.stroke();
+                // 主线
+                const grad = ctx.createLinearGradient(from.x, from.y, curX, curY);
+                grad.addColorStop(0, `rgba(${tc[0]},${tc[1]},${tc[2]},${0.6 * alpha})`);
+                grad.addColorStop(1, `rgba(${tc[0]},${tc[1]},${tc[2]},${0.85 * alpha})`);
+                ctx.beginPath(); ctx.moveTo(from.x, from.y); ctx.lineTo(curX, curY);
+                ctx.strokeStyle = grad; ctx.lineWidth = 1.5; ctx.stroke();
 
                 // 光晕线
-                ctx.beginPath();
-                ctx.moveTo(from.x, from.y);
-                ctx.lineTo(currentX, currentY);
-                ctx.strokeStyle = `rgba(100, 180, 255, ${0.15 * alpha})`;
-                ctx.lineWidth = 6;
-                ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(from.x, from.y); ctx.lineTo(curX, curY);
+                ctx.strokeStyle = `rgba(${tc[0]},${tc[1]},${tc[2]},${0.12 * alpha})`;
+                ctx.lineWidth = 7; ctx.stroke();
 
                 starsDrawn.add(link[0]);
-                if (segProgress >= 1) starsDrawn.add(link[1]);
+                if (seg >= 1) starsDrawn.add(link[1]);
 
-                // 绘制进度头部的光点
-                if (segProgress > 0 && segProgress < 1) {
-                    ctx.beginPath();
-                    ctx.arc(currentX, currentY, 3, 0, Math.PI * 2);
-                    ctx.fillStyle = `rgba(200, 230, 255, ${alpha})`;
+                // 绘制头部光点
+                if (seg > 0 && seg < 1) {
+                    ctx.beginPath(); ctx.arc(curX, curY, 3, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(220,240,255,${alpha})`;
                     ctx.fill();
-                    ctx.beginPath();
-                    ctx.arc(currentX, currentY, 8, 0, Math.PI * 2);
-                    ctx.fillStyle = `rgba(100, 180, 255, ${0.2 * alpha})`;
+                    ctx.beginPath(); ctx.arc(curX, curY, 9, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(${tc[0]},${tc[1]},${tc[2]},${0.18 * alpha})`;
                     ctx.fill();
                 }
             });
 
-            // 绘制星点
-            constellation.stars.forEach((star, i) => {
+            // --- 星云 ---
+            if (c.nebula && progress > 0.4) {
+                const np = toCanvas(c.nebula);
+                const scale = Math.min(W, H) * 0.48;
+                const na = Math.min(1, (progress - 0.4) * 3) * alpha;
+                ctx.beginPath();
+                ctx.ellipse(np.x, np.y, c.nebula.rx * scale, c.nebula.ry * scale, 0, 0, Math.PI * 2);
+                ctx.fillStyle = c.nebula.color.replace(/[\d.]+\)$/, `${0.12 * na})`);
+                ctx.fill();
+                // 二层更亮内核
+                ctx.beginPath();
+                ctx.ellipse(np.x, np.y, c.nebula.rx * scale * 0.5, c.nebula.ry * scale * 0.5, 0, 0, Math.PI * 2);
+                ctx.fillStyle = c.nebula.color.replace(/[\d.]+\)$/, `${0.2 * na})`);
+                ctx.fill();
+            }
+
+            // --- 暗星云 ---
+            if (c.darkNebula && progress > 0.5) {
+                const dp = toCanvas(c.darkNebula);
+                const scale = Math.min(W, H) * 0.48;
+                const da = Math.min(1, (progress - 0.5) * 3) * alpha;
+                ctx.beginPath();
+                ctx.ellipse(dp.x, dp.y, c.darkNebula.rx * scale, c.darkNebula.ry * scale, 0, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(0,0,0,${0.25 * da})`;
+                ctx.fill();
+                ctx.strokeStyle = `rgba(80,80,120,${0.2 * da})`;
+                ctx.lineWidth = 0.8; ctx.setLineDash([3, 3]); ctx.stroke(); ctx.setLineDash([]);
+            }
+
+            // --- 星团 (昴星团) ---
+            if (c.cluster && progress > 0.3) {
+                const cp = toCanvas(c.cluster);
+                const scale = Math.min(W, H) * 0.48;
+                const ca = Math.min(1, (progress - 0.3) * 3) * alpha;
+                const cr = c.cluster.r * scale;
+                for (let k = 0; k < c.cluster.count; k++) {
+                    const angle = (k / c.cluster.count) * Math.PI * 2 + t * 0.001;
+                    const dist = cr * (0.3 + Math.random() * 0.7);
+                    const sx = cp.x + Math.cos(angle) * dist * (0.8 + Math.sin(t * 0.01 + k) * 0.2);
+                    const sy = cp.y + Math.sin(angle) * dist * (0.8 + Math.cos(t * 0.01 + k) * 0.2);
+                    const ss = 1.0 + Math.sin(t * 0.03 + k * 1.5) * 0.5;
+                    ctx.beginPath(); ctx.arc(sx, sy, ss, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(170,190,230,${0.5 * ca})`;
+                    ctx.fill();
+                }
+                // 标签
+                if (showLabels && c.cluster.label) {
+                    ctx.font = '10px "PingFang SC", sans-serif';
+                    ctx.fillStyle = `rgba(170,190,230,${0.5 * ca * labelAlpha})`;
+                    ctx.textAlign = 'center';
+                    ctx.fillText(c.cluster.label, cp.x, cp.y - cr - 6);
+                }
+            }
+
+            // --- 星点 ---
+            c.stars.forEach((star, i) => {
                 if (!starsDrawn.has(i)) return;
                 const pos = toCanvas(star);
-                const isBright = constellation.brightStars.includes(i);
-                const baseSize = isBright ? 4 : 2.5;
-                const pulse = Math.sin(time * 0.03 + i) * 0.3 + 1;
+                const mag = star.mag !== undefined ? star.mag : 3;
+                // mag → 大小映射：越小（越亮）越大
+                const baseSize = Math.max(1.5, 5.5 - mag * 0.9);
+                const pulse = Math.sin(t * 0.025 + i * 1.7) * 0.2 + 1;
                 const size = baseSize * pulse;
+                const col = star.color || '#ffffff';
 
-                // 星光
+                // 光晕
                 const glow = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, size * 6);
-                glow.addColorStop(0, `rgba(200, 230, 255, ${0.4 * alpha})`);
-                glow.addColorStop(0.5, `rgba(100, 180, 255, ${0.1 * alpha})`);
-                glow.addColorStop(1, `rgba(100, 180, 255, 0)`);
-                ctx.beginPath();
-                ctx.arc(pos.x, pos.y, size * 6, 0, Math.PI * 2);
-                ctx.fillStyle = glow;
-                ctx.fill();
+                glow.addColorStop(0, hexToRgba(col, 0.4 * alpha));
+                glow.addColorStop(0.4, hexToRgba(col, 0.1 * alpha));
+                glow.addColorStop(1, hexToRgba(col, 0));
+                ctx.beginPath(); ctx.arc(pos.x, pos.y, size * 6, 0, Math.PI * 2);
+                ctx.fillStyle = glow; ctx.fill();
 
-                // 十字星芒
-                if (isBright) {
-                    ctx.strokeStyle = `rgba(200, 230, 255, ${0.3 * alpha})`;
-                    ctx.lineWidth = 1;
-                    const spikeLen = size * 8;
+                // 8 芒星芒（亮星 mag < 2）
+                if (mag < 2) {
+                    const sLen = size * 8;
+                    const sLen2 = size * 5; // 对角线稍短
+                    ctx.strokeStyle = hexToRgba(col, 0.22 * alpha);
+                    ctx.lineWidth = 0.8;
                     ctx.beginPath();
-                    ctx.moveTo(pos.x - spikeLen, pos.y);
-                    ctx.lineTo(pos.x + spikeLen, pos.y);
-                    ctx.moveTo(pos.x, pos.y - spikeLen);
-                    ctx.lineTo(pos.x, pos.y + spikeLen);
+                    // 十字
+                    ctx.moveTo(pos.x - sLen, pos.y); ctx.lineTo(pos.x + sLen, pos.y);
+                    ctx.moveTo(pos.x, pos.y - sLen); ctx.lineTo(pos.x, pos.y + sLen);
+                    // 对角
+                    ctx.moveTo(pos.x - sLen2, pos.y - sLen2); ctx.lineTo(pos.x + sLen2, pos.y + sLen2);
+                    ctx.moveTo(pos.x + sLen2, pos.y - sLen2); ctx.lineTo(pos.x - sLen2, pos.y + sLen2);
                     ctx.stroke();
                 }
 
                 // 核心
-                ctx.beginPath();
-                ctx.arc(pos.x, pos.y, size, 0, Math.PI * 2);
-                ctx.fillStyle = `rgba(230, 240, 255, ${alpha})`;
+                ctx.beginPath(); ctx.arc(pos.x, pos.y, size, 0, Math.PI * 2);
+                ctx.fillStyle = hexToRgba(col, alpha);
                 ctx.fill();
+
+                // 星名标注
+                if (showLabels && star.label && labelAlpha > 0) {
+                    ctx.font = '11px "PingFang SC", sans-serif';
+                    ctx.fillStyle = hexToRgba(col, 0.7 * alpha * labelAlpha);
+                    ctx.textAlign = 'center';
+                    ctx.fillText(star.label, pos.x, pos.y - size * 6 - 6);
+                }
             });
+
+            // --- 北斗指针 (大熊座专属) ---
+            if (c.pointer && progress > 0.9) {
+                const pa = Math.min(1, (progress - 0.9) * 10) * alpha * 0.35;
+                const fromA = toCanvas(c.stars[c.pointer.fromA]);
+                const fromB = toCanvas(c.stars[c.pointer.fromB]);
+                // 延长方向
+                const dx = fromB.x - fromA.x;
+                const dy = fromB.y - fromA.y;
+                const len = Math.sqrt(dx * dx + dy * dy);
+                const endX = fromB.x + dx / len * len * 4;
+                const endY = fromB.y + dy / len * len * 4;
+
+                ctx.setLineDash([6, 6]);
+                ctx.beginPath(); ctx.moveTo(fromB.x, fromB.y); ctx.lineTo(endX, endY);
+                ctx.strokeStyle = `rgba(255,215,0,${pa})`;
+                ctx.lineWidth = 1; ctx.stroke();
+                ctx.setLineDash([]);
+                // 北极星点
+                ctx.beginPath(); ctx.arc(endX, endY, 4, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255,215,0,${pa * 1.5})`;
+                ctx.fill();
+                if (showLabels && labelAlpha > 0) {
+                    ctx.font = '10px "PingFang SC", sans-serif';
+                    ctx.fillStyle = `rgba(255,215,0,${pa * labelAlpha * 2})`;
+                    ctx.textAlign = 'center';
+                    ctx.fillText('北极星 Polaris', endX, endY - 12);
+                }
+            }
         }
 
-        // 流星效果
+        // ============================================================
+        //  流星
+        // ============================================================
         let shootingStars = [];
-        function updateShootingStars(time) {
-            if (Math.random() < 0.005) {
+        function updateShootingStars() {
+            if (Math.random() < 0.004) {
                 shootingStars.push({
-                    x: Math.random() * W,
+                    x: Math.random() * W * 0.8 + W * 0.1,
                     y: 0,
-                    vx: (Math.random() - 0.3) * 8,
-                    vy: Math.random() * 6 + 4,
+                    vx: (Math.random() - 0.35) * 7,
+                    vy: Math.random() * 5 + 3.5,
                     life: 1,
                     len: Math.random() * 60 + 40,
                 });
             }
-
             shootingStars = shootingStars.filter(s => {
-                s.x += s.vx;
-                s.y += s.vy;
-                s.life -= 0.015;
-
+                s.x += s.vx; s.y += s.vy; s.life -= 0.014;
                 if (s.life > 0) {
-                    const tailX = s.x - s.vx * (s.len / 8);
-                    const tailY = s.y - s.vy * (s.len / 8);
-                    const gradient = ctx.createLinearGradient(tailX, tailY, s.x, s.y);
-                    gradient.addColorStop(0, 'rgba(255, 255, 255, 0)');
-                    gradient.addColorStop(1, `rgba(255, 255, 255, ${s.life * 0.6})`);
-
-                    ctx.beginPath();
-                    ctx.moveTo(tailX, tailY);
-                    ctx.lineTo(s.x, s.y);
-                    ctx.strokeStyle = gradient;
-                    ctx.lineWidth = 1.5;
-                    ctx.stroke();
-
-                    // 流星头部
-                    ctx.beginPath();
-                    ctx.arc(s.x, s.y, 2, 0, Math.PI * 2);
-                    ctx.fillStyle = `rgba(255, 255, 255, ${s.life})`;
-                    ctx.fill();
+                    const tx = s.x - s.vx * (s.len / 8);
+                    const ty = s.y - s.vy * (s.len / 8);
+                    const g = ctx.createLinearGradient(tx, ty, s.x, s.y);
+                    g.addColorStop(0, 'rgba(255,255,255,0)');
+                    g.addColorStop(1, `rgba(255,255,255,${s.life * 0.55})`);
+                    ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(s.x, s.y);
+                    ctx.strokeStyle = g; ctx.lineWidth = 1.5; ctx.stroke();
+                    ctx.beginPath(); ctx.arc(s.x, s.y, 1.8, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(255,255,255,${s.life})`; ctx.fill();
                 }
-
                 return s.life > 0;
             });
         }
 
-        // 主循环
+        // ============================================================
+        //  辅助：hex → rgba
+        // ============================================================
+        function hexToRgba(hex, a) {
+            if (hex.startsWith('rgba') || hex.startsWith('rgb')) {
+                // 简易处理 rgb/rgba
+                return hex.replace(/[\d.]+\)$/, `${a})`);
+            }
+            let c = hex.replace('#', '');
+            if (c.length === 3) c = c[0]+c[0]+c[1]+c[1]+c[2]+c[2];
+            const n = parseInt(c, 16);
+            return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
+        }
+
+        // ============================================================
+        //  主循环
+        // ============================================================
         let time = 0;
         function animate() {
             time++;
-            const constellation = getCurrentConstellation();
+            const c = getCurrent();
 
             drawBackground(time);
-            updateShootingStars(time);
+            updateShootingStars();
 
             switch (phase) {
                 case 'drawing':
                     drawProgress += 0.004;
-                    drawConstellation(time, constellation, drawProgress, 1);
-                    if (drawProgress >= 1.1) {
+                    drawConstellation(time, c, drawProgress, 1, false);
+                    if (drawProgress >= 1.05) {
+                        phase = 'labeling';
+                        labelAlpha = 0;
+                    }
+                    break;
+
+                case 'labeling':
+                    labelAlpha = Math.min(1, labelAlpha + 0.02);
+                    drawConstellation(time, c, 1, 1, true);
+                    if (labelAlpha >= 1) {
                         phase = 'holding';
                         holdTimer = 0;
                     }
                     break;
 
                 case 'holding':
-                    drawConstellation(time, constellation, 1, 1);
+                    drawConstellation(time, c, 1, 1, true);
                     holdTimer++;
-                    if (holdTimer > 180) { // 3秒保持
+                    if (holdTimer > 160) {
                         phase = 'fading';
                         fadeAlpha = 1;
                     }
                     break;
 
                 case 'fading':
-                    fadeAlpha -= 0.01;
-                    drawConstellation(time, constellation, 1, Math.max(0, fadeAlpha));
+                    fadeAlpha -= 0.012;
+                    labelAlpha = Math.max(0, labelAlpha - 0.025);
+                    drawConstellation(time, c, 1, Math.max(0, fadeAlpha), true);
                     if (fadeAlpha <= 0) {
                         phase = 'drawing';
                         drawProgress = 0;
+                        labelAlpha = 0;
                         currentIndex++;
-                        const next = getCurrentConstellation();
-                        nameEl.textContent = next.name;
-                        nameCNEl.textContent = next.nameCN;
-                        nameEl.style.opacity = 0;
-                        nameCNEl.style.opacity = 0;
+                        const next = getCurrent();
+                        // 更新文字
+                        nameCNEl.style.opacity = '0';
+                        nameEl.style.opacity = '0';
+                        descEl.style.opacity = '0';
                         setTimeout(() => {
-                            nameEl.style.opacity = '';
+                            nameCNEl.textContent = next.nameCN;
+                            nameEl.textContent = next.name;
+                            descEl.textContent = next.desc;
                             nameCNEl.style.opacity = '';
-                        }, 100);
+                            nameEl.style.opacity = '';
+                            descEl.style.opacity = '';
+                        }, 300);
                     }
                     break;
             }
