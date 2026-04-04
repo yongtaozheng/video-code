@@ -9,6 +9,8 @@
       const stageWidthInput = document.getElementById("stage-width");
       const stageHeightInput = document.getElementById("stage-height");
       const applyStageSizeButton = document.getElementById("apply-stage-size");
+      const canvasTransparentInput = document.getElementById("canvas-transparent");
+      const canvasColorInput = document.getElementById("canvas-color");
       const hoverScaleRangeInput = document.getElementById("hover-scale-range");
       const hoverScaleNumberInput = document.getElementById("hover-scale-number");
 
@@ -35,6 +37,8 @@
       let layerIdSeed = 1;
       let interactionState = null;
       let stageScale = 1;
+      let canvasColor = "#ffffff";
+      let isCanvasTransparent = true;
       let hoverScale = 1.3;
       let hoveredLayerId = null;
 
@@ -45,6 +49,29 @@
 
       function clamp(value, min, max) {
         return Math.min(max, Math.max(min, value));
+      }
+
+      function normalizeHexColor(value) {
+        if (typeof value !== "string") return "#ffffff";
+        const text = value.trim();
+        return /^#[0-9a-fA-F]{6}$/.test(text) ? text.toLowerCase() : "#ffffff";
+      }
+
+      function applyCanvasColor() {
+        stage.style.backgroundColor = isCanvasTransparent ? "transparent" : canvasColor;
+      }
+
+      function setCanvasTransparency(enabled) {
+        isCanvasTransparent = Boolean(enabled);
+        canvasTransparentInput.checked = isCanvasTransparent;
+        canvasColorInput.disabled = isCanvasTransparent;
+        applyCanvasColor();
+      }
+
+      function setCanvasColor(value) {
+        canvasColor = normalizeHexColor(value);
+        canvasColorInput.value = canvasColor;
+        applyCanvasColor();
       }
 
       function applyHoverScale() {
@@ -514,6 +541,8 @@
           stageWidth: stage.clientWidth,
           stageHeight: stage.clientHeight,
           backgroundSrc,
+          canvasColor,
+          isCanvasTransparent,
           hoverScale,
           layers: getLayersAsc().map((layer) => ({
             src: layer.src,
@@ -535,12 +564,17 @@
         const backgroundMarkup = state.backgroundSrc
           ? `<img class="bg" src="${escapeAttr(state.backgroundSrc)}" alt="" />`
           : "";
+        const exportStageBg = state.isCanvasTransparent
+          ? "transparent"
+          : normalizeHexColor(state.canvasColor);
 
         const layersMarkup = [...state.layers]
           .sort((a, b) => a.zIndex - b.zIndex)
           .map(
             (layer) =>
-              `<img class="layer" src="${escapeAttr(layer.src)}" style="left:${layer.x}px;top:${layer.y}px;width:${layer.width}px;height:${layer.height}px;z-index:${
+              `<img class="layer" data-base-z="${layer.zIndex + 1}" src="${escapeAttr(
+                layer.src
+              )}" style="left:${layer.x}px;top:${layer.y}px;width:${layer.width}px;height:${layer.height}px;z-index:${
                 layer.zIndex + 1
               };" alt="" />`
           )
@@ -589,10 +623,30 @@
     </style>
   </head>
   <body>
-    <div class="stage" style="width:${state.stageWidth}px;height:${state.stageHeight}px;">
+    <div class="stage" style="width:${state.stageWidth}px;height:${state.stageHeight}px;background-color:${exportStageBg};">
       ${backgroundMarkup}
       ${layersMarkup}
     </div>
+    <script>
+      (function () {
+        const layers = Array.from(document.querySelectorAll(".layer"));
+        if (!layers.length) return;
+
+        const topBaseZ = layers.reduce((max, layer) => {
+          const z = Number(layer.dataset.baseZ || layer.style.zIndex || 1);
+          return Math.max(max, z);
+        }, 1);
+
+        layers.forEach((layer) => {
+          layer.addEventListener("mouseenter", function () {
+            this.style.zIndex = String(topBaseZ + 1000);
+          });
+          layer.addEventListener("mouseleave", function () {
+            this.style.zIndex = String(Number(this.dataset.baseZ || 1));
+          });
+        });
+      })();
+    </script>
   </body>
 </html>`;
       }
@@ -687,6 +741,12 @@
       applyLayerRectButton.addEventListener("click", applyLayerRectFromInputs);
       exportButton.addEventListener("click", exportHTML);
       window.addEventListener("resize", updateStageScale);
+      canvasTransparentInput.addEventListener("change", (event) =>
+        setCanvasTransparency(event.target.checked)
+      );
+      canvasColorInput.addEventListener("input", (event) =>
+        setCanvasColor(event.target.value)
+      );
       hoverScaleRangeInput.addEventListener("input", (event) =>
         setHoverScale(event.target.value)
       );
@@ -696,5 +756,7 @@
 
       syncActionButtons();
       applyBackground();
+      setCanvasColor(canvasColorInput.value);
+      setCanvasTransparency(true);
       setHoverScale(1.3);
       setStageSize(stageWidthInput.value, stageHeightInput.value);
