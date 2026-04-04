@@ -36,6 +36,7 @@
       let interactionState = null;
       let stageScale = 1;
       let hoverScale = 1.3;
+      let hoveredLayerId = null;
 
       function setStatus(message, isError = false) {
         statusText.textContent = message;
@@ -131,7 +132,9 @@
         layer.element.style.top = `${layer.y}px`;
         layer.element.style.width = `${layer.width}px`;
         layer.element.style.height = `${layer.height}px`;
-        layer.element.style.zIndex = String(layer.zIndex);
+        const visualZIndex =
+          hoveredLayerId === layer.id ? getMaxZIndex() + 1000 : layer.zIndex;
+        layer.element.style.zIndex = String(visualZIndex);
         layer.element.classList.toggle("selected", selectedLayerId === layer.id);
       }
 
@@ -239,6 +242,16 @@
           event.stopPropagation();
           selectLayer(layer.id);
         });
+        layerElement.addEventListener("mouseenter", () => {
+          hoveredLayerId = layer.id;
+          updateLayerElement(layer);
+        });
+        layerElement.addEventListener("mouseleave", () => {
+          if (hoveredLayerId === layer.id) {
+            hoveredLayerId = null;
+            updateLayerElement(layer);
+          }
+        });
 
         stage.appendChild(layerElement);
         layer.element = layerElement;
@@ -288,6 +301,9 @@
       function removeSelectedLayer() {
         const layer = getLayerById(selectedLayerId);
         if (!layer) return;
+        if (hoveredLayerId === layer.id) {
+          hoveredLayerId = null;
+        }
         if (layer.element) layer.element.remove();
         layers = layers.filter((item) => item.id !== layer.id);
         selectedLayerId = null;
