@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>火影忍者人物海报页面</title>
     <style>
+      /* css 样式 */
       * {
         box-sizing: border-box;
       }
@@ -47,6 +48,7 @@
       class="stage"
       style="width: 1400px; height: 800px; background-color: transparent"
     >
+      <!-- 海报内容 -->
       <img
         class="layer"
         data-base-z="2"
@@ -157,24 +159,32 @@
       />
     </div>
     <script>
-      (function () {
-        const layers = Array.from(document.querySelectorAll(".layer"));
-        if (!layers.length) return;
+      // js 逻辑
+      const layers = Array.from(document.querySelectorAll(".layer"));
 
-        const topBaseZ = layers.reduce((max, layer) => {
-          const z = Number(layer.dataset.baseZ || layer.style.zIndex || 1);
-          return Math.max(max, z);
-        }, 1);
+      const topBaseZ = layers.reduce((max, layer) => {
+        const z = Number(layer.dataset.baseZ || layer.style.zIndex || 1);
+        return Math.max(max, z);
+      }, 1);
 
-        layers.forEach((layer) => {
-          layer.addEventListener("mouseenter", function () {
-            this.style.zIndex = String(topBaseZ + 1000);
-          });
-          layer.addEventListener("mouseleave", function () {
-            this.style.zIndex = String(Number(this.dataset.baseZ || 1));
-          });
+      layers.forEach((layer) => {
+        layer.addEventListener("mouseenter", function () {
+          this.style.zIndex = String(topBaseZ + 1000);
         });
-      })();
+        layer.addEventListener("mouseleave", function () {
+          this.style.zIndex = String(Number(this.dataset.baseZ || 1));
+        });
+      });
+      const resize = () => {
+        const stage = document.querySelector(".stage");
+        console.log("resize");
+        const rate =
+          Math.min(window.innerWidth / 1400, window.innerHeight / 800) - 0.05;
+        stage.style.transform = `scale(${rate})`;
+        stage.style.position = "fixed";
+      };
+      window.addEventListener("resize", resize);
+      resize();
     </script>
   </body>
 </html>
