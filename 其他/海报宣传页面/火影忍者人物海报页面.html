@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>火影忍者人物海报页面</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: #f2f4f8;
+        font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+      }
+      .stage {
+        position: relative;
+        /* overflow: hidden; */
+        background: #fff;
+        box-shadow: 0 12px 36px rgba(20, 33, 60, 0.18);
+      }
+      .bg {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: fill;
+        z-index: 0;
+      }
+      .layer {
+        position: absolute;
+        object-fit: fill;
+        transform-origin: center center;
+        transition: transform 0.16s ease;
+      }
+      .layer:hover {
+        transform: scale(1.4);
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      class="stage"
+      style="width: 1400px; height: 800px; background-color: transparent"
+    >
+      <img
+        class="layer"
+        data-base-z="2"
+        src="../../images/火影忍者/井野.png"
+        style="left: 0px; top: 0px; width: 293px; height: 360px; z-index: 2"
+        alt=""
+      />
+      <img
+        class="layer"
+        data-base-z="3"
+        src="../../images/火影忍者/鹿丸.png"
+        style="left: 705px; top: 435px; width: 337px; height: 365px; z-index: 3"
+        alt=""
+      />
+      <img
+        class="layer"
+        data-base-z="4"
+        src="../../images/火影忍者/小李.png"
+        style="left: 205px; top: 1px; width: 355px; height: 402px; z-index: 4"
+        alt=""
+      />
+      <img
+        class="layer"
+        data-base-z="5"
+        src="../../images/火影忍者/天天.png"
+        style="left: 874px; top: 0px; width: 526px; height: 360px; z-index: 5"
+        alt=""
+      />
+      <img
+        class="layer"
+        data-base-z="6"
+        src="../../images/火影忍者/小樱.png"
+        style="left: 959px; top: 457px; width: 441px; height: 343px; z-index: 6"
+        alt=""
+      />
+      <img
+        class="layer"
+        data-base-z="7"
+        src="../../images/火影忍者/牙.png"
+        style="
+          left: 1032px;
+          top: 254px;
+          width: 368px;
+          height: 308px;
+          z-index: 7;
+        "
+        alt=""
+      />
+      <img
+        class="layer"
+        data-base-z="8"
+        src="../../images/火影忍者/志乃.png"
+        style="left: 0px; top: 249px; width: 317px; height: 318px; z-index: 8"
+        alt=""
+      />
+      <img
+        class="layer"
+        data-base-z="9"
+        src="../../images/火影忍者/佐助.png"
+        style="left: 0px; top: 493px; width: 385px; height: 307px; z-index: 9"
+        alt=""
+      />
+      <img
+        class="layer"
+        data-base-z="10"
+        src="../../images/火影忍者/雏田.png"
+        style="left: 502px; top: 0px; width: 447px; height: 360px; z-index: 10"
+        alt=""
+      />
+      <img
+        class="layer"
+        data-base-z="11"
+        src="../../images/火影忍者/丁次.png"
+        style="
+          left: 705px;
+          top: 162px;
+          width: 402px;
+          height: 360px;
+          z-index: 11;
+        "
+        alt=""
+      />
+      <img
+        class="layer"
+        data-base-z="12"
+        src="../../images/火影忍者/鸣人.png"
+        style="
+          left: 374px;
+          top: 167px;
+          width: 430px;
+          height: 360px;
+          z-index: 12;
+        "
+        alt=""
+      />
+      <img
+        class="layer"
+        data-base-z="13"
+        src="../../images/火影忍者/宁次.png"
+        style="
+          left: 271px;
+          top: 440px;
+          width: 518px;
+          height: 360px;
+          z-index: 13;
+        "
+        alt=""
+      />
+    </div>
+    <script>
+      (function () {
+        const layers = Array.from(document.querySelectorAll(".layer"));
+        if (!layers.length) return;
+
+        const topBaseZ = layers.reduce((max, layer) => {
+          const z = Number(layer.dataset.baseZ || layer.style.zIndex || 1);
+          return Math.max(max, z);
+        }, 1);
+
+        layers.forEach((layer) => {
+          layer.addEventListener("mouseenter", function () {
+            this.style.zIndex = String(topBaseZ + 1000);
+          });
+          layer.addEventListener("mouseleave", function () {
+            this.style.zIndex = String(Number(this.dataset.baseZ || 1));
+          });
+        });
+      })();
+    </script>
+  </body>
+</html>
