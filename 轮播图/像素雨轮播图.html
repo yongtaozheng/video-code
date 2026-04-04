@@ -1,11 +1,10 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>像素雨轮播图</title>
     <style>
-      /*css样式*/
       :root {
         --image-width: 60%;
         --image-height: 60%;
@@ -48,7 +47,6 @@
         height: 100%;
       }
 
-      /* 控制按钮 */
       .nav-btn {
         position: absolute;
         top: 50%;
@@ -75,10 +73,13 @@
         box-shadow: 0 0 20px rgba(0, 200, 150, 0.2);
       }
 
-      .nav-btn.prev { left: 16px; }
-      .nav-btn.next { right: 16px; }
+      .nav-btn.prev {
+        left: 16px;
+      }
+      .nav-btn.next {
+        right: 16px;
+      }
 
-      /* 指示器 */
       .indicators {
         position: absolute;
         bottom: 16px;
@@ -120,7 +121,6 @@
     </div>
 
     <script>
-      //js逻辑
       const images = [
         {
           src: "http://5b0988e595225.cdn.sohucs.com/images/20180130/24aecf0d680546ccbf6480badce389dc.jpeg",
@@ -158,7 +158,6 @@
       let animationFrame = null;
       const loadedImages = [];
 
-      // 像素块大小
       const PIXEL_SIZE = 6;
 
       function resizeCanvas() {
@@ -194,7 +193,6 @@
         c.drawImage(img, sx, sy, sw, sh, 0, 0, cw, ch);
       }
 
-      // 获取图片的像素数据（以 cover 模式）
       function getImagePixels(img) {
         const cw = canvas.width / devicePixelRatio;
         const ch = canvas.height / devicePixelRatio;
@@ -223,20 +221,16 @@
         return offCtx.getImageData(0, 0, cw, ch);
       }
 
-      // 像素雨过渡效果
       function pixelRainTransition(fromImg, toImg, callback) {
         const cw = canvas.width / devicePixelRatio;
         const ch = canvas.height / devicePixelRatio;
         const cols = Math.ceil(cw / PIXEL_SIZE);
         const rows = Math.ceil(ch / PIXEL_SIZE);
 
-        // 获取旧图像素数据
         const fromPixels = getImagePixels(fromImg);
 
-        // 为每列创建雨滴配置 - 不同的延迟和速度
         const columnConfigs = [];
         for (let col = 0; col < cols; col++) {
-          // 波浪形的延迟：从中间开始向两侧扩散
           const centerDist = Math.abs(col - cols / 2) / (cols / 2);
           const waveDelay = centerDist * 0.3 + Math.random() * 0.15;
           columnConfigs.push({
@@ -246,12 +240,10 @@
           });
         }
 
-        // 每个像素块的坠落状态
         const pixelStates = [];
         for (let row = 0; row < rows; row++) {
           pixelStates[row] = [];
           for (let col = 0; col < cols; col++) {
-            // 采样该像素块区域的颜色
             const sx = Math.min(col * PIXEL_SIZE + PIXEL_SIZE / 2, cw - 1);
             const sy = Math.min(row * PIXEL_SIZE + PIXEL_SIZE / 2, ch - 1);
             const idx = (Math.floor(sy) * Math.floor(cw) + Math.floor(sx)) * 4;
@@ -260,9 +252,9 @@
               r: fromPixels.data[idx] || 0,
               g: fromPixels.data[idx + 1] || 0,
               b: fromPixels.data[idx + 2] || 0,
-              fallen: false,      // 是否已开始坠落
-              y: row * PIXEL_SIZE, // 当前 y 位置
-              vy: 0,               // 速度
+              fallen: false,
+              y: row * PIXEL_SIZE,
+              vy: 0,
               opacity: 1,
             };
           }
@@ -274,43 +266,30 @@
         function animate(currentTime) {
           const elapsed = currentTime - startTime;
           const progress = Math.min(elapsed / duration, 1);
-
           ctx.clearRect(0, 0, cw, ch);
-
-          // 底层 - 新图片（始终在最下面）
           ctx.globalAlpha = Math.min(1, progress * 2);
           drawImageCover(toImg);
           ctx.globalAlpha = 1;
-
-          // 逐列、逐行检查和绘制像素块
           let allFallen = true;
-
           for (let col = 0; col < cols; col++) {
             const config = columnConfigs[col];
-            const colProgress = Math.max(0, (progress - config.delay) / (1 - config.delay));
-
-            // 当前列的"溶解前沿" - 从顶部往下推进
+            const colProgress = Math.max(
+              0,
+              (progress - config.delay) / (1 - config.delay),
+            );
             const dissolveFront = colProgress * (rows + config.trail);
 
             for (let row = 0; row < rows; row++) {
               const pixel = pixelStates[row][col];
-
-              // 判断该像素是否在溶解前沿之后
               if (row < dissolveFront && !pixel.fallen) {
                 pixel.fallen = true;
                 pixel.vy = config.speed * 2;
               }
-
               if (pixel.fallen) {
-                // 应用重力
                 pixel.vy += 0.35 * config.speed;
                 pixel.y += pixel.vy;
-
-                // 透明度随下落距离衰减
                 const fallDist = pixel.y - row * PIXEL_SIZE;
                 pixel.opacity = Math.max(0, 1 - fallDist / (ch * 0.7));
-
-                // 绘制坠落中的像素块
                 if (pixel.y < ch + PIXEL_SIZE && pixel.opacity > 0.01) {
                   allFallen = false;
                   ctx.globalAlpha = pixel.opacity;
@@ -319,10 +298,8 @@
                     col * PIXEL_SIZE,
                     pixel.y,
                     PIXEL_SIZE - 0.5,
-                    PIXEL_SIZE - 0.5
+                    PIXEL_SIZE - 0.5,
                   );
-
-                  // 发光拖尾
                   if (pixel.opacity > 0.3 && pixel.vy > 3) {
                     const trailAlpha = pixel.opacity * 0.2;
                     ctx.globalAlpha = trailAlpha;
@@ -332,13 +309,12 @@
                         col * PIXEL_SIZE,
                         pixel.y - t * PIXEL_SIZE * 0.8,
                         PIXEL_SIZE - 0.5,
-                        PIXEL_SIZE - 0.5
+                        PIXEL_SIZE - 0.5,
                       );
                     }
                   }
                 }
               } else {
-                // 尚未坠落的像素 - 保持原位
                 allFallen = false;
                 ctx.globalAlpha = 1;
                 ctx.fillStyle = `rgb(${pixel.r}, ${pixel.g}, ${pixel.b})`;
@@ -346,7 +322,7 @@
                   col * PIXEL_SIZE,
                   pixel.y,
                   PIXEL_SIZE - 0.5,
-                  PIXEL_SIZE - 0.5
+                  PIXEL_SIZE - 0.5,
                 );
               }
             }
@@ -374,10 +350,14 @@
         dots[currentIndex].classList.remove("active");
         dots[targetIndex].classList.add("active");
 
-        pixelRainTransition(loadedImages[currentIndex], loadedImages[targetIndex], () => {
-          currentIndex = targetIndex;
-          isTransitioning = false;
-        });
+        pixelRainTransition(
+          loadedImages[currentIndex],
+          loadedImages[targetIndex],
+          () => {
+            currentIndex = targetIndex;
+            isTransitioning = false;
+          },
+        );
       }
 
       function next() {
@@ -400,7 +380,6 @@
         }
       }
 
-      // 预加载图片
       function preloadImages() {
         let loaded = 0;
         return new Promise((resolve) => {
@@ -461,12 +440,22 @@
         startAutoPlay();
       });
 
-      document.querySelector(".carousel-container").addEventListener("mouseenter", stopAutoPlay);
-      document.querySelector(".carousel-container").addEventListener("mouseleave", startAutoPlay);
+      document
+        .querySelector(".carousel-container")
+        .addEventListener("mouseenter", stopAutoPlay);
+      document
+        .querySelector(".carousel-container")
+        .addEventListener("mouseleave", startAutoPlay);
 
       document.addEventListener("keydown", (e) => {
-        if (e.key === "ArrowLeft") { prev(); startAutoPlay(); }
-        if (e.key === "ArrowRight") { next(); startAutoPlay(); }
+        if (e.key === "ArrowLeft") {
+          prev();
+          startAutoPlay();
+        }
+        if (e.key === "ArrowRight") {
+          next();
+          startAutoPlay();
+        }
       });
 
       document.addEventListener("visibilitychange", () => {
