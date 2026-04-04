@@ -593,14 +593,20 @@
         min-height: 100vh;
         display: grid;
         place-items: center;
+        padding: 16px;
+        overflow: hidden;
         background: #f2f4f8;
         font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+      }
+      .stage-shell {
+        position: relative;
       }
       .stage {
         position: relative;
         overflow: hidden;
         background: #fff;
         box-shadow: 0 12px 36px rgba(20, 33, 60, 0.18);
+        transform-origin: top left;
       }
       .bg {
         position: absolute;
@@ -623,28 +629,50 @@
     </style>
   </head>
   <body>
-    <div class="stage" style="width:${state.stageWidth}px;height:${state.stageHeight}px;background-color:${exportStageBg};">
-      ${backgroundMarkup}
-      ${layersMarkup}
+    <div id="stage-shell" class="stage-shell">
+      <div id="stage" class="stage" style="width:${state.stageWidth}px;height:${state.stageHeight}px;background-color:${exportStageBg};">
+        ${backgroundMarkup}
+        ${layersMarkup}
+      </div>
     </div>
     <script>
       (function () {
+        const stage = document.getElementById("stage");
+        const stageShell = document.getElementById("stage-shell");
+        const baseWidth = ${state.stageWidth};
+        const baseHeight = ${state.stageHeight};
+
+        function fitStageToViewport() {
+          if (!stage || !stageShell) return;
+          const viewportWidth = Math.max(1, window.innerWidth - 32);
+          const viewportHeight = Math.max(1, window.innerHeight - 32);
+          const scale = Math.min(viewportWidth / baseWidth, viewportHeight / baseHeight);
+          const finalScale = Number.isFinite(scale) && scale > 0 ? scale : 1;
+
+          stage.style.transform = "scale(" + finalScale + ")";
+          stageShell.style.width = Math.round(baseWidth * finalScale) + "px";
+          stageShell.style.height = Math.round(baseHeight * finalScale) + "px";
+        }
+
+        fitStageToViewport();
+        window.addEventListener("resize", fitStageToViewport);
+
         const layers = Array.from(document.querySelectorAll(".layer"));
-        if (!layers.length) return;
+        if (layers.length) {
+          const topBaseZ = layers.reduce((max, layer) => {
+            const z = Number(layer.dataset.baseZ || layer.style.zIndex || 1);
+            return Math.max(max, z);
+          }, 1);
 
-        const topBaseZ = layers.reduce((max, layer) => {
-          const z = Number(layer.dataset.baseZ || layer.style.zIndex || 1);
-          return Math.max(max, z);
-        }, 1);
-
-        layers.forEach((layer) => {
-          layer.addEventListener("mouseenter", function () {
-            this.style.zIndex = String(topBaseZ + 1000);
+          layers.forEach((layer) => {
+            layer.addEventListener("mouseenter", function () {
+              this.style.zIndex = String(topBaseZ + 1000);
+            });
+            layer.addEventListener("mouseleave", function () {
+              this.style.zIndex = String(Number(this.dataset.baseZ || 1));
+            });
           });
-          layer.addEventListener("mouseleave", function () {
-            this.style.zIndex = String(Number(this.dataset.baseZ || 1));
-          });
-        });
+        }
       })();
     </script>
   </body>
