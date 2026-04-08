@@ -1,121 +1,137 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>液态注入按钮</title>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>液态注入按钮</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
 
-    body {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      background: #020b10;
-      background-image: radial-gradient(ellipse 65% 55% at 50% 60%, rgba(56,189,248,0.07) 0%, transparent 70%);
-      font-family: 'JetBrains Mono', monospace;
-      overflow: hidden;
-    }
+      body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        background: #020b10;
+        background-image: radial-gradient(
+          ellipse 65% 55% at 50% 60%,
+          rgba(56, 189, 248, 0.07) 0%,
+          transparent 70%
+        );
+        font-family: "JetBrains Mono", monospace;
+        overflow: hidden;
+      }
 
-    /* Water level lines in background */
-    .waves {
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      overflow: hidden;
-      opacity: 0.04;
-    }
-    .wave-line {
-      position: absolute;
-      left: 0; right: 0;
-      height: 1px;
-      background: linear-gradient(to right, transparent, #38bdf8, transparent);
-    }
+      .waves {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        overflow: hidden;
+        opacity: 0.04;
+      }
+      .wave-line {
+        position: absolute;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(
+          to right,
+          transparent,
+          #38bdf8,
+          transparent
+        );
+      }
 
-    .btn {
-      color: #38bdf8;
-      border: 1px solid #38bdf8;
-      background: transparent;
-      padding: 18px 48px;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 13px;
-      letter-spacing: 0.28em;
-      text-transform: uppercase;
-      cursor: pointer;
-      outline: none;
-      position: relative;
-      overflow: hidden;
-      transition: color 0.45s ease;
-      z-index: 0;
-    }
+      .btn {
+        color: #38bdf8;
+        border: 1px solid #38bdf8;
+        background: transparent;
+        padding: 18px 48px;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 13px;
+        letter-spacing: 0.28em;
+        text-transform: uppercase;
+        cursor: pointer;
+        outline: none;
+        position: relative;
+        overflow: hidden;
+        transition: color 0.45s ease;
+        z-index: 0;
+      }
 
-    .btn::before {
-      content: '';
-      position: absolute;
-      bottom: 0; left: -12%;
-      width: 124%; height: 0;
-      background: #38bdf8;
-      transition: height 0.45s cubic-bezier(0.23, 1, 0.32, 1);
-      z-index: -1;
-      border-radius: 65% 65% 0 0 / 22px 22px 0 0;
-    }
+      .btn::before {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: -12%;
+        width: 124%;
+        height: 0;
+        background: #38bdf8;
+        transition: height 0.45s cubic-bezier(0.23, 1, 0.32, 1);
+        z-index: -1;
+        border-radius: 65% 65% 0 0 / 22px 22px 0 0;
+      }
 
-    /* Ripple effect at the liquid surface */
-    .btn::after {
-      content: '';
-      position: absolute;
-      bottom: 0; left: -12%;
-      width: 124%; height: 4px;
-      background: rgba(255,255,255,0.3);
-      transition:
-        bottom 0.45s cubic-bezier(0.23, 1, 0.32, 1),
-        opacity 0.45s ease;
-      opacity: 0;
-      z-index: 1;
-    }
+      .btn::after {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: -12%;
+        width: 124%;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.3);
+        transition:
+          bottom 0.45s cubic-bezier(0.23, 1, 0.32, 1),
+          opacity 0.45s ease;
+        opacity: 0;
+        z-index: 1;
+      }
 
-    .btn:hover::before { height: 130%; border-radius: 0; }
-    .btn:hover::after  { bottom: calc(100% - 4px); opacity: 0.4; }
-    .btn:hover         { color: #021825; }
+      .btn:hover::before {
+        height: 130%;
+        border-radius: 0;
+      }
+      .btn:hover::after {
+        bottom: calc(100% - 4px);
+        opacity: 0.4;
+      }
+      .btn:hover {
+        color: #021825;
+      }
 
-    .hint {
-      margin-top: 28px;
-      font-size: 9px;
-      letter-spacing: 0.3em;
-      color: rgba(56,189,248,0.18);
-      text-transform: uppercase;
-    }
+      .hint {
+        margin-top: 28px;
+        font-size: 9px;
+        letter-spacing: 0.3em;
+        color: rgba(56, 189, 248, 0.18);
+        text-transform: uppercase;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="waves" id="waves"></div>
+    <button class="btn">LIQUID</button>
+    <div class="hint">— hover —</div>
 
-    .corner {
-      position: fixed;
-      font-size: 9px;
-      letter-spacing: 0.2em;
-      color: rgba(56,189,248,0.14);
-      text-transform: uppercase;
-    }
-    .corner-bl { bottom: 32px; left: 40px; }
-    .corner-br { bottom: 32px; right: 40px; }
-  </style>
-</head>
-<body>
-  <div class="waves" id="waves"></div>
-  <button class="btn">LIQUID</button>
-  <div class="hint">— hover —</div>
-
-  <div class="corner corner-bl">液态注入</div>
-  <div class="corner corner-br">02 / 08</div>
-
-  <script>
-    const container = document.getElementById('waves');
-    for (let i = 0; i < 8; i++) {
-      const line = document.createElement('div');
-      line.className = 'wave-line';
-      line.style.top = (10 + i * 12) + '%';
-      container.appendChild(line);
-    }
-  </script>
-</body>
+    <script>
+      const container = document.getElementById("waves");
+      for (let i = 0; i < 8; i++) {
+        const line = document.createElement("div");
+        line.className = "wave-line";
+        line.style.top = 10 + i * 12 + "%";
+        container.appendChild(line);
+      }
+    </script>
+  </body>
 </html>
