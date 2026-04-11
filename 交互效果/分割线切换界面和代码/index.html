@@ -1,0 +1,1050 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>分割线切换界面和代码</title>
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"
+    />
+    <style>
+      :root {
+        --split: 57;
+        --accent: #00b3ff;
+        --surface: #f8fbff;
+        --scene: #eef5ff;
+        --radius: 20px;
+        --glitch: 0.45;
+        --scrollbar-size: 10px;
+        --scrollbar-track: rgba(7, 29, 48, 0.62);
+        --scrollbar-thumb-start: rgba(0, 170, 255, 0.92);
+        --scrollbar-thumb-end: rgba(255, 108, 70, 0.86);
+        --scrollbar-thumb-hover-start: rgba(81, 207, 255, 0.96);
+        --scrollbar-thumb-hover-end: rgba(255, 145, 115, 0.92);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family:
+          "IBM Plex Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
+        color: #0f2238;
+        background:
+          radial-gradient(
+            circle at 8% 10%,
+            rgba(169, 219, 255, 0.52) 0,
+            rgba(169, 219, 255, 0) 46%
+          ),
+          radial-gradient(
+            circle at 90% 0%,
+            rgba(255, 204, 152, 0.44) 0,
+            rgba(255, 204, 152, 0) 40%
+          ),
+          linear-gradient(160deg, #f7fbff 0%, #edf4ff 100%);
+      }
+
+      .page {
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .top {
+        display: flex;
+        justify-content: space-between;
+        align-items: end;
+        gap: 16px;
+        margin-bottom: 14px;
+      }
+
+      .top h1 {
+        margin: 0;
+        font-family: "Space Grotesk", "Trebuchet MS", sans-serif;
+        font-size: clamp(1.1rem, 1.3vw + 0.95rem, 1.65rem);
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+
+      .top p {
+        margin: 0;
+        font-size: 13px;
+        color: #496582;
+      }
+
+      .fusion-shell {
+        --split-pct: calc(var(--split) * 1%);
+        position: relative;
+        height: calc(100vh - 86px);
+        min-height: 640px;
+        border-radius: 22px;
+        overflow: hidden;
+        border: 1px solid rgba(117, 158, 196, 0.45);
+        box-shadow:
+          0 28px 80px rgba(25, 51, 93, 0.22),
+          inset 0 1px 0 rgba(255, 255, 255, 0.9);
+        background: #fff;
+        isolation: isolate;
+      }
+
+      .fusion-layer {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        transition: transform 130ms ease;
+      }
+
+      .preview-layer {
+        z-index: 1;
+        clip-path: polygon(
+          0 0,
+          var(--split-pct) 0,
+          var(--split-pct) 100%,
+          0 100%
+        );
+        background:
+          radial-gradient(
+            circle at 22% 18%,
+            rgba(0, 179, 255, 0.2),
+            rgba(0, 179, 255, 0) 42%
+          ),
+          radial-gradient(
+            circle at 65% 70%,
+            rgba(255, 130, 82, 0.16),
+            rgba(255, 130, 82, 0) 40%
+          ),
+          linear-gradient(145deg, #eaf4ff 0%, #f4f9ff 52%, #edf8f4 100%);
+      }
+
+      .preview-layer::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(255, 255, 255, 0.45) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.45) 1px, transparent 1px);
+        background-size: 30px 30px;
+        opacity: 0.48;
+        pointer-events: none;
+      }
+
+      .preview-layer::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: repeating-linear-gradient(
+          to bottom,
+          rgba(17, 44, 72, 0.06) 0,
+          rgba(17, 44, 72, 0.06) 1px,
+          transparent 1px,
+          transparent 5px
+        );
+        mix-blend-mode: multiply;
+        opacity: calc(0.24 + var(--glitch) * 0.35);
+        animation: scanFlow 7s linear infinite;
+        pointer-events: none;
+      }
+
+      .preview-wrap {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: min(760px, 78vw);
+      }
+
+      .preview-card {
+        border-radius: var(--radius);
+        border: 1px solid rgba(87, 124, 166, 0.24);
+        overflow: hidden;
+        background: var(--surface);
+        box-shadow:
+          0 25px 46px rgba(30, 66, 112, 0.22),
+          0 1px 0 rgba(255, 255, 255, 0.88) inset;
+      }
+
+      .head {
+        padding: 22px 24px 16px;
+        border-bottom: 1px solid rgba(114, 155, 194, 0.36);
+        background: linear-gradient(
+          125deg,
+          rgba(255, 255, 255, 0.72),
+          rgba(0, 179, 255, 0.08)
+        );
+      }
+
+      .head small {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        color: #2f5b81;
+        text-transform: uppercase;
+      }
+
+      .head small::before {
+        content: "";
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--accent);
+        box-shadow: 0 0 10px rgba(0, 179, 255, 0.65);
+      }
+
+      .head h2 {
+        margin: 10px 0 8px;
+        font-family: "Space Grotesk", "Trebuchet MS", sans-serif;
+        font-size: clamp(1.2rem, 1.2vw + 0.88rem, 1.95rem);
+        line-height: 1.16;
+      }
+
+      .head p {
+        margin: 0;
+        color: #4d6882;
+        line-height: 1.7;
+        font-size: clamp(0.85rem, 0.45vw + 0.72rem, 1rem);
+      }
+
+      .field-list {
+        display: grid;
+        gap: 10px;
+        padding: 18px 24px 20px;
+      }
+
+      .field {
+        border: 1px solid rgba(92, 128, 170, 0.24);
+        border-radius: calc(var(--radius) * 0.4);
+        padding: 11px 12px;
+        background: rgba(255, 255, 255, 0.84);
+      }
+
+      .field label {
+        display: block;
+        color: #4f6d8a;
+        margin-bottom: 5px;
+        font-size: 12px;
+      }
+
+      .field span {
+        display: block;
+        color: #12314f;
+        font-size: 13px;
+      }
+
+      .card-foot {
+        padding: 0 24px 24px;
+      }
+
+      .cta {
+        width: 100%;
+        border: 0;
+        border-radius: calc(var(--radius) * 0.52);
+        padding: 12px 14px;
+        color: #fff;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        background: linear-gradient(135deg, var(--accent), #004d80);
+        box-shadow: 0 10px 22px rgba(0, 139, 204, 0.34);
+      }
+
+      .editor-layer {
+        z-index: 2;
+        clip-path: polygon(
+          var(--split-pct) 0,
+          100% 0,
+          100% 100%,
+          var(--split-pct) 100%
+        );
+        background:
+          linear-gradient(135deg, rgba(8, 20, 34, 0.84), rgba(8, 20, 34, 0.74)),
+          radial-gradient(
+            circle at 82% 12%,
+            rgba(0, 179, 255, 0.28),
+            rgba(0, 179, 255, 0) 45%
+          );
+        backdrop-filter: blur(5px);
+      }
+
+      .editor-layer::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: repeating-linear-gradient(
+          to right,
+          rgba(84, 123, 162, 0.08) 0,
+          rgba(84, 123, 162, 0.08) 1px,
+          transparent 1px,
+          transparent 28px
+        );
+        opacity: 0.42;
+        pointer-events: none;
+      }
+
+      .editor-panel {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: min(760px, 78vw);
+        color: #dcecff;
+        border-radius: 16px;
+        border: 1px solid rgba(124, 177, 220, 0.26);
+        background: rgba(6, 23, 39, 0.72);
+        box-shadow: 0 20px 42px rgba(0, 0, 0, 0.34);
+        overflow: auto;
+        max-height: min(86%, 680px);
+        scrollbar-width: thin;
+        scrollbar-color: var(--scrollbar-thumb-start) var(--scrollbar-track);
+      }
+
+      .editor-head {
+        padding: 16px 16px 10px;
+        border-bottom: 1px solid rgba(107, 159, 203, 0.25);
+      }
+
+      .editor-head h3 {
+        margin: 0;
+        font-family: "Space Grotesk", "Trebuchet MS", sans-serif;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-size: 20px;
+      }
+
+      .editor-head p {
+        margin: 6px 0 0;
+        font-size: 12px;
+        color: rgba(208, 230, 255, 0.78);
+      }
+
+      .code-wrap {
+        padding: 12px;
+      }
+
+      .code-editor {
+        display: block;
+        width: 100%;
+        margin: 0;
+        border: 1px solid rgba(112, 166, 212, 0.24);
+        border-radius: 12px;
+        background: rgba(9, 34, 56, 0.66);
+        color: #c6e8ff;
+        padding: 14px 12px;
+        max-height: 480px;
+        overflow: auto;
+        font-size: 12px;
+        line-height: 1.62;
+        font-family: "IBM Plex Mono", monospace;
+        white-space: pre;
+        resize: vertical;
+        min-height: 460px;
+        outline: none;
+        tab-size: 2;
+        scrollbar-width: thin;
+        scrollbar-color: var(--scrollbar-thumb-start) var(--scrollbar-track);
+      }
+
+      .code-editor:focus {
+        border-color: #6bc5ff;
+        box-shadow: 0 0 0 2px rgba(59, 155, 222, 0.22);
+      }
+
+      .editor-panel::-webkit-scrollbar,
+      .code-editor::-webkit-scrollbar {
+        width: var(--scrollbar-size);
+        height: var(--scrollbar-size);
+      }
+
+      .editor-panel::-webkit-scrollbar-track,
+      .code-editor::-webkit-scrollbar-track {
+        background: var(--scrollbar-track);
+        border-radius: 999px;
+      }
+
+      .editor-panel::-webkit-scrollbar-thumb,
+      .code-editor::-webkit-scrollbar-thumb {
+        border-radius: 999px;
+        border: 2px solid rgba(5, 23, 37, 0.72);
+        background: linear-gradient(
+          180deg,
+          var(--scrollbar-thumb-start) 0%,
+          var(--scrollbar-thumb-end) 100%
+        );
+        box-shadow: 0 0 10px rgba(0, 179, 255, 0.32);
+      }
+
+      .editor-panel::-webkit-scrollbar-thumb:hover,
+      .code-editor::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(
+          180deg,
+          var(--scrollbar-thumb-hover-start) 0%,
+          var(--scrollbar-thumb-hover-end) 100%
+        );
+      }
+
+      .status {
+        margin-top: 8px;
+        font-size: 12px;
+        color: #a8d9ff;
+      }
+
+      .fx-layer {
+        position: absolute;
+        inset: 0;
+        z-index: 5;
+        pointer-events: none;
+        overflow: hidden;
+      }
+
+      .pixel,
+      .tear {
+        position: absolute;
+        pointer-events: none;
+      }
+
+      .pixel {
+        width: var(--s);
+        height: var(--s);
+        background: var(--c);
+        box-shadow: 0 0 8px var(--c);
+        animation: pixelBurst 450ms ease-out forwards;
+      }
+
+      .tear {
+        left: 0;
+        right: 0;
+        top: var(--y);
+        height: var(--h);
+        background: linear-gradient(
+          to right,
+          transparent 0,
+          rgba(0, 179, 255, 0.56) 22%,
+          rgba(255, 255, 255, 0.86) 50%,
+          rgba(255, 100, 64, 0.6) 78%,
+          transparent 100%
+        );
+        animation: tearSlice 360ms ease-out forwards;
+      }
+
+      .divider {
+        position: absolute;
+        z-index: 10;
+        left: var(--split-pct);
+        top: 0;
+        width: 28px;
+        height: 100%;
+        transform: translateX(-50%);
+        cursor: col-resize;
+        user-select: none;
+        touch-action: none;
+      }
+
+      .divider::before {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: 0;
+        transform: translateX(-50%);
+        width: 2px;
+        height: 100%;
+        background: linear-gradient(
+          to bottom,
+          rgba(0, 179, 255, 0),
+          rgba(0, 179, 255, 0.95),
+          rgba(255, 96, 53, 0.72),
+          rgba(0, 179, 255, 0)
+        );
+        box-shadow:
+          0 0 0 1px rgba(255, 255, 255, 0.35),
+          0 0 22px rgba(0, 179, 255, 0.9),
+          0 0 48px rgba(255, 98, 60, 0.5);
+        animation: dividerGlow 2s ease-in-out infinite;
+      }
+
+      .divider::after {
+        content: "drag";
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%) rotate(90deg);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 10px;
+        letter-spacing: 0.18em;
+        color: rgba(240, 250, 255, 0.76);
+        text-transform: uppercase;
+      }
+
+      .divider.dragging::before {
+        width: 3px;
+        box-shadow:
+          0 0 0 1px rgba(255, 255, 255, 0.5),
+          0 0 30px rgba(0, 179, 255, 1),
+          0 0 64px rgba(255, 98, 60, 0.64);
+      }
+
+      .fusion-shell.is-distorting .preview-card {
+        animation: cardGlitch 200ms steps(2, end) 2;
+      }
+
+      .fusion-shell.is-distorting .editor-panel {
+        animation: panelGlitch 190ms steps(2, end) 2;
+      }
+
+      @keyframes scanFlow {
+        from {
+          transform: translateY(-24px);
+        }
+        to {
+          transform: translateY(24px);
+        }
+      }
+
+      @keyframes dividerGlow {
+        0%,
+        100% {
+          opacity: 0.82;
+        }
+        50% {
+          opacity: 1;
+        }
+      }
+
+      @keyframes cardGlitch {
+        0% {
+          transform: translate3d(0, 0, 0);
+          filter: hue-rotate(0deg);
+        }
+        40% {
+          transform: translate3d(-4px, 1px, 0);
+          filter: hue-rotate(10deg);
+        }
+        100% {
+          transform: translate3d(0, 0, 0);
+          filter: hue-rotate(0deg);
+        }
+      }
+
+      @keyframes panelGlitch {
+        0% {
+          transform: translate(-50%, -50%) translateX(0);
+        }
+        40% {
+          transform: translate(-50%, -50%) translateX(4px);
+        }
+        100% {
+          transform: translate(-50%, -50%) translateX(0);
+        }
+      }
+
+      @keyframes pixelBurst {
+        0% {
+          opacity: 0.95;
+          transform: translate(0, 0) scale(1);
+        }
+        100% {
+          opacity: 0;
+          transform: translate(var(--dx), var(--dy)) scale(0.5);
+        }
+      }
+
+      @keyframes tearSlice {
+        0% {
+          opacity: 0.84;
+          transform: translateX(0);
+        }
+        35% {
+          opacity: 1;
+          transform: translateX(var(--shift));
+        }
+        100% {
+          opacity: 0;
+          transform: translateX(0);
+        }
+      }
+
+      @media (max-width: 1080px) {
+        .top {
+          display: block;
+        }
+
+        .top p {
+          margin-top: 5px;
+        }
+
+        .fusion-shell {
+          min-height: 720px;
+        }
+
+        .preview-wrap {
+          left: 50%;
+          width: min(92vw, 760px);
+        }
+
+        .editor-panel {
+          left: 50%;
+          width: min(92vw, 760px);
+        }
+      }
+
+      @media (max-width: 860px) {
+        .fusion-shell {
+          height: auto;
+          min-height: 0;
+          padding-top: 0;
+          display: grid;
+          grid-template-rows: auto auto;
+        }
+
+        .fusion-layer,
+        .fx-layer {
+          position: relative;
+          clip-path: none;
+        }
+
+        .preview-wrap,
+        .editor-panel {
+          position: relative;
+          left: auto;
+          right: auto;
+          top: auto;
+          transform: none;
+          width: auto;
+          max-width: none;
+          margin: 12px;
+        }
+
+        .divider {
+          position: relative;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 100%;
+          height: 10px;
+          cursor: default;
+        }
+
+        .divider::before {
+          width: 100%;
+          height: 2px;
+          top: 50%;
+          left: 0;
+          transform: translateY(-50%);
+        }
+
+        .divider::after {
+          transform: translate(-50%, -50%);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="top"></div>
+      <section class="fusion-shell" id="fusion-shell">
+        <div class="fusion-layer preview-layer" id="preview-layer">
+          <div class="preview-wrap">
+            <div id="preview-mount"></div>
+          </div>
+        </div>
+
+        <div class="fusion-layer editor-layer" id="editor-layer">
+          <aside class="editor-panel">
+            <div class="code-wrap">
+              <textarea
+                id="code-editor"
+                class="code-editor"
+                spellcheck="false"
+                aria-label="预览面板代码编辑器"
+              ></textarea>
+            </div>
+          </aside>
+        </div>
+
+        <div
+          class="divider"
+          id="divider"
+          role="slider"
+          aria-label="拖动分割线"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow="57"
+        ></div>
+
+        <div class="fx-layer" id="fx-layer"></div>
+      </section>
+    </div>
+
+    <script>
+      const shell = document.getElementById("fusion-shell");
+      const previewLayer = document.getElementById("preview-layer");
+      const editorLayer = document.getElementById("editor-layer");
+      const divider = document.getElementById("divider");
+      const fxLayer = document.getElementById("fx-layer");
+      const previewMount = document.getElementById("preview-mount");
+      const codeEditor = document.getElementById("code-editor");
+      const status = document.getElementById("status");
+      const previewRoot = previewMount.attachShadow({ mode: "open" });
+
+      const state = {
+        split: 57,
+        glitch: 45,
+      };
+
+      const theme = {
+        radius: 20,
+        accent: "#00b3ff",
+        surface: "#f8fbff",
+        scene: "#eef5ff",
+      };
+
+      const clamp = (num, min, max) => Math.min(max, Math.max(min, num));
+
+      function applyShellState() {
+        shell.style.setProperty("--split", state.split.toFixed(2));
+        shell.style.setProperty("--radius", `${theme.radius}px`);
+        shell.style.setProperty("--accent", theme.accent);
+        shell.style.setProperty("--surface", theme.surface);
+        shell.style.setProperty("--scene", theme.scene);
+        shell.style.setProperty("--glitch", (state.glitch / 100).toFixed(2));
+        divider.setAttribute("aria-valuenow", String(Math.round(state.split)));
+      }
+
+      function getDefaultPreviewCode() {
+        return `<style>
+* { box-sizing: border-box; }
+.demo-scene {
+  width: min(720px, 78vw);
+  height: min(480px, 58vh);
+  margin: 0 auto;
+  border-radius: 24px;
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(0, 198, 255, 0.26), transparent 35%),
+    radial-gradient(circle at 75% 70%, rgba(255, 110, 66, 0.2), transparent 38%),
+    linear-gradient(160deg, #06172a 0%, #081b30 54%, #0a1f36 100%);
+  border: 1px solid rgba(115, 173, 219, 0.26);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05), 0 28px 50px rgba(2, 7, 16, 0.46);
+}
+.noise {
+  position: absolute;
+  inset: 0;
+  background-image:
+    repeating-linear-gradient(to bottom, rgba(155, 206, 255, 0.05) 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(to right, rgba(155, 206, 255, 0.04) 0 1px, transparent 1px 30px);
+  mix-blend-mode: screen;
+  opacity: 0.38;
+  animation: drift 8s linear infinite;
+}
+.orbital {
+  position: relative;
+  width: 300px;
+  height: 300px;
+}
+.ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(117, 188, 255, 0.32);
+  box-shadow: 0 0 22px rgba(0, 179, 255, 0.24);
+}
+.ring.r1 { animation: spin 8s linear infinite; }
+.ring.r2 {
+  inset: 18px;
+  border-color: rgba(255, 140, 102, 0.34);
+  box-shadow: 0 0 24px rgba(255, 118, 74, 0.24);
+  animation: spinReverse 6.4s linear infinite;
+}
+.ring.r3 {
+  inset: 42px;
+  border-style: dashed;
+  border-color: rgba(148, 214, 255, 0.5);
+  animation: spin 4.2s linear infinite;
+}
+.core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, #7ae0ff 0%, #00b3ff 35%, #005f94 100%);
+  box-shadow:
+    0 0 30px rgba(0, 199, 255, 0.8),
+    0 0 80px rgba(0, 137, 212, 0.45),
+    inset 0 0 20px rgba(255, 255, 255, 0.34);
+  animation: pulse 2.1s ease-in-out infinite;
+}
+.core::before,
+.core::after {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  border: 2px solid rgba(128, 223, 255, 0.54);
+  animation: ripple 2.1s ease-out infinite;
+}
+.core::after { animation-delay: 1.05s; }
+.spark {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #b6e9ff;
+  box-shadow: 0 0 16px #7bd9ff;
+}
+.spark.s1 { left: 50%; top: 2px; animation: orbit1 3.2s linear infinite; }
+.spark.s2 { left: 12px; top: 60%; animation: orbit2 2.9s linear infinite; }
+.spark.s3 { right: 18px; top: 54%; animation: orbit3 3.8s linear infinite; }
+.caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 28px;
+  text-align: center;
+}
+.caption h2 {
+  margin: 0;
+  font-family: "Space Grotesk", "Trebuchet MS", sans-serif;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  font-size: 26px;
+  color: #d8f2ff;
+  text-shadow: 0 0 14px rgba(0, 196, 255, 0.55);
+}
+.caption p {
+  margin: 6px 0 0;
+  color: #8ec7ea;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+}
+@keyframes drift {
+  from { transform: translateY(-8px); }
+  to { transform: translateY(8px); }
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes spinReverse {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+@keyframes pulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(0.96); }
+  50% { transform: translate(-50%, -50%) scale(1.08); }
+}
+@keyframes ripple {
+  0% { transform: scale(0.9); opacity: 0.8; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+@keyframes orbit1 {
+  0% { transform: translate(-4px, 0) rotate(0deg) translateX(110px) rotate(0deg); }
+  100% { transform: translate(-4px, 0) rotate(360deg) translateX(110px) rotate(-360deg); }
+}
+@keyframes orbit2 {
+  0% { transform: rotate(0deg) translateX(92px) rotate(0deg); }
+  100% { transform: rotate(-360deg) translateX(92px) rotate(360deg); }
+}
+@keyframes orbit3 {
+  0% { transform: rotate(0deg) translateX(126px) rotate(0deg); }
+  100% { transform: rotate(360deg) translateX(126px) rotate(-360deg); }
+}
+</style>
+
+<section class="demo-scene">
+  <div class="noise"></div>
+  <div class="orbital">
+    <span class="ring r1"></span>
+    <span class="ring r2"></span>
+    <span class="ring r3"></span>
+    <div class="core"></div>
+    <span class="spark s1"></span>
+    <span class="spark s2"></span>
+    <span class="spark s3"></span>
+  </div>
+</section>`;
+      }
+
+      function applyPreviewCode(source, fromEditor = false) {
+        const code = String(source || "").trim();
+        if (!code) {
+          previewRoot.innerHTML = "";
+          status.textContent = "代码为空，预览已清空。";
+          return;
+        }
+
+        const sanitized = code.replace(
+          /<script[\s\S]*?>[\s\S]*?<\/script>/gi,
+          "",
+        );
+        previewRoot.innerHTML = sanitized;
+        const hasRenderable = Array.from(previewRoot.children).some(
+          (node) => node.tagName !== "STYLE",
+        );
+
+        if (!hasRenderable) {
+          status.textContent = "代码未生成可渲染节点，请检查输入。";
+          return;
+        }
+
+        if (fromEditor && sanitized !== code) {
+          status.textContent = "代码已同步到预览（script 已被忽略）。";
+        } else if (fromEditor) {
+          status.textContent = "代码已同步到预览。";
+        }
+        triggerDistortion(state.glitch / 100, false);
+      }
+
+      function nudgeLayers(intensity) {
+        const maxShift = 6 + intensity * 10;
+        const shift = (Math.random() - 0.5) * maxShift;
+        previewLayer.style.transform = `translateX(${shift}px)`;
+        editorLayer.style.transform = `translateX(${-shift * 0.8}px)`;
+        setTimeout(() => {
+          previewLayer.style.transform = "translateX(0)";
+          editorLayer.style.transform = "translateX(0)";
+        }, 120);
+      }
+
+      function spawnPixels(count, intensity) {
+        const width = fxLayer.clientWidth || 1200;
+        const height = fxLayer.clientHeight || 680;
+
+        for (let i = 0; i < count; i += 1) {
+          const pixel = document.createElement("span");
+          pixel.className = "pixel";
+
+          const x = Math.random() * width;
+          const y = Math.random() * height;
+          const size = 2 + Math.random() * (6 + intensity * 7);
+          const dx = (Math.random() - 0.5) * (120 + intensity * 160);
+          const dy = (Math.random() - 0.3) * (80 + intensity * 120);
+          const hue = Math.random() > 0.7 ? 18 : 196;
+          const light = 50 + Math.random() * 30;
+
+          pixel.style.left = `${x}px`;
+          pixel.style.top = `${y}px`;
+          pixel.style.setProperty("--s", `${size}px`);
+          pixel.style.setProperty("--dx", `${dx}px`);
+          pixel.style.setProperty("--dy", `${dy}px`);
+          pixel.style.setProperty("--c", `hsl(${hue} 94% ${light}%)`);
+
+          pixel.addEventListener("animationend", () => pixel.remove());
+          fxLayer.appendChild(pixel);
+        }
+      }
+
+      function spawnTears(count, intensity) {
+        const h = fxLayer.clientHeight || 680;
+        for (let i = 0; i < count; i += 1) {
+          const tear = document.createElement("span");
+          tear.className = "tear";
+          const y = Math.random() * (h - 12);
+          const height = 1 + Math.random() * (2 + intensity * 4);
+          const shift = (Math.random() - 0.5) * (70 + intensity * 110);
+
+          tear.style.setProperty("--y", `${y}px`);
+          tear.style.setProperty("--h", `${height}px`);
+          tear.style.setProperty("--shift", `${shift}px`);
+
+          tear.addEventListener("animationend", () => tear.remove());
+          fxLayer.appendChild(tear);
+        }
+      }
+
+      function triggerDistortion(level = state.glitch / 100, heavy = false) {
+        const intensity = clamp(level, 0, 1);
+        const pixels = Math.round(10 + intensity * 24 + (heavy ? 10 : 0));
+        const tears = Math.round(1 + intensity * 5 + (heavy ? 1 : 0));
+
+        shell.classList.remove("is-distorting");
+        void shell.offsetWidth;
+        shell.classList.add("is-distorting");
+        setTimeout(() => {
+          shell.classList.remove("is-distorting");
+        }, 260);
+
+        nudgeLayers(intensity);
+        spawnPixels(pixels, intensity);
+        spawnTears(tears, intensity);
+      }
+
+      let dragging = false;
+      let startX = 0;
+      let startSplit = state.split;
+      let lastFx = 0;
+
+      function beginDrag(event) {
+        if (window.matchMedia("(max-width: 860px)").matches) return;
+        dragging = true;
+        divider.classList.add("dragging");
+        startX = event.clientX;
+        startSplit = state.split;
+        divider.setPointerCapture?.(event.pointerId);
+        status.textContent = "拖拽中：两层已重合，仅可见区域随分割线裁切。";
+      }
+
+      function moveDrag(event) {
+        if (!dragging) return;
+        const rect = shell.getBoundingClientRect();
+        const delta = event.clientX - startX;
+        const deltaPct = (delta / Math.max(rect.width, 1)) * 100;
+        state.split = clamp(startSplit + deltaPct, 0, 100);
+        applyShellState();
+
+        const now = performance.now();
+        if (now - lastFx > 70) {
+          const speed = clamp(Math.abs(deltaPct) / 20, 0.2, 1);
+          triggerDistortion(Math.max(state.glitch / 100, speed), true);
+          lastFx = now;
+        }
+      }
+
+      function endDrag(event) {
+        if (!dragging) return;
+        dragging = false;
+        divider.classList.remove("dragging");
+        divider.releasePointerCapture?.(event.pointerId);
+
+        if (state.split <= 8) {
+          state.split = 0;
+          status.textContent = "代码面板已完整展示。";
+        } else if (state.split >= 92) {
+          state.split = 100;
+          status.textContent = "预览面板已完整展示。";
+        } else {
+          status.textContent = `分割线已更新：预览可见区域 ${Math.round(state.split)}%。`;
+        }
+        applyShellState();
+        triggerDistortion(state.glitch / 100, true);
+      }
+
+      divider.addEventListener("pointerdown", beginDrag);
+      window.addEventListener("pointermove", moveDrag);
+      window.addEventListener("pointerup", endDrag);
+      window.addEventListener("pointercancel", endDrag);
+      codeEditor.addEventListener("click", () => {
+        triggerDistortion(state.glitch / 100, true);
+        status.textContent = "已触发代码面板联动动效。";
+      });
+
+      let syncTimer = 0;
+      codeEditor.addEventListener("input", () => {
+        window.clearTimeout(syncTimer);
+        syncTimer = window.setTimeout(() => {
+          applyPreviewCode(codeEditor.value, true);
+        }, 120);
+      });
+
+      codeEditor.value = getDefaultPreviewCode();
+      applyShellState();
+      applyPreviewCode(codeEditor.value);
+    </script>
+  </body>
+</html>
