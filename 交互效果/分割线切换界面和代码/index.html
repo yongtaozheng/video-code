@@ -385,12 +385,6 @@
         );
       }
 
-      .status {
-        margin-top: 8px;
-        font-size: 12px;
-        color: #a8d9ff;
-      }
-
       .fx-layer {
         position: absolute;
         inset: 0;
@@ -684,7 +678,6 @@
       const fxLayer = document.getElementById("fx-layer");
       const previewMount = document.getElementById("preview-mount");
       const codeEditor = document.getElementById("code-editor");
-      const status = document.getElementById("status");
       const previewRoot = previewMount.attachShadow({ mode: "open" });
 
       const state = {
@@ -875,7 +868,6 @@
         const code = String(source || "").trim();
         if (!code) {
           previewRoot.innerHTML = "";
-          status.textContent = "代码为空，预览已清空。";
           return;
         }
 
@@ -889,14 +881,7 @@
         );
 
         if (!hasRenderable) {
-          status.textContent = "代码未生成可渲染节点，请检查输入。";
           return;
-        }
-
-        if (fromEditor && sanitized !== code) {
-          status.textContent = "代码已同步到预览（script 已被忽略）。";
-        } else if (fromEditor) {
-          status.textContent = "代码已同步到预览。";
         }
         triggerDistortion(state.glitch / 100, false);
       }
@@ -987,7 +972,6 @@
         startX = event.clientX;
         startSplit = state.split;
         divider.setPointerCapture?.(event.pointerId);
-        status.textContent = "拖拽中：两层已重合，仅可见区域随分割线裁切。";
       }
 
       function moveDrag(event) {
@@ -1014,12 +998,8 @@
 
         if (state.split <= 8) {
           state.split = 0;
-          status.textContent = "代码面板已完整展示。";
         } else if (state.split >= 92) {
           state.split = 100;
-          status.textContent = "预览面板已完整展示。";
-        } else {
-          status.textContent = `分割线已更新：预览可见区域 ${Math.round(state.split)}%。`;
         }
         applyShellState();
         triggerDistortion(state.glitch / 100, true);
@@ -1031,7 +1011,6 @@
       window.addEventListener("pointercancel", endDrag);
       codeEditor.addEventListener("click", () => {
         triggerDistortion(state.glitch / 100, true);
-        status.textContent = "已触发代码面板联动动效。";
       });
 
       let syncTimer = 0;
