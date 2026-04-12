@@ -413,7 +413,7 @@
         drawVignette(currentSpeed);
 
         // 更新 HUD
-        const warpSpeed = ((currentSpeed / baseSpeed) * 1.5).toFixed(1);
+        const warpSpeed = (currentSpeed * 1.5).toFixed(1);
         speedDisplay.textContent = warpSpeed;
 
         requestAnimationFrame(animate);
