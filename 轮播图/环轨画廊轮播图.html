@@ -18,13 +18,14 @@
 
       html,
       body {
-        display: grid;
         height: 100%;
         margin: 0;
       }
 
       body {
-        place-items: center;
+        position: relative;
+        min-height: 100vh;
+        min-height: 100dvh;
         overflow: hidden;
         font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
         background: var(--bg);
@@ -36,9 +37,14 @@
       }
 
       .scene {
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
         width: min(100vw, 1200px);
         overflow: hidden;
         perspective: 35em;
+        -webkit-mask: linear-gradient(90deg, transparent, #000 20% 80%, transparent);
         mask: linear-gradient(90deg, transparent, #000 20% 80%, transparent);
       }
 
