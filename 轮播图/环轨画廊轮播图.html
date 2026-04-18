@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="referrer" content="no-referrer" />
+    <title>环轨画廊轮播图</title>
+    <style>
+      :root {
+        --card-w: 17.5em;
+        --duration: 32s;
+        --bg: #fff3ed;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        display: grid;
+        height: 100%;
+        margin: 0;
+      }
+
+      body {
+        place-items: center;
+        overflow: hidden;
+        font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+        background: var(--bg);
+      }
+
+      .scene,
+      .a3d {
+        display: grid;
+      }
+
+      .scene {
+        width: min(100vw, 1200px);
+        overflow: hidden;
+        perspective: 35em;
+        mask: linear-gradient(90deg, transparent, #000 20% 80%, transparent);
+      }
+
+      .a3d {
+        place-self: center;
+        transform-style: preserve-3d;
+        animation: ry var(--duration) linear infinite;
+      }
+
+      @keyframes ry {
+        to {
+          rotate: y 1turn;
+        }
+      }
+
+      .card {
+        --ba: calc(1turn / var(--n));
+        grid-area: 1 / 1;
+        width: var(--card-w);
+        aspect-ratio: 7 / 10;
+        object-fit: cover;
+        border-radius: 1.5em;
+        backface-visibility: hidden;
+        box-shadow: 0 0.75em 1.8em rgba(0, 0, 0, 0.18);
+        transform: rotateY(calc(var(--i) * var(--ba)))
+          translateZ(
+            calc(-1 * ((0.5 * var(--card-w) + 0.5em) / tan(0.5 * var(--ba))))
+          );
+      }
+
+      @media (max-width: 900px) {
+        :root {
+          --card-w: min(42vw, 12em);
+        }
+
+        .scene {
+          perspective: 28em;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .a3d {
+          animation-duration: 128s;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="scene">
+      <div class="a3d" id="ring"></div>
+    </div>
+
+    <script>
+      const DATA = [
+        "https://img0.baidu.com/it/u=1446729335,4267600834&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=500",
+        "https://img2.baidu.com/it/u=2922694860,2270800253&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=500",
+        "https://img0.baidu.com/it/u=595403291,2269048245&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=500",
+        "https://img0.baidu.com/it/u=1164365158,2722332607&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=500",
+        "https://img2.baidu.com/it/u=9876582,1040648435&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=500",
+        "https://img1.baidu.com/it/u=2172054385,2684839842&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=500",
+        "https://img1.baidu.com/it/u=1879107733,3573789717&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=500",
+        "https://img2.baidu.com/it/u=1720323410,218932174&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=500",
+        "https://img1.baidu.com/it/u=2479779032,1379361694&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=500",
+        "https://img1.baidu.com/it/u=537208727,895387248&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=500",
+        "https://img1.baidu.com/it/u=3310720258,943543712&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=500",
+        "https://img2.baidu.com/it/u=2165957654,3023194084&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=500",
+      ];
+
+      const ring = document.getElementById("ring");
+      ring.style.setProperty("--n", DATA.length);
+
+      const fragment = document.createDocumentFragment();
+      DATA.forEach((src, i) => {
+        const img = document.createElement("img");
+        img.className = "card";
+        img.src = src;
+        img.alt = "carousel image";
+        img.loading = "lazy";
+        img.style.setProperty("--i", i);
+        fragment.appendChild(img);
+      });
+
+      ring.appendChild(fragment);
+    </script>
+  </body>
+</html>
