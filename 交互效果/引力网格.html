@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>引力网格</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        height: 100vh;
+        overflow: hidden;
+        background:
+          radial-gradient(1200px 700px at -10% -20%, #1c356f 0%, transparent 60%),
+          radial-gradient(1100px 700px at 110% -10%, #4c1650 0%, transparent 55%),
+          radial-gradient(1000px 600px at 50% 120%, #153033 0%, transparent 55%),
+          #070b16;
+      }
+
+      .page-noise {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        opacity: 0.08;
+        background-image:
+          radial-gradient(circle at 20% 20%, #ffffff 0.7px, transparent 0.8px),
+          radial-gradient(circle at 80% 65%, #ffffff 0.8px, transparent 0.9px),
+          radial-gradient(circle at 40% 85%, #ffffff 0.7px, transparent 0.8px);
+        background-size:
+          180px 180px,
+          210px 210px,
+          170px 170px;
+      }
+
+      #energyCanvas {
+        position: fixed;
+        inset: 0;
+        display: block;
+        width: 100vw;
+        height: 100vh;
+        touch-action: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page-noise"></div>
+    <canvas id="energyCanvas"></canvas>
+
+    <script>
+      const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+
+      const canvas = document.getElementById("energyCanvas");
+      const ctx = canvas.getContext("2d");
+
+      let w = 0;
+      let h = 0;
+      let cols = 0;
+      let rows = 0;
+      let fieldMode = "repel";
+      let points = [];
+      const waves = [];
+
+      const pointer = {
+        x: -9999,
+        y: -9999,
+        active: false,
+      };
+
+      function rebuildPoints() {
+        points = [];
+        const gap = 34;
+        cols = Math.floor(w / gap) + 1;
+        rows = Math.floor(h / gap) + 1;
+
+        for (let j = 0; j < rows; j += 1) {
+          for (let i = 0; i < cols; i += 1) {
+            const x = i * gap;
+            const y = j * gap;
+            points.push({
+              i,
+              j,
+              x,
+              y,
+              ox: x,
+              oy: y,
+              vx: 0,
+              vy: 0,
+            });
+          }
+        }
+      }
+
+      function resizeCanvas() {
+        const dpr = Math.min(2, window.devicePixelRatio || 1);
+        w = canvas.clientWidth;
+        h = canvas.clientHeight;
+        canvas.width = Math.floor(w * dpr);
+        canvas.height = Math.floor(h * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        rebuildPoints();
+      }
+
+      function addWave(x, y) {
+        if (!Number.isFinite(x) || !Number.isFinite(y)) {
+          x = w / 2;
+          y = h / 2;
+        }
+        waves.push({
+          x,
+          y,
+          r: 0,
+          speed: 5.2,
+          max: Math.max(w, h) * 0.9,
+        });
+      }
+
+      canvas.addEventListener("pointerenter", () => {
+        pointer.active = true;
+      });
+
+      canvas.addEventListener("pointerleave", () => {
+        pointer.active = false;
+      });
+
+      canvas.addEventListener("pointermove", (event) => {
+        const rect = canvas.getBoundingClientRect();
+        pointer.x = event.clientX - rect.left;
+        pointer.y = event.clientY - rect.top;
+        pointer.active = true;
+      });
+
+      canvas.addEventListener("click", (event) => {
+        const rect = canvas.getBoundingClientRect();
+        addWave(event.clientX - rect.left, event.clientY - rect.top);
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if (event.code === "Space") {
+          event.preventDefault();
+          addWave(w / 2, h / 2);
+        }
+        if (event.code === "KeyC") {
+          waves.length = 0;
+          ctx.clearRect(0, 0, w, h);
+        }
+        if (event.code === "KeyM") {
+          fieldMode = fieldMode === "repel" ? "attract" : "repel";
+        }
+      });
+
+      function updateWaves() {
+        for (let i = waves.length - 1; i >= 0; i -= 1) {
+          const wv = waves[i];
+          wv.r += wv.speed;
+          if (wv.r > wv.max) waves.splice(i, 1);
+        }
+      }
+
+      function stepField() {
+        ctx.fillStyle = "rgba(8, 13, 30, 0.2)";
+        ctx.fillRect(0, 0, w, h);
+
+        updateWaves();
+
+        const radius = 148;
+        const spring = 0.028;
+        const damp = 0.9;
+
+        for (const p of points) {
+          let ax = (p.ox - p.x) * spring;
+          let ay = (p.oy - p.y) * spring;
+
+          if (pointer.active) {
+            const dx = p.x - pointer.x;
+            const dy = p.y - pointer.y;
+            const dist = Math.hypot(dx, dy);
+            if (dist < radius && dist > 0.2) {
+              const force = (1 - dist / radius) ** 1.7 * 1.22;
+              const sign = fieldMode === "repel" ? 1 : -1;
+              ax += (dx / dist) * force * sign;
+              ay += (dy / dist) * force * sign;
+            }
+          }
+
+          for (const wave of waves) {
+            const dx = p.x - wave.x;
+            const dy = p.y - wave.y;
+            const dist = Math.hypot(dx, dy);
+            const edge = Math.abs(dist - wave.r);
+            if (edge < 20 && dist > 0.2) {
+              const impulse = (1 - edge / 20) * 1.25;
+              ax += (dx / dist) * impulse;
+              ay += (dy / dist) * impulse;
+            }
+          }
+
+          p.vx = (p.vx + ax) * damp;
+          p.vy = (p.vy + ay) * damp;
+          p.x += p.vx;
+          p.y += p.vy;
+        }
+
+        ctx.strokeStyle = "rgba(154, 181, 255, 0.18)";
+        ctx.lineWidth = 1;
+        for (const p of points) {
+          if (p.i < cols - 1) {
+            const right = points[p.j * cols + p.i + 1];
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(right.x, right.y);
+            ctx.stroke();
+          }
+          if (p.j < rows - 1) {
+            const down = points[(p.j + 1) * cols + p.i];
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(down.x, down.y);
+            ctx.stroke();
+          }
+        }
+
+        for (const p of points) {
+          const speed = Math.hypot(p.vx, p.vy);
+          const glow = clamp(speed * 35, 0, 80);
+          ctx.fillStyle = `rgb(${130 + glow}, ${186 + glow * 0.5}, 255)`;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 1.25, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        requestAnimationFrame(stepField);
+      }
+
+      let resizeTimer;
+      window.addEventListener("resize", () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(resizeCanvas, 100);
+      });
+
+      resizeCanvas();
+      stepField();
+    </script>
+  </body>
+</html>
