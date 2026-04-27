@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>轨道弹出菜单（纯 CSS）</title>
+  <style>
+    :root {
+      --bg: #0b0e14;
+      --text: #eef2ff;
+      --accent: #88f5d9;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(70vw 70vw at 105% -10%, rgba(122, 162, 255, 0.16), transparent 58%),
+        radial-gradient(55vw 55vw at -15% -20%, rgba(106, 240, 207, 0.18), transparent 55%),
+        var(--bg);
+      padding: 20px;
+    }
+
+    .orbit-box {
+      position: relative;
+      width: 320px;
+      height: 320px;
+      margin: 20px auto 6px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle, rgba(122, 162, 255, 0.12), transparent 65%);
+    }
+
+    .orbit-toggle {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .center-btn,
+    .orb {
+      width: 68px;
+      height: 68px;
+      border-radius: 50%;
+      border: 1px solid #3f4d72;
+      display: grid;
+      place-items: center;
+      user-select: none;
+      color: #eaf0ff;
+    }
+
+    .center-btn {
+      cursor: pointer;
+      background: linear-gradient(140deg, #1f2b47, #121a2d);
+      z-index: 3;
+      font-weight: 700;
+      font-size: 1.2rem;
+      transition: transform 220ms ease, border-color 220ms ease;
+    }
+
+    .orbit-track {
+      position: absolute;
+      width: 244px;
+      height: 244px;
+      border-radius: 50%;
+      border: 1px dashed rgba(149, 164, 204, 0.28);
+      animation: spin 13s linear infinite;
+    }
+
+    .orb {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      margin: -34px;
+      background: linear-gradient(145deg, #202c47, #121a2d);
+      transform: translate(0, 0) scale(0.4);
+      opacity: 0;
+      transition: transform 340ms cubic-bezier(.2,.7,.2,1), opacity 240ms ease, box-shadow 220ms ease, border-color 220ms ease, color 220ms ease;
+      font-size: 0.84rem;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      isolation: isolate;
+    }
+
+    .orb::after {
+      content: "";
+      position: absolute;
+      inset: -6px;
+      border-radius: 50%;
+      border: 1px solid rgba(136, 245, 217, 0);
+      opacity: 0;
+      transform: scale(0.9);
+      transition: opacity 220ms ease, transform 220ms ease, border-color 220ms ease;
+      z-index: -1;
+    }
+
+    .o1 { --x: 0px; --y: -122px; }
+    .o2 { --x: 106px; --y: -61px; }
+    .o3 { --x: 106px; --y: 61px; }
+    .o4 { --x: 0px; --y: 122px; }
+    .o5 { --x: -106px; --y: 61px; }
+    .o6 { --x: -106px; --y: -61px; }
+
+    .orbit-box:has(.orbit-toggle:checked) .orb {
+      opacity: 1;
+      transform: translate(var(--x), var(--y)) scale(1);
+    }
+
+    .orbit-box:has(.orbit-toggle:checked) .orb:hover {
+      transform: translate(var(--x), var(--y)) scale(1.13);
+      border-color: rgba(136, 245, 217, 0.9);
+      color: #d5fff3;
+      box-shadow:
+        0 8px 24px rgba(106, 240, 207, 0.28),
+        inset 0 0 0 1px rgba(136, 245, 217, 0.35);
+    }
+
+    .orbit-box:has(.orbit-toggle:checked) .orb:hover::after {
+      opacity: 1;
+      transform: scale(1.06);
+      border-color: rgba(136, 245, 217, 0.5);
+    }
+
+    .orbit-box:has(.orbit-toggle:checked) .orb:active {
+      transform: translate(var(--x), var(--y)) scale(1.05);
+    }
+
+    .orbit-box:has(.orbit-toggle:checked) .center-btn {
+      transform: rotate(45deg);
+      border-color: var(--accent);
+    }
+
+    .orbit-box:has(.orbit-toggle:checked) .orbit-track {
+      border-color: rgba(136, 245, 217, 0.46);
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    @media (max-width: 560px) {
+      .orbit-box {
+        width: 260px;
+        height: 260px;
+      }
+
+      .center-btn,
+      .orb {
+        width: 56px;
+        height: 56px;
+      }
+
+      .orb {
+        margin: -28px;
+        font-size: 0.76rem;
+      }
+
+      .orbit-track {
+        width: 200px;
+        height: 200px;
+      }
+
+      .o1 { --x: 0px; --y: -100px; }
+      .o2 { --x: 86px; --y: -50px; }
+      .o3 { --x: 86px; --y: 50px; }
+      .o4 { --x: 0px; --y: 100px; }
+      .o5 { --x: -86px; --y: 50px; }
+      .o6 { --x: -86px; --y: -50px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="orbit-box" aria-label="轨道菜单">
+    <input class="orbit-toggle" id="orbit-toggle" type="checkbox" />
+    <label class="center-btn" for="orbit-toggle">+</label>
+
+    <span class="orbit-track" aria-hidden="true"></span>
+    <span class="orb o1">点赞</span>
+    <span class="orb o2">投币</span>
+    <span class="orb o3">收藏</span>
+    <span class="orb o4">关注</span>
+    <span class="orb o5">一键</span>
+    <span class="orb o6">三连</span>
+  </div>
+</body>
+</html>
