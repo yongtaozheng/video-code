@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>绳串图片</title>
+    <style>
+      :root {
+        --bg: #f2ede4;
+        --shadow: rgba(32, 18, 8, 0.22);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+        background:
+          radial-gradient(
+            circle at 20% 10%,
+            rgba(255, 255, 255, 0.65) 0%,
+            rgba(255, 255, 255, 0) 40%
+          ),
+          radial-gradient(
+            circle at 85% 5%,
+            rgba(255, 255, 255, 0.55) 0%,
+            rgba(255, 255, 255, 0) 36%
+          ),
+          linear-gradient(180deg, #ece4d7 0%, var(--bg) 45%, #e9e1d4 100%);
+      }
+
+      .scene {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        isolation: isolate;
+      }
+
+      #ropeCanvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1;
+        pointer-events: none;
+      }
+
+      #photos {
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+        perspective: 1200px;
+        perspective-origin: 50% 20%;
+        pointer-events: auto;
+      }
+
+      .photo {
+        position: absolute;
+        width: 170px;
+        height: 120px;
+        border-radius: 8px;
+        box-shadow: 0 16px 24px var(--shadow);
+        background: #ddd center / cover no-repeat;
+        transform-origin: 16px 6px;
+        transform-style: preserve-3d;
+        backface-visibility: hidden;
+        isolation: isolate;
+        will-change: transform, top, left;
+        pointer-events: auto;
+        cursor: grab;
+        touch-action: none;
+        user-select: none;
+      }
+
+      .photo.dragging {
+        cursor: grabbing;
+      }
+
+      .rope-pass {
+        position: absolute;
+        width: 26px;
+        height: 6px;
+        border-radius: 999px;
+        transform-origin: 0 50%;
+        background: linear-gradient(
+          90deg,
+          rgba(95, 69, 50, 0) 0%,
+          rgba(95, 69, 50, 0.95) 28%,
+          rgba(95, 69, 50, 0.95) 72%,
+          rgba(95, 69, 50, 0) 100%
+        );
+        z-index: 3;
+        pointer-events: none;
+      }
+
+      .rope-pass::after {
+        content: "";
+        position: absolute;
+        left: 3px;
+        right: 3px;
+        top: 1px;
+        height: 2px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.3);
+      }
+
+      .controls {
+        position: absolute;
+        left: 20px;
+        bottom: 16px;
+        z-index: 5;
+        min-width: 220px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.78);
+        color: #5f4b39;
+        backdrop-filter: blur(3px);
+      }
+
+      .controls label {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 13px;
+        margin-bottom: 8px;
+      }
+
+      .controls input[type="range"] {
+        width: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="scene">
+      <canvas id="ropeCanvas"></canvas>
+      <div id="photos"></div>
+      <div class="controls">
+        <label>
+          <span>风强度</span>
+          <span id="windValue">3x</span>
+        </label>
+        <input
+          id="windStrength"
+          type="range"
+          min="0"
+          max="6"
+          step="0.1"
+          value="3"
+        />
+      </div>
+    </div>
+
+    <script>
+      const imageList = [
+        "http://5b0988e595225.cdn.sohucs.com/images/20180130/24aecf0d680546ccbf6480badce389dc.jpeg",
+        "https://pic3.zhimg.com/v2-f1159536dc58af663e3955e774a7a13a_r.jpg",
+        "http://qqpublic.qpic.cn/qq_public_cover/0/0-2083471255-1DB77954D274653D98B57D000A686040_vsmcut/0",
+        "http://p6.itc.cn/q_70/images03/20210106/6cd651a28f9a46268205410dcc5cad4d.jpeg",
+        "http://5b0988e595225.cdn.sohucs.com/images/20180824/781646fe72fc4788b7dfc24c112b5bbb.png",
+        "http://5b0988e595225.cdn.sohucs.com/images/20171122/c839ec116c7e4853ac9d34a7abf8b4cc.jpeg",
+        "https://pic3.zhimg.com/v2-d0590fa634c9aae77339e820e185b75b_1440w.jpg?source=172ae18b",
+      ];
+
+      const canvas = document.getElementById("ropeCanvas");
+      const ctx = canvas.getContext("2d");
+      const photosRoot = document.getElementById("photos");
+      const windSlider = document.getElementById("windStrength");
+      const windValue = document.getElementById("windValue");
+
+      const HOLE = { x: 16, y: 6 };
+      const ROPE_SAMPLES = 110;
+      let windStrength = 3;
+
+      let w = 0;
+      let h = 0;
+      let dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+      let ropeStart = { x: 0, y: 0 };
+      let ropeEnd = { x: 0, y: 0 };
+      let ropeSag = 0;
+      let ropeSagVel = 0;
+      let ropeSway = 0;
+      let ropeSwayVel = 0;
+      let dragX = 0;
+      let dragY = 0;
+      let dragVX = 0;
+      let dragVY = 0;
+      let dragTargetX = 0;
+      let dragTargetY = 0;
+      let activeDrag = null;
+      let photos = [];
+
+      function lerp(a, b, t) {
+        return a + (b - a) * t;
+      }
+
+      function clamp(v, min, max) {
+        return Math.max(min, Math.min(max, v));
+      }
+
+      function bindControls() {
+        windSlider.addEventListener("input", () => {
+          windStrength = Number(windSlider.value);
+          windValue.textContent = `${windStrength.toFixed(1)}x`;
+        });
+      }
+
+      function initPhotos() {
+        photosRoot.innerHTML = "";
+        const tList = buildRandomTs(imageList.length, 0.12, 0.88, 0.085);
+        photos = imageList.map((src, i) => {
+          const el = document.createElement("div");
+          el.className = "photo";
+          el.style.backgroundImage = `url('${src}')`;
+          const passEl = document.createElement("span");
+          passEl.className = "rope-pass";
+          photosRoot.appendChild(el);
+          photosRoot.appendChild(passEl);
+
+          const mass = 1 + Math.random() * 0.6;
+
+          return {
+            el,
+            passEl,
+            t: tList[i],
+            mass,
+            restAngle: 0,
+            angle: 0,
+            velocity: 0,
+            phase: Math.random() * Math.PI * 2,
+            stiffness: 9.2,
+            damping: 2.45,
+            width: 170,
+            height: 120,
+            x: 0,
+            y: 0,
+          };
+        });
+        for (const p of photos) {
+          const dx = p.width - HOLE.x;
+          const dy = p.height - HOLE.y;
+          p.restAngle = Math.atan2(dx, dy);
+          p.angle = p.restAngle + (Math.random() - 0.5) * 0.06;
+          p.el.addEventListener("pointerdown", (e) => startDrag(e, p));
+        }
+      }
+
+      function getPointerPos(e) {
+        return { x: e.clientX, y: e.clientY };
+      }
+
+      function applyDragPosition(pointerX, pointerY, dt) {
+        const baseX = activeDrag?.startDragX || 0;
+        const baseY = activeDrag?.startDragY || 0;
+        const startX = activeDrag?.startPointerX || pointerX;
+        const startY = activeDrag?.startPointerY || pointerY;
+        let dx = baseX + (pointerX - startX);
+        let dy = baseY + (pointerY - startY);
+        const len = Math.hypot(dx, dy);
+        const dragLimit = 110;
+        if (len > dragLimit) {
+          const ratio = dragLimit / len;
+          dx *= ratio;
+          dy *= ratio;
+        }
+
+        if (dt > 0.0001) {
+          dragVX = (dx - dragTargetX) / dt;
+          dragVY = (dy - dragTargetY) / dt;
+        }
+        dragTargetX = dx;
+        dragTargetY = dy;
+      }
+
+      function startDrag(e, p) {
+        e.preventDefault();
+        if (activeDrag?.photo) {
+          activeDrag.photo.el.classList.remove("dragging");
+        }
+        const pos = getPointerPos(e);
+        activeDrag = {
+          pointerId: e.pointerId,
+          photo: p,
+          lastTime: e.timeStamp || performance.now(),
+          startPointerX: pos.x,
+          startPointerY: pos.y,
+          startDragX: dragX,
+          startDragY: dragY,
+        };
+        p.el.classList.add("dragging");
+        p.el.setPointerCapture?.(e.pointerId);
+        dragTargetX = dragX;
+        dragTargetY = dragY;
+      }
+
+      function moveDrag(e) {
+        if (!activeDrag || e.pointerId !== activeDrag.pointerId) return;
+        const p = activeDrag.photo;
+        const nowTs = e.timeStamp || performance.now();
+        const dt = clamp((nowTs - activeDrag.lastTime) / 1000, 0, 0.05);
+        activeDrag.lastTime = nowTs;
+        const pos = getPointerPos(e);
+        applyDragPosition(pos.x, pos.y, dt);
+      }
+
+      function endDrag(e) {
+        if (!activeDrag || e.pointerId !== activeDrag.pointerId) return;
+        const p = activeDrag.photo;
+        p.el.classList.remove("dragging");
+        p.el.releasePointerCapture?.(e.pointerId);
+        activeDrag = null;
+        dragTargetX = 0;
+        dragTargetY = 0;
+      }
+
+      function buildRandomTs(count, minT, maxT, minGap) {
+        const values = [];
+        let attempts = 0;
+        const maxAttempts = 4000;
+
+        while (values.length < count && attempts < maxAttempts) {
+          const t = minT + Math.random() * (maxT - minT);
+          const ok = values.every((v) => Math.abs(v - t) >= minGap);
+          if (ok) values.push(t);
+          attempts += 1;
+        }
+
+        if (values.length < count) {
+          values.length = 0;
+          const step = (maxT - minT) / (count + 1);
+          for (let i = 0; i < count; i += 1) {
+            const base = minT + step * (i + 1);
+            const jitter = (Math.random() - 0.5) * step * 0.6;
+            values.push(clamp(base + jitter, minT, maxT));
+          }
+        }
+
+        values.sort((a, b) => a - b);
+        return values;
+      }
+
+      function resize() {
+        w = window.innerWidth;
+        h = window.innerHeight;
+
+        dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+        canvas.width = Math.floor(w * dpr);
+        canvas.height = Math.floor(h * dpr);
+        canvas.style.width = `${w}px`;
+        canvas.style.height = `${h}px`;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        ropeStart = { x: 78, y: Math.max(64, h * 0.13) };
+        ropeEnd = { x: w - 78, y: Math.max(84, h * 0.2) };
+
+        const baseSag = Math.min(168, Math.max(88, h * 0.16));
+        ropeSag = baseSag;
+        ropeSagVel = 0;
+        ropeSway = 0;
+        ropeSwayVel = 0;
+        dragX = 0;
+        dragY = 0;
+        dragVX = 0;
+        dragVY = 0;
+        dragTargetX = 0;
+        dragTargetY = 0;
+      }
+
+      function ropeAnchorPoint(t) {
+        const lineX = lerp(ropeStart.x, ropeEnd.x, t);
+        const lineY = lerp(ropeStart.y, ropeEnd.y, t);
+        const arc = 4 * t * (1 - t);
+        const dragWeight = 0.36 + 0.64 * arc;
+        return {
+          x: lineX + ropeSway * arc + dragX * dragWeight,
+          y: lineY + ropeSag * arc + dragY * dragWeight,
+        };
+      }
+
+      function ropePoint(t) {
+        const p = ropeAnchorPoint(t);
+        return {
+          x: p.x,
+          y: p.y,
+        };
+      }
+
+      function ropeTangent(t) {
+        const e = 0.004;
+        const a = ropePoint(clamp(t - e, 0, 1));
+        const b = ropePoint(clamp(t + e, 0, 1));
+        let dx = b.x - a.x;
+        let dy = b.y - a.y;
+        const len = Math.hypot(dx, dy) || 1;
+        dx /= len;
+        dy /= len;
+        return { x: dx, y: dy };
+      }
+
+      function update(dt, timeS) {
+        let windSum = 0;
+        for (const p of photos) {
+          const wind =
+            Math.sin(timeS * 0.8 + p.phase) * 0.12 +
+            Math.sin(timeS * 0.31 + p.phase * 0.7) * 0.06;
+          const windBoost = 0.2 + windStrength * windStrength * 0.35;
+          const gust =
+            Math.sin(timeS * 1.9 + p.phase * 1.3) * 0.04 * windStrength;
+          const scaledWind = wind * windBoost + gust;
+          windSum += scaledWind;
+          const acc =
+            -p.stiffness * Math.sin(p.angle - p.restAngle) -
+            p.damping * p.velocity +
+            scaledWind;
+          p.velocity += acc * dt;
+          p.angle += p.velocity * dt;
+          p.angle = clamp(p.angle, p.restAngle - 0.24, p.restAngle + 0.24);
+        }
+
+        if (!activeDrag) {
+          dragTargetX = 0;
+          dragTargetY = 0;
+        }
+        const dragK = activeDrag ? 42 : 16;
+        const dragDamping = activeDrag ? 9.5 : 7.6;
+        dragVX += (dragTargetX - dragX) * dragK * dt;
+        dragVY += (dragTargetY - dragY) * dragK * dt;
+        dragVX *= Math.exp(-dragDamping * dt);
+        dragVY *= Math.exp(-dragDamping * dt);
+        dragX += dragVX * dt;
+        dragY += dragVY * dt;
+
+        if (
+          !activeDrag &&
+          Math.abs(dragX) < 0.04 &&
+          Math.abs(dragY) < 0.04 &&
+          Math.abs(dragVX) < 0.04 &&
+          Math.abs(dragVY) < 0.04
+        ) {
+          dragX = 0;
+          dragY = 0;
+          dragVX = 0;
+          dragVY = 0;
+        }
+
+        const avgWind = windSum / Math.max(1, photos.length);
+        const avgMass =
+          photos.reduce((sum, p) => sum + p.mass, 0) /
+          Math.max(1, photos.length);
+        const baseSag = Math.min(172, Math.max(90, h * 0.15 + avgMass * 20));
+        const targetSag = baseSag + avgWind * 12 + dragY * 0.16;
+        const targetSway = avgWind * 30 + dragX * 0.18;
+
+        ropeSagVel += (targetSag - ropeSag) * 7.2 * dt;
+        ropeSagVel *= Math.exp(-3.9 * dt);
+        ropeSag += ropeSagVel * dt;
+
+        ropeSwayVel += (targetSway - ropeSway) * 6.8 * dt;
+        ropeSwayVel *= Math.exp(-3.5 * dt);
+        ropeSway += ropeSwayVel * dt;
+
+        for (const p of photos) {
+          const point = ropePoint(p.t);
+          p.x = point.x;
+          p.y = point.y;
+        }
+      }
+
+      function drawRope() {
+        ctx.clearRect(0, 0, w, h);
+
+        ctx.beginPath();
+        for (let i = 0; i <= ROPE_SAMPLES; i += 1) {
+          const t = i / ROPE_SAMPLES;
+          const point = ropePoint(t);
+          if (i === 0) {
+            ctx.moveTo(point.x, point.y);
+          } else {
+            ctx.lineTo(point.x, point.y);
+          }
+        }
+
+        ctx.lineWidth = 6;
+        ctx.strokeStyle = "#5f4532";
+        ctx.lineCap = "round";
+        ctx.stroke();
+
+        ctx.beginPath();
+        for (let i = 0; i <= ROPE_SAMPLES; i += 1) {
+          const t = i / ROPE_SAMPLES;
+          const point = ropePoint(t);
+          if (i === 0) {
+            ctx.moveTo(point.x, point.y - 1.5);
+          } else {
+            ctx.lineTo(point.x, point.y - 1.5);
+          }
+        }
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+        ctx.stroke();
+      }
+
+      function drawPhotos() {
+        const ordered = [...photos].sort((a, b) => a.t - b.t);
+        const zMap = new Map();
+        for (let i = 0; i < ordered.length; i += 1) {
+          zMap.set(ordered[i], 1000 + i * 10);
+        }
+
+        for (const p of photos) {
+          const baseZ = zMap.get(p);
+          p.el.style.left = `${p.x - HOLE.x}px`;
+          p.el.style.top = `${p.y - HOLE.y}px`;
+          p.el.style.zIndex = `${baseZ}`;
+          const tiltY = clamp(p.angle * 58, -14, 14);
+          const tiltX = clamp(-Math.abs(p.velocity) * 24, -6, 0);
+          p.el.style.transform = `rotateZ(${p.angle}rad) rotateY(${tiltY}deg) rotateX(${tiltX}deg)`;
+
+          const tangent = ropeTangent(p.t);
+          const tangentAngle = Math.atan2(tangent.y, tangent.x);
+          p.passEl.style.left = `${p.x - 3}px`;
+          p.passEl.style.top = `${p.y}px`;
+          p.passEl.style.zIndex = `${baseZ + 1}`;
+          p.passEl.style.transform = `translate(0, -50%) rotate(${tangentAngle}rad)`;
+        }
+      }
+
+      let last = performance.now();
+      function loop(now) {
+        const dt = Math.min(0.033, (now - last) / 1000);
+        last = now;
+
+        update(dt, now / 1000);
+        drawRope();
+        drawPhotos();
+
+        requestAnimationFrame(loop);
+      }
+
+      initPhotos();
+      bindControls();
+      resize();
+      requestAnimationFrame(loop);
+
+      window.addEventListener("resize", resize);
+      window.addEventListener("pointermove", moveDrag);
+      window.addEventListener("pointerup", endDrag);
+      window.addEventListener("pointercancel", endDrag);
+    </script>
+  </body>
+</html>
