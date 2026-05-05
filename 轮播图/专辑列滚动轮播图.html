@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>参考 CodePen 专辑列滚动轮播图</title>
+    <style>
+      :root {
+        --body-bg: #000;
+        --base-font-size: 16px;
+        --window-width: 900px;
+        --column-height: 420px;
+        --image-height: 200px;
+        --row-gap: 0.5em;
+        --column-gap: 0.25em;
+        --number-of-images: 10;
+        --number-of-columns: 5;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html,
+      body {
+        min-height: 100%;
+      }
+
+      body {
+        background-color: var(--body-bg);
+        font-size: var(--base-font-size);
+        font-family: "Poppins", "PingFang SC", sans-serif;
+        color: #586270;
+        overflow-x: hidden;
+      }
+
+      body::-webkit-scrollbar {
+        display: none;
+      }
+
+      .stage {
+        height: 100vh;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden;
+      }
+
+      .column-wrapper {
+        width: var(--window-width);
+        height: var(--column-height);
+        perspective: 1000px;
+        position: relative;
+        overflow: clip;
+      }
+
+      .columns {
+        position: absolute;
+        width: 175%;
+        top: calc(-1 * var(--column-height));
+        right: calc(-1 * var(--window-width));
+        display: grid;
+        grid-template-columns: repeat(var(--number-of-columns), 1fr);
+        transform: rotateX(45deg) rotateY(20deg) rotate(-25deg)
+          translate3d(-6em, 8em, 8em);
+        transform-origin: 50%;
+        transform-style: preserve-3d;
+        mask-image: linear-gradient(
+          #0000 0%,
+          #00000005 2.3%,
+          #00000009 2.57%,
+          #00000013 3.65%,
+          #00000026 5.25%,
+          #0000004d 7.5%,
+          #000 15%
+        );
+      }
+
+      .column {
+        display: flex;
+        flex-direction: column;
+        margin-left: var(--column-gap);
+        margin-right: var(--column-gap);
+      }
+
+      .column:nth-child(1),
+      .column:nth-child(4) {
+        padding-top: 100px;
+      }
+
+      .column:nth-child(2),
+      .column:nth-child(5) {
+        padding-top: 50px;
+      }
+
+      .column > div {
+        height: var(--image-height);
+        margin-bottom: var(--row-gap);
+        background-repeat: no-repeat;
+        background-size: cover;
+        background-position: center;
+        border-radius: 4px;
+      }
+
+      .down {
+        animation: imageScrollingDown 25s linear infinite alternate;
+      }
+
+      .up {
+        animation: imageScrollingUp 25s linear infinite alternate;
+      }
+
+      @keyframes imageScrollingUp {
+        0% {
+          transform: translateY(0);
+        }
+        100% {
+          transform: translateY(
+            calc(
+              -1 *
+                (((var(--image-height) + var(--row-gap)) * var(--number-of-images)) -
+                  var(--column-height))
+            )
+          );
+        }
+      }
+
+      @keyframes imageScrollingDown {
+        0% {
+          transform: translateY(
+            calc(
+              -1 *
+                (((var(--image-height) + var(--row-gap)) * var(--number-of-images)) -
+                  var(--column-height))
+            )
+          );
+        }
+        100% {
+          transform: translateY(0);
+        }
+      }
+
+      @media (max-width: 860px) {
+        .column-wrapper {
+          width: min(96vw, var(--window-width));
+          height: min(52vw, var(--column-height));
+        }
+
+        .columns {
+          right: -90vw;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <section class="stage">
+      <div class="column-wrapper">
+        <div class="columns" id="columns"></div>
+      </div>
+    </section>
+    <script>
+      const imageList = [
+        "http://5b0988e595225.cdn.sohucs.com/images/20180130/24aecf0d680546ccbf6480badce389dc.jpeg",
+        "https://pic3.zhimg.com/v2-f1159536dc58af663e3955e774a7a13a_r.jpg",
+        "http://qqpublic.qpic.cn/qq_public_cover/0/0-2083471255-1DB77954D274653D98B57D000A686040_vsmcut/0",
+        "http://p6.itc.cn/q_70/images03/20210106/6cd651a28f9a46268205410dcc5cad4d.jpeg",
+        "http://5b0988e595225.cdn.sohucs.com/images/20180824/781646fe72fc4788b7dfc24c112b5bbb.png",
+        "http://5b0988e595225.cdn.sohucs.com/images/20171122/c839ec116c7e4853ac9d34a7abf8b4cc.jpeg",
+        "https://pic3.zhimg.com/v2-d0590fa634c9aae77339e820e185b75b_1440w.jpg?source=172ae18b",
+      ];
+
+      const columnsRoot = document.getElementById("columns");
+      const columnCount = 5;
+      const imagesPerColumn = 10;
+
+      function preloadImages(urls) {
+        return Promise.all(
+          urls.map(
+            (url) =>
+              new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => resolve({ url, ok: true });
+                img.onerror = () => resolve({ url, ok: false });
+                img.src = url;
+              })
+          )
+        );
+      }
+
+      function renderColumns(sourceList) {
+        const fragment = document.createDocumentFragment();
+
+        for (let col = 0; col < columnCount; col += 1) {
+          const column = document.createElement("div");
+          column.className = `column ${col % 2 === 0 ? "up" : "down"}`;
+
+          for (let row = 0; row < imagesPerColumn; row += 1) {
+            const tile = document.createElement("div");
+            const index = (col * imagesPerColumn + row) % sourceList.length;
+            tile.style.backgroundImage = `url(${sourceList[index]})`;
+            column.appendChild(tile);
+          }
+
+          fragment.appendChild(column);
+        }
+
+        columnsRoot.innerHTML = "";
+        columnsRoot.appendChild(fragment);
+      }
+
+      preloadImages(imageList).then((results) => {
+        const validList = results.filter((item) => item.ok).map((item) => item.url);
+        const finalList = validList.length > 0 ? validList : imageList;
+        renderColumns(finalList);
+      });
+    </script>
+  </body>
+</html>
