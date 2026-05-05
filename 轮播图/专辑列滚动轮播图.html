@@ -121,8 +121,13 @@
           transform: translateY(
             calc(
               -1 *
-                (((var(--image-height) + var(--row-gap)) * var(--number-of-images)) -
-                  var(--column-height))
+                (
+                  (
+                      (var(--image-height) + var(--row-gap)) *
+                        var(--number-of-images)
+                    ) -
+                    var(--column-height)
+                )
             )
           );
         }
@@ -133,8 +138,13 @@
           transform: translateY(
             calc(
               -1 *
-                (((var(--image-height) + var(--row-gap)) * var(--number-of-images)) -
-                  var(--column-height))
+                (
+                  (
+                      (var(--image-height) + var(--row-gap)) *
+                        var(--number-of-images)
+                    ) -
+                    var(--column-height)
+                )
             )
           );
         }
@@ -170,6 +180,11 @@
         "http://5b0988e595225.cdn.sohucs.com/images/20180824/781646fe72fc4788b7dfc24c112b5bbb.png",
         "http://5b0988e595225.cdn.sohucs.com/images/20171122/c839ec116c7e4853ac9d34a7abf8b4cc.jpeg",
         "https://pic3.zhimg.com/v2-d0590fa634c9aae77339e820e185b75b_1440w.jpg?source=172ae18b",
+        "https://pic1.zhimg.com/v2-8c3fee751e08bd3df46a54fee8b21761_1440w.jpg?source=172ae18b",
+        "http://5b0988e595225.cdn.sohucs.com/images/20180109/b9beeb33475e4fa9b160590434324c98.jpeg",
+        "https://upload-images.jianshu.io/upload_images/12146303-33f6a5bb122c112a.jpg",
+        "http://i0.hdslb.com/bfs/article/8ac9ca5c4737304747c0ffede73c60b06d0deb2c.jpg",
+        "http://qqpublic.qpic.cn/qq_public_cover/0/0-2925470415-C0AA5AD7CE48CB549EE81AA2E673308A_vsmcut/0",
       ];
 
       const columnsRoot = document.getElementById("columns");
@@ -185,8 +200,8 @@
                 img.onload = () => resolve({ url, ok: true });
                 img.onerror = () => resolve({ url, ok: false });
                 img.src = url;
-              })
-          )
+              }),
+          ),
         );
       }
 
@@ -212,7 +227,9 @@
       }
 
       preloadImages(imageList).then((results) => {
-        const validList = results.filter((item) => item.ok).map((item) => item.url);
+        const validList = results
+          .filter((item) => item.ok)
+          .map((item) => item.url);
         const finalList = validList.length > 0 ? validList : imageList;
         renderColumns(finalList);
       });

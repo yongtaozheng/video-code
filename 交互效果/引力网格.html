@@ -139,20 +139,6 @@
         addWave(event.clientX - rect.left, event.clientY - rect.top);
       });
 
-      document.addEventListener("keydown", (event) => {
-        if (event.code === "Space") {
-          event.preventDefault();
-          addWave(w / 2, h / 2);
-        }
-        if (event.code === "KeyC") {
-          waves.length = 0;
-          ctx.clearRect(0, 0, w, h);
-        }
-        if (event.code === "KeyM") {
-          fieldMode = fieldMode === "repel" ? "attract" : "repel";
-        }
-      });
-
       function updateWaves() {
         for (let i = waves.length - 1; i >= 0; i -= 1) {
           const wv = waves[i];
