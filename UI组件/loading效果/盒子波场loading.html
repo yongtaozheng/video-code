@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>盒子波场 Loading</title>
+    <style>
+      :root {
+        --bg-1: #05070d;
+        --bg-2: #0e1522;
+        --line: rgba(136, 198, 255, 0.2);
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at 20% 20%, rgba(95, 140, 255, 0.2), transparent 36%),
+          radial-gradient(circle at 80% 82%, rgba(0, 225, 255, 0.14), transparent 40%),
+          linear-gradient(165deg, var(--bg-1), var(--bg-2));
+        font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+        color: #cde8ff;
+      }
+
+      .loader-wrap {
+        position: relative;
+        display: grid;
+        place-items: center;
+        width: min(88vw, 460px);
+        aspect-ratio: 1;
+      }
+
+      .loader-wrap::before {
+        content: "";
+        position: absolute;
+        width: 72%;
+        height: 72%;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle,
+          rgba(117, 193, 255, 0.22) 0%,
+          rgba(83, 122, 255, 0.14) 30%,
+          rgba(83, 122, 255, 0) 72%
+        );
+        filter: blur(10px);
+        animation: halo 3.2s ease-in-out infinite;
+      }
+
+      .scene {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        display: grid;
+        place-items: center;
+        perspective: 1000px;
+      }
+
+      .ground {
+        position: absolute;
+        width: 84%;
+        height: 84%;
+        border-radius: 20px;
+        border: 1px solid var(--line);
+        transform: rotateX(68deg) rotateZ(45deg) translateZ(-20px);
+        transform-style: preserve-3d;
+        opacity: 0.7;
+      }
+
+      .grid {
+        position: relative;
+        z-index: 2;
+        display: grid;
+        grid-template-columns: repeat(5, 42px);
+        grid-template-rows: repeat(5, 42px);
+        gap: 10px;
+        transform-style: preserve-3d;
+        transform: rotateX(68deg) rotateZ(45deg);
+        animation: orbit 5s ease-in-out infinite;
+      }
+
+      .cube {
+        position: relative;
+        width: 42px;
+        height: 42px;
+        transform-style: preserve-3d;
+        will-change: transform, filter;
+        animation:
+          wave 1.85s cubic-bezier(0.4, 0, 0.2, 1) infinite,
+          tint 4s linear infinite;
+        animation-delay: calc(var(--delay) * 0.1s);
+      }
+
+      .face {
+        position: absolute;
+        inset: 0;
+        border: 1px solid rgba(209, 238, 255, 0.18);
+      }
+
+      .face.top {
+        transform: rotateX(90deg) translateZ(21px);
+        background: linear-gradient(
+          145deg,
+          hsl(var(--h), 100%, 74%),
+          hsl(calc(var(--h) + 18), 92%, 58%)
+        );
+      }
+
+      .face.left {
+        transform: rotateY(-90deg) translateZ(21px);
+        background: linear-gradient(
+          180deg,
+          hsl(var(--h), 85%, 58%),
+          hsl(calc(var(--h) - 12), 72%, 36%)
+        );
+      }
+
+      .face.right {
+        transform: rotateY(0deg) translateZ(21px);
+        background: linear-gradient(
+          180deg,
+          hsl(calc(var(--h) + 8), 90%, 64%),
+          hsl(calc(var(--h) + 10), 80%, 44%)
+        );
+      }
+
+      .status {
+        position: absolute;
+        bottom: 8%;
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        letter-spacing: 0.32em;
+        font-size: 12px;
+        text-transform: uppercase;
+        color: rgba(220, 241, 255, 0.85);
+      }
+
+      .status .progress {
+        letter-spacing: 0.1em;
+        color: #7de7ff;
+        min-width: 2ch;
+        text-align: right;
+        text-shadow: 0 0 12px rgba(125, 231, 255, 0.8);
+      }
+
+      .status::after {
+        content: "";
+        width: 26px;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, #9ad7ff, transparent);
+        animation: scan 1.1s ease-in-out infinite;
+      }
+
+      @keyframes wave {
+        0%,
+        100% {
+          transform: translateZ(0) scale(0.98);
+          filter: saturate(1) brightness(0.88);
+        }
+        32% {
+          transform: translateZ(var(--lift)) scale(1);
+          filter: saturate(1.2) brightness(1.08);
+        }
+        56% {
+          transform: translateZ(calc(var(--lift) * 0.42)) scale(0.99);
+          filter: saturate(1.05) brightness(0.98);
+        }
+      }
+
+      @keyframes tint {
+        0%,
+        100% {
+          filter: hue-rotate(0deg);
+        }
+        50% {
+          filter: hue-rotate(26deg);
+        }
+      }
+
+      @keyframes halo {
+        0%,
+        100% {
+          transform: scale(0.92);
+          opacity: 0.56;
+        }
+        50% {
+          transform: scale(1.05);
+          opacity: 0.9;
+        }
+      }
+
+      @keyframes orbit {
+        0%,
+        100% {
+          transform: rotateX(68deg) rotateZ(45deg);
+        }
+        50% {
+          transform: rotateX(68deg) rotateZ(50deg);
+        }
+      }
+
+      @keyframes scan {
+        0%,
+        100% {
+          transform: scaleX(0.6);
+          opacity: 0.4;
+        }
+        50% {
+          transform: scaleX(1.2);
+          opacity: 1;
+        }
+      }
+
+      @media (max-width: 560px) {
+        .grid {
+          grid-template-columns: repeat(5, 32px);
+          grid-template-rows: repeat(5, 32px);
+          gap: 8px;
+        }
+
+        .cube {
+          width: 32px;
+          height: 32px;
+        }
+
+        .face.top,
+        .face.left,
+        .face.right {
+          transform-origin: center;
+        }
+
+        .face.top {
+          transform: rotateX(90deg) translateZ(16px);
+        }
+
+        .face.left {
+          transform: rotateY(-90deg) translateZ(16px);
+        }
+
+        .face.right {
+          transform: rotateY(0deg) translateZ(16px);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .cube,
+        .loader-wrap::before,
+        .grid,
+        .status::after {
+          animation: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="loader-wrap">
+      <div class="scene">
+        <div class="ground"></div>
+        <div class="grid" id="grid"></div>
+      </div>
+      <div class="status">
+        <span>Loading</span>
+        <span class="progress" id="progress">00</span>
+      </div>
+    </div>
+
+    <script>
+      const grid = document.getElementById("grid");
+      const progressEl = document.getElementById("progress");
+      const size = 5;
+      const center = (size - 1) / 2;
+
+      for (let row = 0; row < size; row++) {
+        for (let col = 0; col < size; col++) {
+          const cube = document.createElement("div");
+          const dist = Math.hypot(row - center, col - center);
+          const hue = Math.round(190 + ((row + col) / (size * 2 - 2)) * 60);
+          const lift = 20 + Math.round((1 - dist / 3.2) * 12);
+
+          cube.className = "cube";
+          cube.style.setProperty("--delay", dist.toFixed(2));
+          cube.style.setProperty("--h", hue);
+          cube.style.setProperty("--lift", `${lift}px`);
+
+          cube.innerHTML = `
+            <span class="face top"></span>
+            <span class="face left"></span>
+            <span class="face right"></span>
+          `;
+
+          grid.appendChild(cube);
+        }
+      }
+
+      let progress = 0;
+      setInterval(() => {
+        progress = (progress + Math.floor(Math.random() * 5 + 1)) % 100;
+        progressEl.textContent = String(progress).padStart(2, "0");
+      }, 130);
+    </script>
+  </body>
+</html>
