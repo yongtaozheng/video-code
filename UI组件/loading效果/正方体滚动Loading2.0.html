@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>正方体滚动Loading2.0</title>
+    <style>
+      :root {
+        --bg: #e5e7eb;
+        --line: rgba(60, 66, 78, 0.3);
+        --progress-duration: 56s;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background:
+          radial-gradient(
+            70vw 70vw at 110% -10%,
+            rgba(255, 255, 255, 0.55),
+            transparent 58%
+          ),
+          radial-gradient(
+            55vw 55vw at -15% -20%,
+            rgba(255, 255, 255, 0.45),
+            transparent 56%
+          ),
+          var(--bg);
+        overflow: hidden;
+      }
+
+      .loader {
+        position: relative;
+        width: 300px;
+        height: 218px;
+        perspective: 880px;
+        isolation: isolate;
+      }
+
+      .track {
+        position: absolute;
+        inset: auto 14px 54px;
+        height: 2px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(66, 73, 86, 0.55),
+          transparent
+        );
+        opacity: 0.8;
+        z-index: -2;
+      }
+
+      .track-reflect {
+        position: absolute;
+        inset: auto 22px 58px;
+        height: 1px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(255, 255, 255, 0.45),
+          transparent
+        );
+        opacity: 0.35;
+        z-index: -2;
+      }
+
+      .cube {
+        position: absolute;
+        left: 50%;
+        bottom: 64px;
+        width: 72px;
+        height: 72px;
+        margin-left: -36px;
+        transform-style: preserve-3d;
+        transform: translateX(-100px) translateY(0px) rotateX(-8deg)
+          rotateY(8deg) rotateZ(0deg);
+        animation: roll-commute 2.8s infinite
+          cubic-bezier(0.58, 0.08, 0.45, 0.93);
+        will-change: transform;
+      }
+
+      .face {
+        position: absolute;
+        inset: 0;
+        border: 1px solid var(--line);
+        backface-visibility: hidden;
+        overflow: hidden;
+      }
+
+      .face::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+        background-size: 6px 6px;
+        opacity: 0.16;
+        mix-blend-mode: overlay;
+        pointer-events: none;
+      }
+
+      .face::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          130deg,
+          rgba(255, 255, 255, 0.2),
+          transparent 45%
+        );
+        opacity: 0.25;
+        pointer-events: none;
+      }
+
+      .front {
+        transform: translateZ(36px);
+        background: linear-gradient(
+          145deg,
+          #f4f5f7 0%,
+          #babec7 42%,
+          #7f8591 100%
+        );
+        box-shadow:
+          inset 0 0 0 1px rgba(255, 255, 255, 0.2),
+          inset 0 10px 16px rgba(255, 255, 255, 0.32),
+          inset 0 -10px 14px rgba(0, 0, 0, 0.22);
+      }
+
+      .right {
+        transform: rotateY(90deg) translateZ(36px);
+        background: linear-gradient(160deg, #b1b6bf, #6f7682 74%);
+      }
+
+      .top {
+        transform: rotateX(90deg) translateZ(36px);
+        background: linear-gradient(160deg, #d5d8df, #8b919d 68%);
+      }
+
+      .shadow {
+        position: absolute;
+        left: 50%;
+        margin-left: -48px;
+        bottom: 48px;
+        width: 96px;
+        height: 12px;
+        border-radius: 50%;
+        background: radial-gradient(
+          ellipse at center,
+          rgba(39, 44, 54, 0.42),
+          rgba(39, 44, 54, 0.02) 72%
+        );
+        filter: blur(0.8px);
+        animation: shadow-sync 2.8s infinite
+          cubic-bezier(0.58, 0.08, 0.45, 0.93);
+        z-index: -1;
+      }
+
+      .contact-shadow {
+        position: absolute;
+        left: 50%;
+        margin-left: -31px;
+        bottom: 53px;
+        width: 62px;
+        height: 6px;
+        border-radius: 50%;
+        background: radial-gradient(
+          ellipse at center,
+          rgba(28, 33, 42, 0.52),
+          rgba(28, 33, 42, 0.02) 72%
+        );
+        filter: blur(0.4px);
+        animation: contact-sync 2.8s infinite
+          cubic-bezier(0.58, 0.08, 0.45, 0.93);
+        z-index: -1;
+      }
+
+      .spec {
+        position: absolute;
+        width: 78px;
+        height: 78px;
+        border-radius: 14px;
+        border: 1px solid rgba(84, 92, 108, 0.12);
+        transform: rotate(45deg);
+        opacity: 0.22;
+        animation: spec-pulse 1.4s infinite cubic-bezier(0.58, 0.08, 0.45, 0.93);
+        z-index: -3;
+      }
+
+      .progress-wrap {
+        position: absolute;
+        left: 50%;
+        bottom: 14px;
+        transform: translateX(-50%);
+        width: 168px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .progress-label {
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        color: rgba(57, 63, 74, 0.68);
+        text-transform: uppercase;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+
+      .progress-rail {
+        display: block;
+        width: 118px;
+        height: 4px;
+        border-radius: 999px;
+        border: 1px solid rgba(71, 78, 92, 0.28);
+        background: rgba(63, 70, 84, 0.1);
+        overflow: hidden;
+      }
+
+      .progress-fill {
+        display: block;
+        height: 100%;
+        width: 0%;
+        border-radius: inherit;
+        background: linear-gradient(
+          90deg,
+          rgba(151, 158, 169, 0.88),
+          rgba(97, 104, 117, 0.92)
+        );
+        transition: width 280ms ease;
+      }
+
+      .progress-fill::after {
+        content: "";
+        display: block;
+        height: 160%;
+        width: 34%;
+        margin-left: auto;
+        transform: translateY(-20%);
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(255, 255, 255, 0.32),
+          transparent
+        );
+        animation: progress-scan 1.4s infinite linear;
+      }
+
+      .progress-num {
+        font-size: 10px;
+        letter-spacing: 0.06em;
+        color: rgba(53, 60, 71, 0.72);
+        min-width: 28px;
+        text-align: center;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+
+      @keyframes roll-commute {
+        0% {
+          transform: translateX(-100px) translateY(0px) rotateX(-8deg)
+            rotateY(8deg) rotateZ(0deg);
+        }
+        6.25% {
+          transform: translateX(-75px) translateY(-14px) rotateX(-8deg)
+            rotateY(8deg) rotateZ(45deg);
+        }
+        12.5% {
+          transform: translateX(-50px) translateY(0px) rotateX(-8deg)
+            rotateY(8deg) rotateZ(90deg);
+        }
+        18.75% {
+          transform: translateX(-25px) translateY(-14px) rotateX(-8deg)
+            rotateY(8deg) rotateZ(135deg);
+        }
+        25% {
+          transform: translateX(0px) translateY(0px) rotateX(-8deg)
+            rotateY(8deg) rotateZ(180deg);
+        }
+        31.25% {
+          transform: translateX(25px) translateY(-14px) rotateX(-8deg)
+            rotateY(8deg) rotateZ(225deg);
+        }
+        37.5% {
+          transform: translateX(50px) translateY(0px) rotateX(-8deg)
+            rotateY(8deg) rotateZ(270deg);
+        }
+        43.75% {
+          transform: translateX(75px) translateY(-14px) rotateX(-8deg)
+            rotateY(8deg) rotateZ(315deg);
+        }
+        50% {
+          transform: translateX(100px) translateY(0px) rotateX(-8deg)
+            rotateY(8deg) rotateZ(360deg);
+        }
+        56.25% {
+          transform: translateX(75px) translateY(-14px) rotateX(-8deg)
+            rotateY(8deg) rotateZ(315deg);
+        }
+        62.5% {
+          transform: translateX(50px) translateY(0px) rotateX(-8deg)
+            rotateY(8deg) rotateZ(270deg);
+        }
+        68.75% {
+          transform: translateX(25px) translateY(-14px) rotateX(-8deg)
+            rotateY(8deg) rotateZ(225deg);
+        }
+        75% {
+          transform: translateX(0px) translateY(0px) rotateX(-8deg)
+            rotateY(8deg) rotateZ(180deg);
+        }
+        81.25% {
+          transform: translateX(-25px) translateY(-14px) rotateX(-8deg)
+            rotateY(8deg) rotateZ(135deg);
+        }
+        87.5% {
+          transform: translateX(-50px) translateY(0px) rotateX(-8deg)
+            rotateY(8deg) rotateZ(90deg);
+        }
+        93.75% {
+          transform: translateX(-75px) translateY(-14px) rotateX(-8deg)
+            rotateY(8deg) rotateZ(45deg);
+        }
+        100% {
+          transform: translateX(-100px) translateY(0px) rotateX(-8deg)
+            rotateY(8deg) rotateZ(0deg);
+        }
+      }
+
+      @keyframes shadow-sync {
+        0% {
+          transform: translateX(-100px) scaleX(0.9);
+          opacity: 0.5;
+        }
+        6.25% {
+          transform: translateX(-75px) scaleX(0.78);
+          opacity: 0.34;
+        }
+        12.5% {
+          transform: translateX(-50px) scaleX(0.9);
+          opacity: 0.5;
+        }
+        18.75% {
+          transform: translateX(-25px) scaleX(0.78);
+          opacity: 0.34;
+        }
+        25% {
+          transform: translateX(0px) scaleX(0.9);
+          opacity: 0.5;
+        }
+        31.25% {
+          transform: translateX(25px) scaleX(0.78);
+          opacity: 0.34;
+        }
+        37.5% {
+          transform: translateX(50px) scaleX(0.9);
+          opacity: 0.5;
+        }
+        43.75% {
+          transform: translateX(75px) scaleX(0.78);
+          opacity: 0.34;
+        }
+        50% {
+          transform: translateX(100px) scaleX(0.9);
+          opacity: 0.5;
+        }
+        56.25% {
+          transform: translateX(75px) scaleX(0.78);
+          opacity: 0.34;
+        }
+        62.5% {
+          transform: translateX(50px) scaleX(0.9);
+          opacity: 0.5;
+        }
+        68.75% {
+          transform: translateX(25px) scaleX(0.78);
+          opacity: 0.34;
+        }
+        75% {
+          transform: translateX(0px) scaleX(0.9);
+          opacity: 0.5;
+        }
+        81.25% {
+          transform: translateX(-25px) scaleX(0.78);
+          opacity: 0.34;
+        }
+        87.5% {
+          transform: translateX(-50px) scaleX(0.9);
+          opacity: 0.5;
+        }
+        93.75% {
+          transform: translateX(-75px) scaleX(0.78);
+          opacity: 0.34;
+        }
+        100% {
+          transform: translateX(-100px) scaleX(0.9);
+          opacity: 0.5;
+        }
+      }
+
+      @keyframes contact-sync {
+        0% {
+          transform: translateX(-100px) scaleX(0.98);
+          opacity: 0.6;
+        }
+        6.25% {
+          transform: translateX(-75px) scaleX(0.74);
+          opacity: 0.24;
+        }
+        12.5% {
+          transform: translateX(-50px) scaleX(0.98);
+          opacity: 0.6;
+        }
+        18.75% {
+          transform: translateX(-25px) scaleX(0.74);
+          opacity: 0.24;
+        }
+        25% {
+          transform: translateX(0px) scaleX(0.98);
+          opacity: 0.6;
+        }
+        31.25% {
+          transform: translateX(25px) scaleX(0.74);
+          opacity: 0.24;
+        }
+        37.5% {
+          transform: translateX(50px) scaleX(0.98);
+          opacity: 0.6;
+        }
+        43.75% {
+          transform: translateX(75px) scaleX(0.74);
+          opacity: 0.24;
+        }
+        50% {
+          transform: translateX(100px) scaleX(0.98);
+          opacity: 0.6;
+        }
+        56.25% {
+          transform: translateX(75px) scaleX(0.74);
+          opacity: 0.24;
+        }
+        62.5% {
+          transform: translateX(50px) scaleX(0.98);
+          opacity: 0.6;
+        }
+        68.75% {
+          transform: translateX(25px) scaleX(0.74);
+          opacity: 0.24;
+        }
+        75% {
+          transform: translateX(0px) scaleX(0.98);
+          opacity: 0.6;
+        }
+        81.25% {
+          transform: translateX(-25px) scaleX(0.74);
+          opacity: 0.24;
+        }
+        87.5% {
+          transform: translateX(-50px) scaleX(0.98);
+          opacity: 0.6;
+        }
+        93.75% {
+          transform: translateX(-75px) scaleX(0.74);
+          opacity: 0.24;
+        }
+        100% {
+          transform: translateX(-100px) scaleX(0.98);
+          opacity: 0.6;
+        }
+      }
+
+      @keyframes spec-pulse {
+        0%,
+        100% {
+          opacity: 0.14;
+          transform: rotate(45deg) scale(0.96);
+        }
+        25%,
+        50%,
+        75% {
+          opacity: 0.26;
+          transform: rotate(45deg) scale(1.01);
+        }
+      }
+
+      @keyframes progress-scan {
+        from {
+          transform: translate(-165%, -20%);
+        }
+        to {
+          transform: translate(165%, -20%);
+        }
+      }
+
+      @media (max-width: 560px) {
+        .loader {
+          transform: scale(0.88);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="loader" aria-label="正方体滚动Loading2.0">
+      <span class="track" aria-hidden="true"></span>
+      <span class="track-reflect" aria-hidden="true"></span>
+      <span class="shadow" aria-hidden="true"></span>
+      <span class="contact-shadow" aria-hidden="true"></span>
+      <span class="spec" aria-hidden="true"></span>
+
+      <div class="cube" aria-hidden="true">
+        <span class="face front"></span>
+        <span class="face right"></span>
+        <span class="face top"></span>
+      </div>
+
+      <div class="progress-wrap" aria-hidden="true">
+        <span class="progress-label">Loading</span>
+        <span class="progress-rail"
+          ><span class="progress-fill" id="progress-fill"></span
+        ></span>
+        <span class="progress-num" id="progress-num">0%</span>
+      </div>
+    </div>
+
+    <script>
+      const fill = document.getElementById("progress-fill");
+      const num = document.getElementById("progress-num");
+
+      const FAST_TARGET = 80;
+      const FAST_DURATION_MS = 12000;
+      const SLOW_STEP_MS = 2000;
+      const RESET_DELAY_MS = 1000;
+
+      let value = 0;
+      let rafId = null;
+      let slowTimer = null;
+
+      const render = (v) => {
+        const clamped = Math.max(0, Math.min(100, v));
+        fill.style.width = clamped + "%";
+        num.textContent = clamped + "%";
+      };
+
+      const clearTimers = () => {
+        if (rafId) cancelAnimationFrame(rafId);
+        if (slowTimer) clearInterval(slowTimer);
+        rafId = null;
+        slowTimer = null;
+      };
+
+      const startSlowPhase = () => {
+        slowTimer = setInterval(() => {
+          value += 1;
+          render(value);
+          if (value >= 100) {
+            clearInterval(slowTimer);
+            slowTimer = null;
+            setTimeout(startCycle, RESET_DELAY_MS);
+          }
+        }, SLOW_STEP_MS);
+      };
+
+      const startFastPhase = () => {
+        const start = performance.now();
+        const tick = (now) => {
+          const t = Math.min(1, (now - start) / FAST_DURATION_MS);
+          value = Math.floor(t * FAST_TARGET);
+          render(value);
+          if (t < 1) {
+            rafId = requestAnimationFrame(tick);
+          } else {
+            value = FAST_TARGET;
+            render(value);
+            startSlowPhase();
+          }
+        };
+        rafId = requestAnimationFrame(tick);
+      };
+
+      function startCycle() {
+        clearTimers();
+        value = 0;
+        render(value);
+        startFastPhase();
+      }
+
+      startCycle();
+    </script>
+  </body>
+</html>
