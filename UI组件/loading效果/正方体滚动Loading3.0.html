@@ -1,0 +1,517 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>正方体滚动Loading3.0</title>
+    <style>
+      :root {
+        --bg: #e5e7eb;
+        --line: rgba(60, 66, 78, 0.3);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background:
+          radial-gradient(
+            70vw 70vw at 110% -10%,
+            rgba(255, 255, 255, 0.55),
+            transparent 58%
+          ),
+          radial-gradient(
+            55vw 55vw at -15% -20%,
+            rgba(255, 255, 255, 0.45),
+            transparent 56%
+          ),
+          var(--bg);
+        overflow: hidden;
+      }
+
+      .loader {
+        position: relative;
+        width: 360px;
+        height: 236px;
+        perspective: 880px;
+        isolation: isolate;
+      }
+
+      .cube-orient {
+        position: absolute;
+        left: 50%;
+        bottom: 66px;
+        width: 72px;
+        height: 72px;
+        margin-left: -36px;
+        transform: translateX(110px) translateY(0px) rotateX(-8deg)
+          rotateY(8deg) rotateZ(0deg);
+        will-change: transform;
+        z-index: 3;
+      }
+
+      .cube {
+        position: relative;
+        width: 72px;
+        height: 72px;
+        transform-style: preserve-3d;
+        will-change: transform;
+      }
+
+      .face {
+        position: absolute;
+        inset: 0;
+        border: 1px solid var(--line);
+        backface-visibility: hidden;
+        overflow: hidden;
+      }
+
+      .face::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+        background-size: 6px 6px;
+        opacity: 0.16;
+        mix-blend-mode: overlay;
+        pointer-events: none;
+      }
+
+      .face::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          130deg,
+          rgba(255, 255, 255, 0.2),
+          transparent 45%
+        );
+        opacity: 0.25;
+        pointer-events: none;
+      }
+
+      .front {
+        transform: translateZ(36px);
+        background: linear-gradient(
+          145deg,
+          #f4f5f7 0%,
+          #babec7 42%,
+          #7f8591 100%
+        );
+        box-shadow:
+          inset 0 0 0 1px rgba(255, 255, 255, 0.2),
+          inset 0 10px 16px rgba(255, 255, 255, 0.32),
+          inset 0 -10px 14px rgba(0, 0, 0, 0.22);
+      }
+
+      .right {
+        transform: rotateY(90deg) translateZ(36px);
+        background: linear-gradient(160deg, #b1b6bf, #6f7682 74%);
+      }
+
+      .top {
+        transform: rotateX(90deg) translateZ(36px);
+        background: linear-gradient(160deg, #d5d8df, #8b919d 68%);
+      }
+
+      .shadow {
+        position: absolute;
+        left: 50%;
+        bottom: 52px;
+        width: 96px;
+        height: 12px;
+        margin-left: -48px;
+        border-radius: 50%;
+        background: radial-gradient(
+          ellipse at center,
+          rgba(39, 44, 54, 0.42),
+          rgba(39, 44, 54, 0.02) 72%
+        );
+        filter: blur(0.8px);
+        z-index: 2;
+        will-change: transform, opacity;
+      }
+
+      .contact-shadow {
+        position: absolute;
+        left: 50%;
+        bottom: 56px;
+        width: 62px;
+        height: 6px;
+        margin-left: -31px;
+        border-radius: 50%;
+        background: radial-gradient(
+          ellipse at center,
+          rgba(28, 33, 42, 0.52),
+          rgba(28, 33, 42, 0.02) 72%
+        );
+        filter: blur(0.4px);
+        z-index: 2;
+        will-change: transform, opacity;
+      }
+
+      .spec {
+        position: absolute;
+        width: 78px;
+        height: 78px;
+        border-radius: 14px;
+        border: 1px solid rgba(84, 92, 108, 0.12);
+        transform: rotate(45deg);
+        opacity: 0.2;
+        animation: spec-pulse 1.4s infinite cubic-bezier(0.58, 0.08, 0.45, 0.93);
+        z-index: 1;
+      }
+
+      .progress-wrap {
+        position: absolute;
+        left: 50%;
+        bottom: 14px;
+        transform: translateX(-50%);
+        width: 168px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        z-index: 8;
+      }
+
+      .progress-label {
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        color: rgba(57, 63, 74, 0.68);
+        text-transform: uppercase;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+
+      .progress-rail {
+        display: block;
+        width: 118px;
+        height: 4px;
+        border-radius: 999px;
+        border: 1px solid rgba(71, 78, 92, 0.28);
+        background: rgba(63, 70, 84, 0.1);
+        overflow: hidden;
+      }
+
+      .progress-fill {
+        display: block;
+        height: 100%;
+        width: 0%;
+        border-radius: inherit;
+        background: linear-gradient(
+          90deg,
+          rgba(151, 158, 169, 0.88),
+          rgba(97, 104, 117, 0.92)
+        );
+        transition: width 280ms ease;
+      }
+
+      .progress-fill::after {
+        content: "";
+        display: block;
+        height: 160%;
+        width: 34%;
+        margin-left: auto;
+        transform: translateY(-20%);
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(255, 255, 255, 0.32),
+          transparent
+        );
+        animation: progress-scan 1.4s infinite linear;
+      }
+
+      .progress-num {
+        font-size: 10px;
+        letter-spacing: 0.06em;
+        color: rgba(53, 60, 71, 0.72);
+        min-width: 28px;
+        text-align: center;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+
+      @keyframes spec-pulse {
+        0%,
+        100% {
+          opacity: 0.14;
+          transform: rotate(45deg) scale(0.96);
+        }
+        25%,
+        50%,
+        75% {
+          opacity: 0.24;
+          transform: rotate(45deg) scale(1.01);
+        }
+      }
+
+      @keyframes progress-scan {
+        from {
+          transform: translate(-165%, -20%);
+        }
+        to {
+          transform: translate(165%, -20%);
+        }
+      }
+
+      @media (max-width: 560px) {
+        .loader {
+          transform: scale(0.88);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="loader" aria-label="正方体滚动Loading3.0">
+      <span class="shadow" aria-hidden="true"></span>
+      <span class="contact-shadow" aria-hidden="true"></span>
+      <span class="spec" aria-hidden="true"></span>
+
+      <div class="cube-orient" aria-hidden="true">
+        <div class="cube">
+          <span class="face front"></span>
+          <span class="face right"></span>
+          <span class="face top"></span>
+        </div>
+      </div>
+
+      <div class="progress-wrap" aria-hidden="true">
+        <span class="progress-label">Loading</span>
+        <span class="progress-rail"
+          ><span class="progress-fill" id="progress-fill"></span
+        ></span>
+        <span class="progress-num" id="progress-num">0%</span>
+      </div>
+    </div>
+
+    <script>
+      (() => {
+        const fill = document.getElementById("progress-fill");
+        const num = document.getElementById("progress-num");
+        const progressWrap = document.querySelector(".progress-wrap");
+        const cubeOrient = document.querySelector(".cube-orient");
+        const cube = document.querySelector(".cube");
+        const shadow = document.querySelector(".shadow");
+        const contactShadow = document.querySelector(".contact-shadow");
+
+        const FAST_TARGET = 80;
+        const FAST_DURATION_MS = 12000;
+        const SLOW_STEP_MS = 2000;
+        const RESET_DELAY_MS = 1000;
+
+        const LOOP_MS = 3600;
+        const A = 132;
+        const B = 24;
+        const SIDE = 72;
+        const TWO_PI = Math.PI * 2;
+        const BASE_OMEGA = TWO_PI / LOOP_MS;
+        const SPEED_BIAS = 0.28;
+        const DEPTH_TO_SCREEN_Y = 0.45;
+        const ORBIT_CENTER_Y = 40;
+        const STEER_GAIN = 0.56;
+        const DIR_SMOOTH = 0.035;
+        const STEER_LAG_MS = 260;
+        const STEER_MAX_RATE = 0.22;
+        const UI_FIXED_DEPTH_Y = B * DEPTH_TO_SCREEN_Y * 0.5;
+
+        progressWrap.style.transform =
+          "translateX(-50%) translateY(" + UI_FIXED_DEPTH_Y.toFixed(2) + "px)";
+
+        let value = 0;
+        let slowTimer = null;
+        let progressRaf = null;
+
+        let motionLast = performance.now();
+        let phase = 0;
+        let motionS = 0;
+        let headingPrev = null;
+        let headingAcc = 0;
+        let headingSmooth = 0;
+        let steerCurrent = 0;
+        let motionRaf = null;
+
+        const renderProgress = (v) => {
+          const clamped = Math.max(0, Math.min(100, v));
+          fill.style.width = clamped + "%";
+          num.textContent = clamped + "%";
+        };
+
+        const clearProgressTimers = () => {
+          if (progressRaf) cancelAnimationFrame(progressRaf);
+          if (slowTimer) clearInterval(slowTimer);
+          progressRaf = null;
+          slowTimer = null;
+        };
+
+        const startSlowPhase = () => {
+          slowTimer = setInterval(() => {
+            value += 1;
+            renderProgress(value);
+            if (value >= 100) {
+              clearInterval(slowTimer);
+              slowTimer = null;
+              setTimeout(startProgressCycle, RESET_DELAY_MS);
+            }
+          }, SLOW_STEP_MS);
+        };
+
+        const startFastPhase = () => {
+          const start = performance.now();
+          const tick = (now) => {
+            const t = Math.min(1, (now - start) / FAST_DURATION_MS);
+            value = Math.floor(t * FAST_TARGET);
+            renderProgress(value);
+            if (t < 1) {
+              progressRaf = requestAnimationFrame(tick);
+            } else {
+              value = FAST_TARGET;
+              renderProgress(value);
+              startSlowPhase();
+            }
+          };
+          progressRaf = requestAnimationFrame(tick);
+        };
+
+        function startProgressCycle() {
+          clearProgressTimers();
+          value = 0;
+          renderProgress(value);
+          startFastPhase();
+        }
+
+        const updateMotion = (now) => {
+          const dt = Math.max(0, now - motionLast);
+          motionLast = now;
+
+          const phaseMod = 1 + SPEED_BIAS * Math.cos(2 * phase);
+          phase = (phase + BASE_OMEGA * dt * phaseMod) % TWO_PI;
+          const t = phase;
+
+          const x = A * Math.cos(t);
+          const zDepth = B * Math.sin(t);
+          const orbitY = zDepth * DEPTH_TO_SCREEN_Y;
+          const yScreen = ORBIT_CENTER_Y + orbitY;
+
+          const dx = -A * Math.sin(t);
+          const dz = B * Math.cos(t);
+          const tangentLen = Math.hypot(dx, dz) || 1;
+          const dyScreen = dz * DEPTH_TO_SCREEN_Y;
+          const headingRaw = (Math.atan2(dyScreen, dx) * 180) / Math.PI;
+          if (headingPrev === null) {
+            headingPrev = headingRaw;
+            headingAcc = headingRaw;
+            headingSmooth = headingRaw;
+          } else {
+            let delta = headingRaw - headingPrev;
+            if (delta > 180) delta -= 360;
+            if (delta < -180) delta += 360;
+            headingPrev = headingRaw;
+            headingAcc += delta;
+            const follow = 1 - Math.exp(-dt / 120);
+            headingSmooth += (headingAcc - headingSmooth) * follow;
+          }
+
+          const vx = dx * BASE_OMEGA * phaseMod;
+          const vy = dyScreen * BASE_OMEGA * phaseMod;
+          const speed = Math.hypot(vx, vy);
+          const dir = Math.tanh(vx / DIR_SMOOTH);
+          motionS += speed * dt * dir;
+
+          const rollDeg = (motionS / SIDE) * 90;
+          const tangentTiltX = -8 + (dz / tangentLen) * 5.2;
+          const tangentTiltY = 8 + (dx / tangentLen) * 8.8;
+          const depthRatio = (zDepth + B) / (2 * B);
+          const depthScale = 0.93 + depthRatio * 0.18;
+          const depthZ = ((zDepth / B) * 12).toFixed(2);
+
+          const steerTarget = headingSmooth * STEER_GAIN;
+          const steerFollow = 1 - Math.exp(-dt / STEER_LAG_MS);
+          const steerDesired =
+            steerCurrent + (steerTarget - steerCurrent) * steerFollow;
+          const maxStep = STEER_MAX_RATE * dt;
+          const steerDelta = Math.max(
+            -maxStep,
+            Math.min(maxStep, steerDesired - steerCurrent),
+          );
+          steerCurrent += steerDelta;
+
+          cubeOrient.style.transform =
+            "translateX(" +
+            x.toFixed(2) +
+            "px) " +
+            "translateY(" +
+            yScreen.toFixed(2) +
+            "px) " +
+            "translateZ(" +
+            depthZ +
+            "px) " +
+            "rotateZ(" +
+            steerCurrent.toFixed(2) +
+            "deg) " +
+            "rotateX(" +
+            tangentTiltX.toFixed(2) +
+            "deg) " +
+            "rotateY(" +
+            tangentTiltY.toFixed(2) +
+            "deg) " +
+            "scale(" +
+            depthScale.toFixed(3) +
+            ")";
+          if (zDepth > 2) {
+            cubeOrient.style.zIndex = "5";
+          } else if (zDepth < -2) {
+            cubeOrient.style.zIndex = "3";
+          }
+
+          cube.style.transform = "rotateZ(" + rollDeg.toFixed(2) + "deg)";
+
+          const contactRatio = depthRatio;
+          const shadowScale = 0.8 + contactRatio * 0.26;
+          const shadowOpacity = 0.28 + contactRatio * 0.24;
+          const contactScale = 0.72 + contactRatio * 0.28;
+          const contactOpacity = 0.2 + contactRatio * 0.42;
+          const backHalfDrop = Math.max(0, -orbitY);
+          const shadowY =
+            ORBIT_CENTER_Y + orbitY * 0.36 + 9 + backHalfDrop * 0.26;
+          const contactY =
+            ORBIT_CENTER_Y + orbitY * 0.28 + 6 + backHalfDrop * 0.18;
+
+          shadow.style.transform =
+            "translateX(" +
+            x.toFixed(2) +
+            "px) " +
+            "translateY(" +
+            shadowY.toFixed(2) +
+            "px) " +
+            "scaleX(" +
+            shadowScale.toFixed(3) +
+            ")";
+          shadow.style.opacity = shadowOpacity.toFixed(3);
+
+          contactShadow.style.transform =
+            "translateX(" +
+            x.toFixed(2) +
+            "px) " +
+            "translateY(" +
+            contactY.toFixed(2) +
+            "px) " +
+            "scaleX(" +
+            contactScale.toFixed(3) +
+            ")";
+          contactShadow.style.opacity = contactOpacity.toFixed(3);
+
+          motionRaf = requestAnimationFrame(updateMotion);
+        };
+
+        startProgressCycle();
+        motionRaf = requestAnimationFrame(updateMotion);
+      })();
+    </script>
+  </body>
+</html>
