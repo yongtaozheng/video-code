@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>中心位立体卡片轮播</title>
+    <title>立体卡片轮播图</title>
     <style>
       * {
         box-sizing: border-box;
@@ -252,7 +252,7 @@
   </head>
   <body>
     <div class="fit-stage" id="fitStage">
-      <section class="carousel" aria-label="中心位立体卡片轮播">
+      <section class="carousel" aria-label="立体卡片轮播图">
         <div class="viewport" id="viewport"></div>
         <div class="controls">
           <button class="btn" id="prevBtn" aria-label="上一张">&#x276E;</button>
@@ -357,7 +357,7 @@
       }
 
       function startAuto() {
-        // timer = setInterval(() => go(1), 2600);
+        timer = setInterval(() => go(1), 2600);
       }
 
       function restartAuto() {
