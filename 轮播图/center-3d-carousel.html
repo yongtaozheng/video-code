@@ -19,10 +19,23 @@
         overflow: hidden;
       }
 
+      :root {
+        --design-width: 980;
+        --design-height: 920;
+        --fit-scale: 1;
+      }
+
+      .fit-stage {
+        width: calc(var(--design-width) * 1px);
+        height: calc(var(--design-height) * 1px);
+        transform: scale(var(--fit-scale));
+        transform-origin: center center;
+      }
+
       .carousel {
-        /* width: 980px;
-        height: 640px;
-        padding: 24px 16px 18px; */
+        width: 100%;
+        height: 100%;
+        padding: 24px 16px 18px;
       }
 
       .viewport {
@@ -238,14 +251,16 @@
     </style>
   </head>
   <body>
-    <section class="carousel" aria-label="中心位立体卡片轮播">
-      <div class="viewport" id="viewport"></div>
-      <div class="controls">
-        <button class="btn" id="prevBtn" aria-label="上一张">&#x276E;</button>
-        <div class="dots" id="dots"></div>
-        <button class="btn" id="nextBtn" aria-label="下一张">&#x276F;</button>
-      </div>
-    </section>
+    <div class="fit-stage" id="fitStage">
+      <section class="carousel" aria-label="中心位立体卡片轮播">
+        <div class="viewport" id="viewport"></div>
+        <div class="controls">
+          <button class="btn" id="prevBtn" aria-label="上一张">&#x276E;</button>
+          <div class="dots" id="dots"></div>
+          <button class="btn" id="nextBtn" aria-label="下一张">&#x276F;</button>
+        </div>
+      </section>
+    </div>
 
     <script>
       const cardsData = [
@@ -261,6 +276,7 @@
       const dots = document.getElementById("dots");
       const prevBtn = document.getElementById("prevBtn");
       const nextBtn = document.getElementById("nextBtn");
+      const fitStage = document.getElementById("fitStage");
 
       let current = 0;
       let timer = null;
@@ -362,6 +378,19 @@
       viewport.addEventListener("mouseenter", () => clearInterval(timer));
       viewport.addEventListener("mouseleave", startAuto);
 
+      function applyFitScale() {
+        const designW = 980;
+        const designH = 920;
+        const padding = 20;
+        const scaleX = (window.innerWidth - padding) / designW;
+        const scaleY = (window.innerHeight - padding) / designH;
+        const scale = Math.min(scaleX, scaleY, 1);
+        fitStage.style.setProperty("--fit-scale", String(scale));
+      }
+
+      window.addEventListener("resize", applyFitScale);
+
+      applyFitScale();
       update();
       startAuto();
     </script>
