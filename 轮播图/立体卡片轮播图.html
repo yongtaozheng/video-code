@@ -9,11 +9,14 @@
         box-sizing: border-box;
       }
 
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+      }
+
       body {
         margin: 0;
-        height: 100vh;
-        display: grid;
-        place-items: center;
         background: #f5f5f5;
         font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
         overflow: hidden;
@@ -25,10 +28,19 @@
         --fit-scale: 1;
       }
 
+      .app-shell {
+        position: fixed;
+        inset: 0;
+        overflow: hidden;
+      }
+
       .fit-stage {
+        position: absolute;
+        left: 50%;
+        top: 50%;
         width: calc(var(--design-width) * 1px);
         height: calc(var(--design-height) * 1px);
-        transform: scale(var(--fit-scale));
+        transform: translate(-50%, -50%) scale(var(--fit-scale));
         transform-origin: center center;
       }
 
@@ -251,25 +263,27 @@
     </style>
   </head>
   <body>
-    <div class="fit-stage" id="fitStage">
-      <section class="carousel" aria-label="立体卡片轮播图">
-        <div class="viewport" id="viewport"></div>
-        <div class="controls">
-          <button class="btn" id="prevBtn" aria-label="上一张">&#x276E;</button>
-          <div class="dots" id="dots"></div>
-          <button class="btn" id="nextBtn" aria-label="下一张">&#x276F;</button>
-        </div>
-      </section>
+    <div class="app-shell">
+      <div class="fit-stage" id="fitStage">
+        <section class="carousel" aria-label="立体卡片轮播图">
+          <div class="viewport" id="viewport"></div>
+          <div class="controls">
+            <button class="btn" id="prevBtn" aria-label="上一张">&#x276E;</button>
+            <div class="dots" id="dots"></div>
+            <button class="btn" id="nextBtn" aria-label="下一张">&#x276F;</button>
+          </div>
+        </section>
+      </div>
     </div>
 
     <script>
       const cardsData = [
-        { src: "../images/七龙珠/1.png" },
-        { src: "../images/七龙珠/2.png" },
-        { src: "../images/七龙珠/3.png" },
-        { src: "../images/七龙珠/4.png" },
-        { src: "../images/七龙珠/5.png" },
-        { src: "../images/七龙珠/6.png" },
+        { src: "https://i.postimg.cc/k5F1dZfr/image-1779291312-(1).png" },
+        { src: "https://i.postimg.cc/Rh8GRzVQ/image-1779291391-(1).png" },
+        { src: "https://i.postimg.cc/C1r4hV88/image-1779291625-(1).png" },
+        { src: "https://i.postimg.cc/rmZ9VL4f/image-1779291793-(1).png" },
+        { src: "https://i.postimg.cc/MT3Y68Br/image-1779292063-(1).png" },
+        { src: "https://i.postimg.cc/nzhkfLXX/image-1779292458-(1).png" },
       ];
 
       const viewport = document.getElementById("viewport");
@@ -382,13 +396,18 @@
         const designW = 980;
         const designH = 920;
         const padding = 20;
-        const scaleX = (window.innerWidth - padding) / designW;
-        const scaleY = (window.innerHeight - padding) / designH;
+        const vw = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+        const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+        const scaleX = (vw - padding) / designW;
+        const scaleY = (vh - padding) / designH;
         const scale = Math.min(scaleX, scaleY, 1);
         fitStage.style.setProperty("--fit-scale", String(scale));
       }
 
       window.addEventListener("resize", applyFitScale);
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener("resize", applyFitScale);
+      }
 
       applyFitScale();
       update();
