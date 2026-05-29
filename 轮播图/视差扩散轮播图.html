@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>视差扩散轮播图</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+          "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background-color: #050505;
+        color: #fff;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .carousel {
+        position: relative;
+        width: 100%;
+        height: 100vh;
+        overflow: hidden;
+        background: #000;
+      }
+
+      .slide-container,
+      .slide {
+        position: absolute;
+        inset: 0;
+      }
+
+      .slide {
+        background: #18181b;
+      }
+
+      .parallax-wrap {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        transform: translate3d(0, 0, 0) scale(1.05);
+        will-change: transform;
+      }
+
+      .slide-image {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transform: translate3d(0, 0, 0) scale(1.08);
+        will-change: transform;
+      }
+
+      .zoom-out {
+        animation: zoomOut 2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        transform-origin: center;
+      }
+
+      @keyframes zoomOut {
+        0% {
+          transform: scale(1.15) rotate(1deg);
+          filter: blur(2px);
+        }
+
+        100% {
+          transform: scale(1) rotate(0deg);
+          filter: blur(0);
+        }
+      }
+
+      .ui-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 50;
+        pointer-events: none;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 24px;
+      }
+
+      .topbar {
+        display: flex;
+        justify-content: flex-start;
+        align-items: center;
+        width: 100%;
+        padding: 0 8px;
+      }
+
+      .logo {
+        font-size: 24px;
+        font-weight: 900;
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+        text-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+      }
+
+      .side-indicator {
+        position: absolute;
+        top: 50%;
+        left: 24px;
+        transform: translateY(-50%);
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        gap: 24px;
+      }
+
+      .side-num {
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        text-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+      }
+
+      .side-total {
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        color: rgba(255, 255, 255, 0.5);
+      }
+
+      .progress-track {
+        position: relative;
+        width: 2px;
+        height: 128px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.2);
+        overflow: hidden;
+      }
+
+      .progress-line {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        border-radius: 999px;
+        background: #fff;
+        transition: transform 0.7s ease-in-out;
+      }
+
+      .bottom-area {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 24px;
+        padding-bottom: 16px;
+      }
+
+      .text-block {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .mobile-indicator {
+        margin-bottom: 12px;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.2em;
+        color: rgba(255, 255, 255, 0.7);
+        text-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
+      }
+
+      .nav-controls {
+        pointer-events: auto;
+        display: flex;
+        gap: 16px;
+        z-index: 50;
+      }
+
+      .nav-btn {
+        position: relative;
+        overflow: hidden;
+        width: 56px;
+        height: 56px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        background: rgba(255, 255, 255, 0.02);
+        color: #fff;
+        backdrop-filter: blur(8px);
+        cursor: pointer;
+      }
+
+      .nav-btn::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: #fff;
+        transform: translateY(100%);
+        transition: transform 0.3s ease-out;
+      }
+
+      .nav-btn:hover {
+        border-color: rgba(255, 255, 255, 0.95);
+      }
+
+      .nav-btn:hover::before {
+        transform: translateY(0);
+      }
+
+      .nav-icon {
+        position: relative;
+        z-index: 1;
+        font-size: 24px;
+        transition: color 0.3s ease;
+        line-height: 1;
+      }
+
+      .nav-btn:hover .nav-icon {
+        color: #000;
+      }
+
+      @media (min-width: 640px) {
+        .ui-overlay {
+          padding: 24px 48px;
+        }
+
+        .side-indicator {
+          display: flex;
+          left: 48px;
+        }
+
+        .mobile-indicator {
+          display: none;
+        }
+
+        .bottom-area {
+          flex-direction: row;
+          align-items: flex-end;
+          gap: 32px;
+          padding-left: 80px;
+        }
+      }
+
+      @media (min-width: 1024px) {
+        .ui-overlay {
+          padding: 24px 64px;
+        }
+
+        .side-indicator {
+          left: 64px;
+        }
+
+        .bottom-area {
+          padding-left: 112px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="carousel" class="carousel">
+      <div id="slide-container" class="slide-container"></div>
+
+      <div class="ui-overlay">
+        <header class="topbar">
+          <div class="logo">JYeontu</div>
+        </header>
+
+        <div class="side-indicator">
+          <div id="current-num" class="side-num">01</div>
+          <div class="progress-track">
+            <div id="progress-line" class="progress-line"></div>
+          </div>
+          <div id="total-num" class="side-total">04</div>
+        </div>
+
+        <div class="bottom-area">
+          <div class="text-block">
+            <div id="mobile-indicator" class="mobile-indicator">01 - 04</div>
+          </div>
+
+          <div class="nav-controls">
+            <button id="prevBtn" aria-label="上一张" class="nav-btn">
+              <span class="nav-icon">←</span>
+            </button>
+            <button id="nextBtn" aria-label="下一张" class="nav-btn">
+              <span class="nav-icon">→</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const slides = [
+        {
+          image:
+            "https://images.unsplash.com/photo-1454496522488-7a8e488e8606?q=80&w=2000&auto=format&fit=crop",
+        },
+        {
+          image:
+            "https://images.unsplash.com/photo-1472214103451-9374bd1c798e?q=80&w=2000&auto=format&fit=crop",
+        },
+        {
+          image:
+            "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=2000&auto=format&fit=crop",
+        },
+        {
+          image:
+            "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=80&w=2000&auto=format&fit=crop",
+        },
+      ];
+
+      let currentIndex = 0;
+      let isAnimating = false;
+      let isInited = false;
+
+      function twoDigits(n) {
+        return String(n).padStart(2, "0");
+      }
+
+      function createSlideMarkup(slide) {
+        return `
+          <div class="parallax-wrap">
+            <img class="slide-image zoom-out" src="${slide.image}" alt="slide image" />
+          </div>
+        `;
+      }
+
+      const parallaxState = {
+        currentX: 0,
+        currentY: 0,
+        targetX: 0,
+        targetY: 0,
+        rafId: null,
+      };
+
+      const parallaxConfig = {
+        maxOffset: 28,
+        ease: 0.09,
+        wrapFactor: 0.4,
+        imageFactor: 1,
+      };
+
+      function applyParallaxTransforms(offsetX, offsetY) {
+        const slidesEls = document.querySelectorAll(".slide");
+        slidesEls.forEach((slide) => {
+          const wrap = slide.querySelector(".parallax-wrap");
+          const image = slide.querySelector(".slide-image");
+
+          if (wrap) {
+            wrap.style.transform = `translate3d(${(-offsetX * parallaxConfig.wrapFactor).toFixed(2)}px, ${(-offsetY * parallaxConfig.wrapFactor).toFixed(2)}px, 0) scale(1.05)`;
+          }
+          if (image) {
+            image.style.transform = `translate3d(${(-offsetX * parallaxConfig.imageFactor).toFixed(2)}px, ${(-offsetY * parallaxConfig.imageFactor).toFixed(2)}px, 0) scale(1.08)`;
+          }
+        });
+      }
+
+      function animateParallax() {
+        parallaxState.currentX +=
+          (parallaxState.targetX - parallaxState.currentX) * parallaxConfig.ease;
+        parallaxState.currentY +=
+          (parallaxState.targetY - parallaxState.currentY) * parallaxConfig.ease;
+
+        applyParallaxTransforms(parallaxState.currentX, parallaxState.currentY);
+
+        const stillMoving =
+          Math.abs(parallaxState.targetX - parallaxState.currentX) > 0.05 ||
+          Math.abs(parallaxState.targetY - parallaxState.currentY) > 0.05;
+
+        if (stillMoving) {
+          parallaxState.rafId = requestAnimationFrame(animateParallax);
+        } else {
+          parallaxState.rafId = null;
+        }
+      }
+
+      function startParallaxAnimation() {
+        if (parallaxState.rafId !== null) {
+          return;
+        }
+        parallaxState.rafId = requestAnimationFrame(animateParallax);
+      }
+
+      function setParallaxTargetByPointer(clientX, clientY) {
+        const normalizedX = clientX / window.innerWidth - 0.5;
+        const normalizedY = clientY / window.innerHeight - 0.5;
+        parallaxState.targetX = normalizedX * parallaxConfig.maxOffset * 2;
+        parallaxState.targetY = normalizedY * parallaxConfig.maxOffset * 2;
+        startParallaxAnimation();
+      }
+
+      function resetParallax() {
+        parallaxState.targetX = 0;
+        parallaxState.targetY = 0;
+        startParallaxAnimation();
+      }
+
+      function init() {
+        if (isInited) {
+          return;
+        }
+        isInited = true;
+
+        const container = document.getElementById("slide-container");
+        const firstSlide = document.createElement("div");
+        firstSlide.className = "slide";
+        firstSlide.style.zIndex = "0";
+        firstSlide.innerHTML = createSlideMarkup(slides[0]);
+        container.appendChild(firstSlide);
+
+        document.getElementById("total-num").innerText = twoDigits(
+          slides.length,
+        );
+        updateProgress();
+      }
+
+      function goToSlide(index, origin) {
+        if (isAnimating) {
+          return;
+        }
+        isAnimating = true;
+
+        const container = document.getElementById("slide-container");
+        const newSlide = document.createElement("div");
+        newSlide.className = "slide";
+        newSlide.style.zIndex = "10";
+        newSlide.style.clipPath = `circle(0px at ${origin})`;
+        newSlide.innerHTML = createSlideMarkup(slides[index]);
+        container.appendChild(newSlide);
+
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        const maxRadius = Math.sqrt(w * w + h * h) + 100;
+
+        void newSlide.offsetWidth;
+        newSlide.style.transition =
+          "clip-path 1.2s cubic-bezier(0.77, 0, 0.175, 1)";
+        newSlide.style.clipPath = `circle(${maxRadius}px at ${origin})`;
+        applyParallaxTransforms(parallaxState.currentX, parallaxState.currentY);
+
+        currentIndex = index;
+        updateProgress();
+
+        setTimeout(() => {
+          const children = Array.from(container.children);
+          children.slice(0, -1).forEach((child) => child.remove());
+          newSlide.style.zIndex = "0";
+          isAnimating = false;
+        }, 1200);
+      }
+
+      function updateProgress() {
+        const progressLine = document.getElementById("progress-line");
+        progressLine.style.height = `${100 / slides.length}%`;
+        progressLine.style.transform = `translateY(${currentIndex * 100}%)`;
+
+        document.getElementById("current-num").innerText = twoDigits(
+          currentIndex + 1,
+        );
+
+        const mobileIndicator = document.getElementById("mobile-indicator");
+        if (mobileIndicator) {
+          mobileIndicator.innerText = `${twoDigits(currentIndex + 1)} - ${twoDigits(slides.length)}`;
+        }
+      }
+
+      document.addEventListener("mousemove", (e) => {
+        if (window.innerWidth < 768 || isAnimating) {
+          return;
+        }
+        setParallaxTargetByPointer(e.clientX, e.clientY);
+      });
+
+      document.addEventListener("mouseleave", () => {
+        resetParallax();
+      });
+
+      window.addEventListener("resize", () => {
+        if (window.innerWidth < 768) {
+          resetParallax();
+        }
+      });
+
+      document.getElementById("nextBtn").addEventListener("click", (e) => {
+        if (isAnimating) {
+          return;
+        }
+
+        const rect = e.currentTarget.getBoundingClientRect();
+        const origin = `${rect.left + rect.width / 2}px ${rect.top + rect.height / 2}px`;
+        const nextIndex = (currentIndex + 1) % slides.length;
+        goToSlide(nextIndex, origin);
+      });
+
+      document.getElementById("prevBtn").addEventListener("click", (e) => {
+        if (isAnimating) {
+          return;
+        }
+
+        const rect = e.currentTarget.getBoundingClientRect();
+        const origin = `${rect.left + rect.width / 2}px ${rect.top + rect.height / 2}px`;
+        const prevIndex = (currentIndex - 1 + slides.length) % slides.length;
+        goToSlide(prevIndex, origin);
+      });
+
+      let startX = 0;
+      let startY = 0;
+
+      document.addEventListener("touchstart", (e) => {
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+      });
+
+      document.addEventListener("touchend", (e) => {
+        if (isAnimating) {
+          return;
+        }
+
+        const endX = e.changedTouches[0].clientX;
+        const endY = e.changedTouches[0].clientY;
+        const diffX = endX - startX;
+        const diffY = endY - startY;
+
+        if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 40) {
+          if (diffX < 0) {
+            const nextIndex = (currentIndex + 1) % slides.length;
+            goToSlide(nextIndex, `${window.innerWidth}px ${window.innerHeight / 2}px`);
+          } else {
+            const prevIndex =
+              (currentIndex - 1 + slides.length) % slides.length;
+            goToSlide(prevIndex, `0px ${window.innerHeight / 2}px`);
+          }
+        }
+      });
+
+      document.addEventListener("DOMContentLoaded", init);
+      window.addEventListener("load", init);
+    </script>
+  </body>
+</html>
