@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>正方体盒子嵌套展开 Loading</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        height: 100%;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at 18% 20%, #f7f3ee 0%, transparent 42%),
+          radial-gradient(circle at 78% 82%, #e7f1ff 0%, transparent 38%),
+          #eee9e2;
+      }
+
+      .scene {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        perspective: 1200px;
+        cursor: grab;
+        touch-action: none;
+      }
+
+      .scene.dragging {
+        cursor: grabbing;
+      }
+
+      .camera {
+        transform-style: preserve-3d;
+        will-change: transform;
+      }
+
+      .box {
+        position: absolute;
+        transform-style: preserve-3d;
+      }
+
+      .hinge {
+        position: absolute;
+        transform-style: preserve-3d;
+      }
+
+      .face {
+        position: absolute;
+      }
+
+      .pause-hint {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font: 300 13px/1 system-ui, sans-serif;
+        color: rgba(0, 0, 0, 0.3);
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        opacity: 0;
+        transition: opacity 0.4s;
+        pointer-events: none;
+      }
+
+      .pause-hint.visible {
+        opacity: 1;
+      }
+
+      .controls {
+        position: fixed;
+        top: 16px;
+        right: 16px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font: 11px/1 system-ui, sans-serif;
+        color: rgba(0, 0, 0, 0.35);
+        background: rgba(255, 255, 255, 0.45);
+        padding: 6px 12px;
+        border-radius: 6px;
+      }
+
+      .controls input[type="range"] {
+        -webkit-appearance: none;
+        width: 80px;
+        height: 2px;
+        background: rgba(0, 0, 0, 0.15);
+        border-radius: 1px;
+        outline: none;
+      }
+
+      .controls input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 12px;
+        height: 12px;
+        border: 1px solid rgba(0, 0, 0, 0.2);
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.9);
+        cursor: pointer;
+      }
+
+      .controls button {
+        padding: 3px 8px;
+        border: 1px solid rgba(0, 0, 0, 0.2);
+        border-radius: 3px;
+        background: none;
+        font: inherit;
+        color: inherit;
+        cursor: pointer;
+        transition: border-color 0.3s;
+      }
+
+      .controls button:hover {
+        border-color: rgba(0, 0, 0, 0.4);
+      }
+
+      .credit {
+        position: fixed;
+        right: 14px;
+        bottom: 10px;
+        font: 10px/1 system-ui, sans-serif;
+        color: rgba(0, 0, 0, 0.18);
+        text-decoration: none;
+        transition: color 0.3s;
+      }
+
+      .credit:hover {
+        color: rgba(0, 0, 0, 0.45);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="scene" id="scene">
+      <div class="camera" id="cam"></div>
+    </div>
+
+    <div class="pause-hint" id="pauseHint">paused</div>
+
+    <div class="controls">
+      <span>slow</span>
+      <input type="range" id="speed" min="1" max="10" value="4" step="0.5" />
+      <span>fast</span>
+      <button id="reverse">reverse</button>
+    </div>
+
+    <a class="credit" href="https://calculatequick.com" target="_blank" rel="noreferrer">
+      calculatequick.com
+    </a>
+
+    <script>
+      const SIZE = 120;
+      const RATIO = 0.44;
+      const LID_DURATION = 0.4;
+      const LID_SWEEP = 270;
+      const WALL_DELAY = 0.38;
+      const WALL_DURATION = 0.3;
+      const FADE_IN_START = 1.5;
+      const FADE_IN_RATE = 2;
+      const FADE_OUT_START = 0.7;
+      const FADE_OUT_RATE = 1.1;
+      const DEPTH_START = -3;
+      const DEPTH_END = 5;
+
+      const cam = document.getElementById("cam");
+      const slider = document.getElementById("speed");
+      const reverseBtn = document.getElementById("reverse");
+
+      const scene = document.getElementById("scene");
+      const pauseHint = document.getElementById("pauseHint");
+
+      let speed = 0.0004;
+      let direction = 1;
+      let phase = 0;
+      let lastTime = 0;
+      let currentRotX = -28;
+      let currentRotY = 32;
+      let paused = false;
+      let dragging = false;
+      let dragStartX = 0;
+      let dragStartY = 0;
+      let dragRotX = 0;
+      let dragRotY = 0;
+      let dragOffsetX = 0;
+      let dragOffsetY = 0;
+      let perspective = 1200;
+      let targetPerspective = 1200;
+      let touchDist = 0;
+
+      function createElement(className) {
+        const el = document.createElement("div");
+        if (className) el.className = className;
+        return el;
+      }
+
+      function createFace() {
+        const face = createElement("face");
+        face.style.width = `${SIZE}px`;
+        face.style.height = `${SIZE}px`;
+        return face;
+      }
+
+      function createBox(index) {
+        const box = createElement("box");
+
+        const floor = createFace();
+        floor.style.left = `${-SIZE / 2}px`;
+        floor.style.top = `${-SIZE / 2}px`;
+        floor.style.transform = "rotateX(90deg)";
+        box.appendChild(floor);
+
+        function createWall(hingeTf, hasChild) {
+          const hinge = createElement("hinge");
+          hinge.style.transform = hingeTf;
+
+          const wall = createFace();
+          wall.style.left = `${-SIZE / 2}px`;
+          wall.style.top = `${-SIZE}px`;
+          wall.style.transformOrigin = "center bottom";
+          if (hasChild) wall.style.transformStyle = "preserve-3d";
+
+          hinge.appendChild(wall);
+          box.appendChild(hinge);
+          return wall;
+        }
+
+        const half = SIZE / 2;
+        const front = createWall(`translateZ(${half}px)`);
+        const back = createWall(`translateZ(${-half}px) rotateY(180deg)`, true);
+        const left = createWall(`translateX(${-half}px) rotateY(-90deg)`);
+        const right = createWall(`translateX(${half}px) rotateY(90deg)`);
+
+        const lid = createFace();
+        lid.style.left = "0";
+        lid.style.top = `${-SIZE}px`;
+        lid.style.transformOrigin = "center bottom";
+        back.appendChild(lid);
+
+        return { el: box, index, floor, lid, walls: [front, back, left, right] };
+      }
+
+      const boxes = [];
+      for (let i = DEPTH_START; i <= DEPTH_END; i++) {
+        const box = createBox(i);
+        cam.appendChild(box.el);
+        boxes.push(box);
+      }
+
+      function clamp(v) {
+        return v < 0 ? 0 : v > 1 ? 1 : v;
+      }
+
+      function wrapDepth(v, min, max) {
+        const span = max - min;
+        return ((((v - min) % span) + span) % span) + min;
+      }
+
+      function lidEase(t) {
+        if (t <= 0) return 0;
+        if (t >= 1) return 1;
+        return (1 - Math.cos(t * Math.PI)) / 2;
+      }
+
+      function styleFace(face, alpha, depth, progress) {
+        const hue = ((210 + depth * 18 + phase * 40) % 360 + 360) % 360;
+        const sat = 45 + progress * 22;
+        const light = 97 - progress * 10;
+        face.style.background = `hsla(${hue}, ${sat}%, ${light}%, ${0.92 * alpha})`;
+        face.style.border = `0.5px solid hsla(${hue + 12}, 24%, 18%, ${0.34 * alpha})`;
+      }
+
+      function togglePause() {
+        paused = !paused;
+        pauseHint.classList.toggle("visible", paused);
+      }
+
+      function startDrag(x, y) {
+        dragging = true;
+        dragStartX = x;
+        dragStartY = y;
+        dragRotX = dragOffsetX;
+        dragRotY = dragOffsetY;
+        scene.classList.add("dragging");
+      }
+
+      function moveDrag(x, y) {
+        if (!dragging) return;
+        dragOffsetY = dragRotY + (x - dragStartX) * 0.3;
+        dragOffsetX = dragRotX - (y - dragStartY) * 0.3;
+      }
+
+      function endDrag() {
+        dragging = false;
+        scene.classList.remove("dragging");
+      }
+
+      scene.addEventListener("mousedown", (e) => {
+        if (e.target.closest(".controls") || e.target.closest(".credit")) return;
+        startDrag(e.clientX, e.clientY);
+      });
+      document.addEventListener("mousemove", (e) => moveDrag(e.clientX, e.clientY));
+      document.addEventListener("mouseup", endDrag);
+
+      scene.addEventListener("touchstart", (e) => {
+        if (e.touches.length === 1) {
+          startDrag(e.touches[0].clientX, e.touches[0].clientY);
+        } else if (e.touches.length === 2) {
+          const dx = e.touches[0].clientX - e.touches[1].clientX;
+          const dy = e.touches[0].clientY - e.touches[1].clientY;
+          touchDist = Math.sqrt(dx * dx + dy * dy);
+        }
+      });
+
+      scene.addEventListener("touchmove", (e) => {
+        e.preventDefault();
+        if (e.touches.length === 1) {
+          moveDrag(e.touches[0].clientX, e.touches[0].clientY);
+        } else if (e.touches.length === 2) {
+          const dx = e.touches[0].clientX - e.touches[1].clientX;
+          const dy = e.touches[0].clientY - e.touches[1].clientY;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (touchDist > 0) {
+            targetPerspective = Math.max(400, Math.min(3000, targetPerspective * (touchDist / dist)));
+          }
+          touchDist = dist;
+        }
+      }, { passive: false });
+
+      scene.addEventListener("touchend", (e) => {
+        if (e.touches.length === 0) endDrag();
+        touchDist = 0;
+      });
+
+      scene.addEventListener("dblclick", (e) => {
+        if (e.target.closest(".controls") || e.target.closest(".credit")) return;
+        togglePause();
+      });
+
+      scene.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        targetPerspective = Math.max(400, Math.min(3000, targetPerspective + e.deltaY * 0.8));
+      }, { passive: false });
+
+      document.addEventListener("keydown", (e) => {
+        if (e.code === "Space") { e.preventDefault(); togglePause(); }
+        if (e.code === "ArrowRight") { speed = Math.min(0.001, speed + 0.00005); slider.value = speed / 0.0001; }
+        if (e.code === "ArrowLeft") { speed = Math.max(0.0001, speed - 0.00005); slider.value = speed / 0.0001; }
+        if (e.code === "KeyR") direction *= -1;
+      });
+
+      slider.addEventListener("input", function () {
+        speed = this.value * 0.0001;
+      });
+
+      reverseBtn.addEventListener("click", function () {
+        direction *= -1;
+      });
+
+      function animate(now) {
+        requestAnimationFrame(animate);
+
+        if (!lastTime) lastTime = now;
+        if (!paused) phase += (now - lastTime) * speed * direction;
+        lastTime = now;
+
+        if (!dragging) {
+          dragOffsetX *= 0.96;
+          dragOffsetY *= 0.96;
+        }
+
+        const targetRotX = -28 + dragOffsetX;
+        const targetRotY = 32 + dragOffsetY;
+        currentRotX += (targetRotX - currentRotX) * 0.08;
+        currentRotY += (targetRotY - currentRotY) * 0.08;
+
+        perspective += (targetPerspective - perspective) * 0.08;
+        scene.style.perspective = perspective + "px";
+
+        cam.style.transform = `rotateX(${currentRotX}deg) rotateY(${currentRotY}deg)`;
+
+        for (let k = 0; k < boxes.length; k++) {
+          const box = boxes[k];
+          const rawDepth = box.index - phase;
+          const depth = wrapDepth(rawDepth, DEPTH_START, DEPTH_END + 1);
+
+          const scale = Math.pow(RATIO, depth);
+          box.el.style.transform = `scale3d(${scale},${scale},${scale})`;
+
+          const progress = clamp(-depth);
+          const lidProgress = clamp(progress / LID_DURATION);
+          const lidAngle = 90 - LID_SWEEP * lidEase(lidProgress);
+          box.lid.style.transform = `rotateX(${lidAngle}deg)`;
+
+          const wallProgress = clamp((progress - WALL_DELAY) / WALL_DURATION);
+          const t = 1 - wallProgress;
+          const eased = 1 - t * t * t;
+          const overshoot = eased + 0.08 * Math.sin(wallProgress * Math.PI);
+          const wallAngle = -90 * overshoot;
+          for (let j = 0; j < 4; j++) {
+            box.walls[j].style.transform = `rotateX(${wallAngle}deg)`;
+          }
+
+          let alpha = 1;
+          if (depth > FADE_IN_START) {
+            alpha = Math.max(0, 1 - (depth - FADE_IN_START) * FADE_IN_RATE);
+          }
+          if (depth < -FADE_OUT_START) {
+            alpha = Math.max(0, 1 - (-depth - FADE_OUT_START) * FADE_OUT_RATE);
+          }
+
+          styleFace(box.floor, alpha, depth, progress);
+          styleFace(box.lid, alpha, depth, progress);
+          for (let j = 0; j < 4; j++) {
+            styleFace(box.walls[j], alpha, depth, progress);
+          }
+        }
+      }
+
+      requestAnimationFrame(animate);
+    </script>
+  </body>
+</html>

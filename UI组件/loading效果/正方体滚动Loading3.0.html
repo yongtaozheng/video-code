@@ -351,7 +351,6 @@
       (() => {
         const fill = document.getElementById("progress-fill");
         const num = document.getElementById("progress-num");
-        const progressWrap = document.querySelector(".progress-wrap");
         const cubeOrient = document.querySelector(".cube-orient");
         const cube = document.querySelector(".cube");
         const shadow = document.querySelector(".shadow");
@@ -371,29 +370,14 @@
         const SPEED_BIAS = 0.28;
         const DEPTH_TO_SCREEN_Y = 0.45;
         const ORBIT_CENTER_Y = 40;
-        const STEER_GAIN = 0.5;
-        const DIR_SMOOTH = 0.05;
-        const STEER_LAG_MS = 340;
-        const ROLL_DIR_LAG_MS = 180;
-        const VIEW_X = -24;
-        const VIEW_Y = 52;
-        const UI_FIXED_DEPTH_Y = B * DEPTH_TO_SCREEN_Y * 0.5;
-
-        progressWrap.style.transform =
-          "translateX(-50%) translateY(" + UI_FIXED_DEPTH_Y.toFixed(2) + "px)";
+        const BOUNCE_HEIGHT = 14;
 
         let value = 0;
         let slowTimer = null;
         let progressRaf = null;
-
         let motionLast = performance.now();
         let phase = 0;
         let motionS = 0;
-        let headingPrev = null;
-        let headingAcc = 0;
-        let headingSmooth = 0;
-        let steerCurrent = 0;
-        let rollDirCurrent = 0;
         let motionRaf = null;
 
         const renderProgress = (v) => {
@@ -456,59 +440,27 @@
           const x = A * Math.cos(t);
           const zDepth = B * Math.sin(t);
           const orbitY = zDepth * DEPTH_TO_SCREEN_Y;
-          const yScreen = ORBIT_CENTER_Y + orbitY;
 
           const dx = -A * Math.sin(t);
-          const dz = B * Math.cos(t);
-          const dyScreen = dz * DEPTH_TO_SCREEN_Y;
-          const headingRaw = (Math.atan2(dyScreen, dx) * 180) / Math.PI;
-          if (headingPrev === null) {
-            headingPrev = headingRaw;
-            headingAcc = headingRaw;
-            headingSmooth = headingRaw;
-          } else {
-            let delta = headingRaw - headingPrev;
-            if (delta > 180) delta -= 360;
-            if (delta < -180) delta += 360;
-            headingPrev = headingRaw;
-            headingAcc += delta;
-            const follow = 1 - Math.exp(-dt / 120);
-            headingSmooth += (headingAcc - headingSmooth) * follow;
-          }
-
           const vx = dx * BASE_OMEGA * phaseMod;
-          const vy = dyScreen * BASE_OMEGA * phaseMod;
-          const speed = Math.hypot(vx, vy);
-          const dirTarget = Math.tanh(vx / DIR_SMOOTH);
-          const dirFollow = 1 - Math.exp(-dt / ROLL_DIR_LAG_MS);
-          rollDirCurrent += (dirTarget - rollDirCurrent) * dirFollow;
-          motionS += speed * dt * rollDirCurrent;
+          motionS += vx * dt;
 
           const rollDeg = (motionS / SIDE) * 90;
+          const rawRoll = motionS / SIDE;
+          const rollFrac = rawRoll - Math.floor(rawRoll);
+          const bounce = Math.sin(rollFrac * Math.PI) * BOUNCE_HEIGHT;
+
+          const yScreen = ORBIT_CENTER_Y + orbitY - bounce;
           const depthRatio = (zDepth + B) / (2 * B);
           const depthScale = 0.93 + depthRatio * 0.18;
           const depthZ = ((zDepth / B) * 12).toFixed(2);
 
-          const steerTarget = headingSmooth * STEER_GAIN;
-          const steerFollow = 1 - Math.exp(-dt / STEER_LAG_MS);
-          steerCurrent += (steerTarget - steerCurrent) * steerFollow;
-
           cubeOrient.style.transform =
-            "translateX(" +
-            x.toFixed(2) +
-            "px) " +
-            "translateY(" +
-            yScreen.toFixed(2) +
-            "px) " +
-            "translateZ(" +
-            depthZ +
-            "px) " +
-            "rotateZ(" +
-            steerCurrent.toFixed(2) +
-            "deg) " +
-            "scale(" +
-            depthScale.toFixed(3) +
-            ")";
+            "translateX(" + x.toFixed(2) + "px) " +
+            "translateY(" + yScreen.toFixed(2) + "px) " +
+            "translateZ(" + depthZ + "px) " +
+            "scale(" + depthScale.toFixed(3) + ")";
+
           if (zDepth > 2) {
             cubeOrient.style.zIndex = "5";
           } else if (zDepth < -2) {
@@ -516,47 +468,28 @@
           }
 
           cube.style.transform =
-            "rotateX(" +
-            VIEW_X +
-            "deg) rotateY(" +
-            VIEW_Y +
-            "deg) rotateZ(" +
-            rollDeg.toFixed(2) +
-            "deg)";
+            "rotateX(-8deg) rotateY(8deg) rotateZ(" +
+            rollDeg.toFixed(2) + "deg)";
 
-          const contactRatio = depthRatio;
-          const shadowScale = 0.8 + contactRatio * 0.26;
-          const shadowOpacity = 0.28 + contactRatio * 0.24;
-          const contactScale = 0.72 + contactRatio * 0.28;
-          const contactOpacity = 0.2 + contactRatio * 0.42;
+          const shadowScale = 0.8 + depthRatio * 0.26;
+          const shadowOpacity = 0.28 + depthRatio * 0.24;
+          const contactScale = 0.72 + depthRatio * 0.28;
+          const contactOpacity = 0.2 + depthRatio * 0.42;
           const backHalfDrop = Math.max(0, -orbitY);
-          const shadowY =
-            ORBIT_CENTER_Y + orbitY * 0.36 + 9 + backHalfDrop * 0.26;
-          const contactY =
-            ORBIT_CENTER_Y + orbitY * 0.28 + 6 + backHalfDrop * 0.18;
+          const groundY = ORBIT_CENTER_Y + orbitY;
+          const shadowY = groundY * 0.36 + 9 + backHalfDrop * 0.26 + ORBIT_CENTER_Y * 0.64;
+          const contactY = groundY * 0.28 + 6 + backHalfDrop * 0.18 + ORBIT_CENTER_Y * 0.72;
 
           shadow.style.transform =
-            "translateX(" +
-            x.toFixed(2) +
-            "px) " +
-            "translateY(" +
-            shadowY.toFixed(2) +
-            "px) " +
-            "scaleX(" +
-            shadowScale.toFixed(3) +
-            ")";
+            "translateX(" + x.toFixed(2) + "px) " +
+            "translateY(" + shadowY.toFixed(2) + "px) " +
+            "scaleX(" + shadowScale.toFixed(3) + ")";
           shadow.style.opacity = shadowOpacity.toFixed(3);
 
           contactShadow.style.transform =
-            "translateX(" +
-            x.toFixed(2) +
-            "px) " +
-            "translateY(" +
-            contactY.toFixed(2) +
-            "px) " +
-            "scaleX(" +
-            contactScale.toFixed(3) +
-            ")";
+            "translateX(" + x.toFixed(2) + "px) " +
+            "translateY(" + contactY.toFixed(2) + "px) " +
+            "scaleX(" + contactScale.toFixed(3) + ")";
           contactShadow.style.opacity = contactOpacity.toFixed(3);
 
           motionRaf = requestAnimationFrame(updateMotion);

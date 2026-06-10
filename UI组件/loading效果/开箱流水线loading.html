@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>开箱流水线 Loading</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        height: 100%;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at 18% 20%, #f7f3ee 0%, transparent 42%),
+          radial-gradient(circle at 78% 82%, #e7f1ff 0%, transparent 38%),
+          #eee9e2;
+        font-family: system-ui, sans-serif;
+      }
+
+      .wrapper {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 40px;
+      }
+
+      .timeline {
+        display: flex;
+        align-items: center;
+        gap: 0;
+        position: relative;
+      }
+
+      .step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+      }
+
+      .step-scene {
+        width: 140px;
+        height: 140px;
+        perspective: 600px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .step-camera {
+        transform-style: preserve-3d;
+        transform: rotateX(-25deg) rotateY(30deg);
+      }
+
+      .box {
+        position: absolute;
+        transform-style: preserve-3d;
+      }
+
+      .hinge {
+        position: absolute;
+        transform-style: preserve-3d;
+      }
+
+      .face {
+        position: absolute;
+      }
+
+      .connector {
+        width: 60px;
+        height: 2px;
+        position: relative;
+        overflow: hidden;
+        background: rgba(0, 0, 0, 0.08);
+        border-radius: 1px;
+        flex-shrink: 0;
+      }
+
+      .connector-fill {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.2);
+        transform-origin: left;
+        transform: scaleX(0);
+      }
+
+      .step-label {
+        margin-top: 16px;
+        font: 11px/1 system-ui, sans-serif;
+        color: rgba(0, 0, 0, 0.25);
+        letter-spacing: 1px;
+        transition: color 0.5s;
+      }
+
+      .step-label.active {
+        color: rgba(0, 0, 0, 0.5);
+      }
+
+      .step-label.done {
+        color: rgba(0, 0, 0, 0.35);
+      }
+
+      .step-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: rgba(0, 0, 0, 0.12);
+        margin-top: 10px;
+        transition: background 0.5s, transform 0.5s;
+      }
+
+      .step-dot.active {
+        background: rgba(0, 0, 0, 0.35);
+        transform: scale(1.4);
+      }
+
+      .step-dot.done {
+        background: rgba(0, 0, 0, 0.25);
+      }
+
+      .progress-bar {
+        width: 460px;
+        height: 2px;
+        background: rgba(0, 0, 0, 0.08);
+        border-radius: 1px;
+        overflow: hidden;
+      }
+
+      .progress-fill {
+        height: 100%;
+        width: 0%;
+        background: rgba(0, 0, 0, 0.22);
+        border-radius: 1px;
+        transition: width 0.1s linear;
+      }
+
+      .progress-text {
+        font: 10px/1 system-ui, sans-serif;
+        color: rgba(0, 0, 0, 0.25);
+        letter-spacing: 2px;
+        margin-top: 8px;
+      }
+
+      .pop-icon {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%) translateY(0px) scale(0);
+        width: 22px;
+        height: 22px;
+        pointer-events: none;
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+      }
+
+      .credit {
+        position: fixed;
+        right: 14px;
+        bottom: 10px;
+        font: 10px/1 system-ui, sans-serif;
+        color: rgba(0, 0, 0, 0.18);
+        text-decoration: none;
+        transition: color 0.3s;
+      }
+
+      .credit:hover {
+        color: rgba(0, 0, 0, 0.45);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrapper">
+      <div class="timeline" id="timeline"></div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+      <div class="progress-text" id="progressText">0%</div>
+    </div>
+
+    <a class="credit" href="https://calculatequick.com" target="_blank" rel="noreferrer">
+      calculatequick.com
+    </a>
+
+    <script>
+      const STEPS = [
+        { name: "connect", icon: `<svg viewBox="0 0 24 24" fill="none" stroke="rgba(0,0,0,0.45)" stroke-width="1.5" stroke-linecap="round"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/><circle cx="12" cy="12" r="3"/></svg>` },
+        { name: "verify",  icon: `<svg viewBox="0 0 24 24" fill="none" stroke="rgba(0,0,0,0.45)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L3 7v6c0 5.25 3.75 10.15 9 11.25C17.25 23.15 21 18.25 21 13V7l-9-5z"/><path d="M9 12l2 2 4-4"/></svg>` },
+        { name: "load",    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="rgba(0,0,0,0.45)" stroke-width="1.5" stroke-linecap="round"><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/></svg>` },
+        { name: "render",  icon: `<svg viewBox="0 0 24 24" fill="none" stroke="rgba(0,0,0,0.45)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>` },
+      ];
+      const SIZE = 50;
+      const LID_SWEEP = 200;
+      const CYCLE = 8000;
+      const PAUSE = 3000;
+      const TOTAL = CYCLE + PAUSE;
+      const STEP_DURATION = 0.2;
+
+      const timeline = document.getElementById("timeline");
+      const progressFill = document.getElementById("progressFill");
+      const progressText = document.getElementById("progressText");
+
+      function createElement(className) {
+        const el = document.createElement("div");
+        if (className) el.className = className;
+        return el;
+      }
+
+      function createFace(size) {
+        const face = createElement("face");
+        face.style.width = `${size}px`;
+        face.style.height = `${size}px`;
+        return face;
+      }
+
+      function createBoxElement(size) {
+        const box = createElement("box");
+
+        const floor = createFace(size);
+        floor.style.left = `${-size / 2}px`;
+        floor.style.top = `${-size / 2}px`;
+        floor.style.transform = "rotateX(90deg)";
+        box.appendChild(floor);
+
+        function createWall(hingeTf, hasChild) {
+          const hinge = createElement("hinge");
+          hinge.style.transform = hingeTf;
+          const wall = createFace(size);
+          wall.style.left = `${-size / 2}px`;
+          wall.style.top = `${-size}px`;
+          wall.style.transformOrigin = "center bottom";
+          if (hasChild) wall.style.transformStyle = "preserve-3d";
+          hinge.appendChild(wall);
+          box.appendChild(hinge);
+          return wall;
+        }
+
+        const half = size / 2;
+        const front = createWall(`translateZ(${half}px)`);
+        const back = createWall(`translateZ(${-half}px) rotateY(180deg)`, true);
+        const left = createWall(`translateX(${-half}px) rotateY(-90deg)`);
+        const right = createWall(`translateX(${half}px) rotateY(90deg)`);
+
+        const lid = createFace(size);
+        lid.style.left = "0";
+        lid.style.top = `${-size}px`;
+        lid.style.transformOrigin = "center bottom";
+        back.appendChild(lid);
+
+        const shadow = createElement();
+        shadow.style.cssText =
+          `position:absolute;width:${size * 1.1}px;height:${size * 1.1}px;` +
+          `left:${-size * 0.55}px;top:${-size * 0.55}px;` +
+          `border-radius:50%;transform:rotateX(90deg) translateZ(-${size * 0.52}px);` +
+          `background:radial-gradient(ellipse,rgba(0,0,0,0.15),transparent 70%)`;
+        box.appendChild(shadow);
+
+        return { el: box, floor, lid, walls: [front, back, left, right], shadow };
+      }
+
+      const steps = [];
+      STEPS.forEach((stepData, i) => {
+        if (i > 0) {
+          const conn = createElement("connector");
+          const fill = createElement("connector-fill");
+          conn.appendChild(fill);
+          timeline.appendChild(conn);
+          steps[i - 1].connectorFill = fill;
+        }
+
+        const step = createElement("step");
+
+        const scene = createElement("step-scene");
+        const camera = createElement("step-camera");
+        const box = createBoxElement(SIZE);
+        camera.appendChild(box.el);
+
+        const icon = createElement("pop-icon");
+        icon.innerHTML = stepData.icon;
+        camera.appendChild(icon);
+
+        scene.appendChild(camera);
+        step.appendChild(scene);
+
+        const dot = createElement("step-dot");
+        step.appendChild(dot);
+
+        const label = createElement("step-label");
+        label.textContent = stepData.name;
+        step.appendChild(label);
+
+        timeline.appendChild(step);
+        steps.push({ box, dot, label, camera, icon, connectorFill: null });
+      });
+
+      function clamp(v) {
+        return v < 0 ? 0 : v > 1 ? 1 : v;
+      }
+
+      function easeOut(t) {
+        const inv = 1 - t;
+        return 1 - inv * inv * inv;
+      }
+
+      function lidEase(t) {
+        if (t <= 0) return 0;
+        if (t >= 1) return 1;
+        return (1 - Math.cos(t * Math.PI)) / 2;
+      }
+
+      function styleFace(face, hue, alpha, progress) {
+        const sat = 40 + progress * 25;
+        const light = 96 - progress * 12;
+        face.style.background = `hsla(${hue}, ${sat}%, ${light}%, ${0.92 * alpha})`;
+        face.style.border = `0.5px solid hsla(${hue + 12}, 24%, 18%, ${0.3 * alpha})`;
+      }
+
+      function updateBox(step, progress, hue) {
+        const box = step.box;
+        const alpha = 0.3 + 0.7 * progress;
+
+        const lidProgress = clamp(progress / 0.4);
+        const lidAngle = 90 - LID_SWEEP * lidEase(lidProgress);
+        box.lid.style.transform = `rotateX(${lidAngle}deg)`;
+
+        const wallProgress = clamp((progress - 0.3) / 0.4);
+        const t = 1 - wallProgress;
+        const eased = 1 - t * t * t;
+        const overshoot = eased + 0.08 * Math.sin(wallProgress * Math.PI);
+        const wallAngle = -90 * overshoot;
+        for (let j = 0; j < 4; j++) {
+          box.walls[j].style.transform = `rotateX(${wallAngle}deg)`;
+        }
+
+        const shadowScale = 1 + progress * 0.3;
+        box.shadow.style.opacity = alpha * (1 - progress * 0.3);
+        box.shadow.style.transform =
+          `rotateX(90deg) translateZ(-${SIZE * 0.52}px) scale(${shadowScale})`;
+
+        styleFace(box.floor, hue, alpha, progress);
+        styleFace(box.lid, hue, alpha, progress);
+        for (let j = 0; j < 4; j++) {
+          styleFace(box.walls[j], hue, alpha, progress);
+        }
+
+        const bounce = progress > 0 && progress < 1 ? Math.sin(progress * Math.PI) * 3 : 0;
+        step.camera.style.transform =
+          `rotateX(-25deg) rotateY(30deg) translateY(${-bounce}px)`;
+
+        const popStart = 0.45;
+        const popRaw = clamp((progress - popStart) / (1 - popStart));
+        const popT = popRaw < 0.5
+          ? 4 * popRaw * popRaw * popRaw
+          : 1 - Math.pow(-2 * popRaw + 2, 3) / 2;
+        const popScale = popT;
+        const popY = -SIZE * 0.6 * popT;
+        const popFloat = progress >= 1 ? Math.sin(Date.now() * 0.003) * 2 : 0;
+        step.icon.style.transform =
+          `translate(-50%, -50%) translateY(${popY + popFloat}px) scale(${popScale})`;
+        step.icon.style.opacity = popT;
+      }
+
+      function animate(now) {
+        requestAnimationFrame(animate);
+
+        const elapsed = now % TOTAL;
+        const totalProgress = Math.min(elapsed / CYCLE, 1);
+        const pct = Math.round(totalProgress * 100);
+        progressFill.style.width = pct + "%";
+        progressText.textContent = pct + "%";
+
+        const n = STEPS.length;
+        const gap = 0.05;
+        const available = 1 - STEP_DURATION - gap * (n - 1);
+        const stagger = available / Math.max(n - 1, 1);
+
+        for (let i = 0; i < n; i++) {
+          const stepStart = i * (stagger + gap);
+          const stepProgress = clamp((totalProgress - stepStart) / STEP_DURATION);
+          const hue = 210 + i * 30;
+
+          updateBox(steps[i], stepProgress, hue);
+
+          const isActive = stepProgress > 0 && stepProgress < 1;
+          const isDone = stepProgress >= 1;
+
+          steps[i].dot.className = "step-dot" +
+            (isActive ? " active" : "") +
+            (isDone ? " done" : "");
+          steps[i].label.className = "step-label" +
+            (isActive ? " active" : "") +
+            (isDone ? " done" : "");
+
+          if (i < n - 1 && steps[i].connectorFill) {
+            const connStart = stepStart + STEP_DURATION * 0.5;
+            const nextStart = (i + 1) * (stagger + gap);
+            const connProgress = clamp((totalProgress - connStart) / (nextStart - connStart));
+            steps[i].connectorFill.style.transform = `scaleX(${connProgress})`;
+          }
+        }
+      }
+
+      requestAnimationFrame(animate);
+    </script>
+  </body>
+</html>
