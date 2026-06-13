@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Minecraft 箱子开合交互</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background: #72bdf4;
+        image-rendering: pixelated;
+        user-select: none;
+      }
+
+      body {
+        position: fixed;
+        inset: 0;
+        font-family: monospace;
+      }
+
+      .scene {
+        position: fixed;
+        inset: 0;
+        overflow: hidden;
+        perspective: 960px;
+        perspective-origin: 50% 42%;
+        background: #72bdf4;
+        cursor: grab;
+      }
+
+      body.is-dragging .scene,
+      body.is-dragging .hit-button {
+        cursor: grabbing;
+      }
+
+      .cloud {
+        position: absolute;
+        height: 18px;
+        background: rgba(255, 255, 255, 0.24);
+        box-shadow: 42px -18px 0 rgba(255, 255, 255, 0.24), 84px 0 0 rgba(255, 255, 255, 0.24);
+      }
+
+      .cloud:nth-child(1) {
+        top: 15%;
+        left: 8%;
+        width: 86px;
+      }
+
+      .cloud:nth-child(2) {
+        top: 13%;
+        left: 39%;
+        width: 78px;
+      }
+
+      .cloud:nth-child(3) {
+        top: 16%;
+        right: 17%;
+        width: 92px;
+      }
+
+      .ground {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 42%;
+        background:
+          linear-gradient(#7fbe55 0 24px, #315f25 24px 36px, transparent 36px),
+          repeating-linear-gradient(90deg, rgba(58, 35, 20, 0.34) 0 1px, transparent 1px 52px),
+          repeating-linear-gradient(0deg, rgba(58, 35, 20, 0.34) 0 1px, transparent 1px 52px),
+          #95572f;
+      }
+
+      .camera {
+        --yaw: -28deg;
+        --pitch: -28deg;
+        --scale: 1;
+        position: absolute;
+        left: 50%;
+        top: 53%;
+        width: 0;
+        height: 0;
+        transform-style: preserve-3d;
+        transform: translate(-50%, -50%) scale(var(--scale)) rotateX(var(--pitch)) rotateY(var(--yaw));
+      }
+
+      .model,
+      .part,
+      .slot,
+      .lid-pivot {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 0;
+        height: 0;
+        transform-style: preserve-3d;
+      }
+
+      .model {
+        transform: translateY(-78px);
+      }
+
+      .shadow {
+        position: absolute;
+        left: -145px;
+        top: 112px;
+        width: 290px;
+        height: 88px;
+        border-radius: 50%;
+        background: rgba(35, 18, 8, 0.24);
+        filter: blur(13px);
+        transform: translateZ(-120px) rotateX(90deg);
+      }
+
+      .face {
+        position: absolute;
+        left: 0;
+        top: 0;
+        overflow: hidden;
+        border: 3px solid #211309;
+        backface-visibility: visible;
+        transform-style: preserve-3d;
+        background-color: #c87929;
+        box-shadow:
+          inset 0 0 0 1px rgba(255, 229, 146, 0.12),
+          inset 0 -18px 0 rgba(60, 31, 12, 0.16);
+      }
+
+      .face::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          repeating-linear-gradient(90deg, transparent 0 37px, rgba(36, 20, 8, 0.34) 37px 40px),
+          repeating-linear-gradient(0deg, transparent 0 37px, rgba(36, 20, 8, 0.3) 37px 40px);
+        pointer-events: none;
+      }
+
+      .face::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 34%;
+        height: 15%;
+        background:
+          linear-gradient(rgba(68, 36, 14, 0.36), rgba(68, 36, 14, 0.36)) 0 0 / 100% 42% no-repeat,
+          linear-gradient(rgba(255, 207, 93, 0.16), rgba(255, 207, 93, 0.16)) 0 100% / 100% 30% no-repeat;
+        pointer-events: none;
+      }
+
+      .wood-front {
+        background-color: #c87929;
+      }
+
+      .wood-top {
+        background-color: #e09637;
+      }
+
+      .wood-side {
+        background-color: #a85f22;
+      }
+
+      .wood-back {
+        background-color: #96551f;
+      }
+
+      .wood-dark {
+        background-color: #7f471b;
+      }
+
+      .inner-floor {
+        background-color: #d88a35;
+        box-shadow:
+          inset 0 0 0 2px rgba(255, 226, 138, 0.14),
+          inset 0 28px 0 rgba(255, 197, 78, 0.1);
+      }
+
+      .inner-wall {
+        background-color: #bd6d28;
+        box-shadow: inset 0 0 0 2px rgba(255, 226, 138, 0.1);
+      }
+
+      .inner-back {
+        background-color: #a65e24;
+      }
+
+      .rim {
+        background-color: #de9637;
+        box-shadow: inset 0 -7px 0 rgba(69, 36, 13, 0.22);
+      }
+
+      .hinge .face {
+        background-color: #231407;
+        box-shadow: inset 0 2px 0 rgba(255, 209, 113, 0.18);
+      }
+
+      .hinge .face::before,
+      .hinge .face::after,
+      .iron::before,
+      .iron::after {
+        display: none;
+      }
+
+      .iron {
+        background: #cfcfcf;
+        border-color: #252525;
+        box-shadow: inset 6px 0 0 rgba(255, 255, 255, 0.58), inset -7px 0 0 rgba(0, 0, 0, 0.28);
+      }
+
+      .lid-pivot {
+        --lid-angle: 0deg;
+        transition: transform 260ms cubic-bezier(0.17, 0.67, 0.23, 1);
+      }
+
+      .hit-button {
+        position: fixed;
+        inset: 0;
+        z-index: 5;
+        border: 0;
+        padding: 0;
+        background: transparent;
+        cursor: grab;
+      }
+
+      .hit-button:focus-visible {
+        outline: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="scene" id="scene" aria-hidden="true">
+      <div class="cloud"></div>
+      <div class="cloud"></div>
+      <div class="cloud"></div>
+      <div class="ground"></div>
+      <div class="camera" id="camera">
+        <div class="model" id="model">
+          <div class="shadow"></div>
+        </div>
+      </div>
+    </main>
+    <button class="hit-button" id="chestButton" type="button" aria-label="Closed chest" aria-pressed="false"></button>
+
+    <script>
+      const scene = document.getElementById("scene");
+      const camera = document.getElementById("camera");
+      const model = document.getElementById("model");
+      const button = document.getElementById("chestButton");
+
+      const SIZE = {
+        width: 280,
+        depth: 220,
+        baseHeight: 160,
+        lidHeight: 48,
+        wall: 18,
+      };
+
+      const state = {
+        open: false,
+        progress: 0,
+        target: 0,
+        startProgress: 0,
+        startedAt: 0,
+        animating: false,
+        dragging: false,
+        pointerId: null,
+        dragStartX: 0,
+        dragStartY: 0,
+        lastX: 0,
+        lastY: 0,
+        dragDistance: 0,
+      };
+
+      const orbit = {
+        yaw: -28,
+        pitch: -28,
+      };
+
+      const duration = 280;
+      let raf = 0;
+      let lidPivot;
+
+      buildChest();
+      resize();
+      setOpenProgress(0);
+      updateCamera();
+
+      window.addEventListener("resize", resize);
+      button.addEventListener("pointerdown", handlePointerDown);
+      button.addEventListener("pointermove", handlePointerMove);
+      button.addEventListener("pointerup", handlePointerUp);
+      button.addEventListener("pointercancel", handlePointerCancel);
+
+      function buildChest() {
+        const { width, depth, baseHeight, lidHeight, wall } = SIZE;
+        const innerWidth = width - wall * 2;
+        const innerDepth = depth - wall * 2;
+        const innerHeight = baseHeight - wall * 1.3;
+
+        addCuboid(model, "base", {
+          x: 0,
+          y: baseHeight / 2,
+          z: 0,
+          w: width,
+          h: baseHeight,
+          d: depth,
+          faces: {
+            front: "wood-front",
+            back: "wood-back",
+            right: "wood-side",
+            left: "wood-dark",
+            bottom: "wood-dark",
+          },
+        });
+
+        addFace(model, "inner-floor", innerWidth, innerDepth, 0, baseHeight - wall, 0, "rotateX(90deg)");
+        addFace(model, "inner-wall inner-back", innerWidth, innerHeight, 0, innerHeight / 2 + 6, -depth / 2 + wall, "rotateY(180deg)");
+        addFace(model, "inner-wall", innerWidth, innerHeight * 0.72, 0, innerHeight * 0.36 + 22, depth / 2 - wall, "");
+        addFace(model, "inner-wall wood-side", innerDepth, innerHeight, width / 2 - wall, innerHeight / 2 + 6, 0, "rotateY(90deg)");
+        addFace(model, "inner-wall inner-back", innerDepth, innerHeight, -width / 2 + wall, innerHeight / 2 + 6, 0, "rotateY(-90deg)");
+
+        addCuboid(model, "rim-front", {
+          x: 0,
+          y: 2,
+          z: depth / 2 - wall / 2,
+          w: width + 6,
+          h: 12,
+          d: wall,
+          faces: {
+            front: "rim wood-top",
+            back: "rim wood-side",
+            top: "rim wood-top",
+            bottom: "rim wood-dark",
+          },
+        });
+        addCuboid(model, "rim-back", {
+          x: 0,
+          y: 2,
+          z: -depth / 2 + wall / 2,
+          w: width + 6,
+          h: 12,
+          d: wall,
+          faces: {
+            front: "rim wood-side",
+            back: "rim wood-back",
+            top: "rim wood-top",
+            bottom: "rim wood-dark",
+          },
+        });
+        addCuboid(model, "rim-left", {
+          x: -width / 2 + wall / 2,
+          y: 2,
+          z: 0,
+          w: wall,
+          h: 12,
+          d: depth,
+          faces: {
+            front: "rim wood-front",
+            back: "rim wood-back",
+            left: "rim wood-dark",
+            top: "rim wood-top",
+          },
+        });
+        addCuboid(model, "rim-right", {
+          x: width / 2 - wall / 2,
+          y: 2,
+          z: 0,
+          w: wall,
+          h: 12,
+          d: depth,
+          faces: {
+            front: "rim wood-front",
+            back: "rim wood-back",
+            right: "rim wood-side",
+            top: "rim wood-top",
+          },
+        });
+
+        addCuboid(model, "hinge", {
+          x: 0,
+          y: -3,
+          z: -depth / 2 - 5,
+          w: width + 14,
+          h: 10,
+          d: 10,
+          faces: {
+            front: "",
+            back: "",
+            right: "",
+            left: "",
+            top: "",
+            bottom: "",
+          },
+        });
+
+        lidPivot = document.createElement("div");
+        lidPivot.className = "lid-pivot";
+        lidPivot.style.transformOrigin = "0 0 0";
+        model.appendChild(lidPivot);
+
+        const lidAnchorZ = -depth / 2;
+        lidPivot.style.transform = `translate3d(0px, 0px, ${lidAnchorZ}px) rotateX(0deg)`;
+
+        addCuboid(lidPivot, "lid", {
+          x: 0,
+          y: -lidHeight / 2,
+          z: depth / 2,
+          w: width,
+          h: lidHeight,
+          d: depth,
+          faces: {
+            front: "wood-top",
+            back: "wood-back",
+            right: "wood-side",
+            left: "wood-dark",
+            top: "wood-top",
+            bottom: "inner-floor",
+          },
+        });
+
+        addCuboid(lidPivot, "lock", {
+          x: 0,
+          y: -8,
+          z: depth + 8,
+          w: 42,
+          h: 58,
+          d: 16,
+          faces: {
+            front: "iron",
+            back: "iron",
+            right: "iron",
+            left: "iron",
+            top: "iron",
+            bottom: "iron",
+          },
+        });
+      }
+
+      function addCuboid(parent, className, box) {
+        const { x, y, z, w, h, d, faces } = box;
+        const group = document.createElement("div");
+        group.className = `part ${className}`;
+        parent.appendChild(group);
+
+        if (faces.front !== undefined) {
+          addFace(group, `${faces.front}`, w, h, x, y, z + d / 2, "");
+        }
+        if (faces.back !== undefined) {
+          addFace(group, `${faces.back}`, w, h, x, y, z - d / 2, "rotateY(180deg)");
+        }
+        if (faces.right !== undefined) {
+          addFace(group, `${faces.right}`, d, h, x + w / 2, y, z, "rotateY(90deg)");
+        }
+        if (faces.left !== undefined) {
+          addFace(group, `${faces.left}`, d, h, x - w / 2, y, z, "rotateY(-90deg)");
+        }
+        if (faces.top !== undefined) {
+          addFace(group, `${faces.top}`, w, d, x, y - h / 2, z, "rotateX(90deg)");
+        }
+        if (faces.bottom !== undefined) {
+          addFace(group, `${faces.bottom}`, w, d, x, y + h / 2, z, "rotateX(-90deg)");
+        }
+
+        return group;
+      }
+
+      function addFace(parent, className, width, height, x, y, z, rotation) {
+        const slot = document.createElement("div");
+        slot.className = "slot";
+        slot.style.transform = `translate3d(${x}px, ${y}px, ${z}px)`;
+
+        const face = document.createElement("div");
+        face.className = `face ${className}`.trim();
+        face.style.width = `${width}px`;
+        face.style.height = `${height}px`;
+        face.style.marginLeft = `${-width / 2}px`;
+        face.style.marginTop = `${-height / 2}px`;
+        face.style.transform = rotation;
+
+        slot.appendChild(face);
+        parent.appendChild(slot);
+        return face;
+      }
+
+      function handlePointerDown(event) {
+        state.dragging = true;
+        state.pointerId = event.pointerId;
+        state.dragStartX = event.clientX;
+        state.dragStartY = event.clientY;
+        state.lastX = event.clientX;
+        state.lastY = event.clientY;
+        state.dragDistance = 0;
+        button.setPointerCapture(event.pointerId);
+        document.body.classList.add("is-dragging");
+      }
+
+      function handlePointerMove(event) {
+        if (!state.dragging || event.pointerId !== state.pointerId) {
+          return;
+        }
+
+        const dx = event.clientX - state.lastX;
+        const dy = event.clientY - state.lastY;
+        state.lastX = event.clientX;
+        state.lastY = event.clientY;
+        state.dragDistance += Math.hypot(dx, dy);
+
+        if (state.dragDistance > 2) {
+          orbit.yaw += dx * 0.34;
+          orbit.pitch = clamp(orbit.pitch - dy * 0.26, -48, -12);
+          updateCamera();
+        }
+      }
+
+      function handlePointerUp(event) {
+        if (!state.dragging || event.pointerId !== state.pointerId) {
+          return;
+        }
+
+        const shouldToggle = state.dragDistance < 6;
+        cleanupPointer(event.pointerId);
+
+        if (shouldToggle) {
+          toggleChest();
+        }
+      }
+
+      function handlePointerCancel(event) {
+        if (event.pointerId === state.pointerId) {
+          cleanupPointer(event.pointerId);
+        }
+      }
+
+      function cleanupPointer(pointerId) {
+        state.dragging = false;
+        state.pointerId = null;
+        state.dragDistance = 0;
+        document.body.classList.remove("is-dragging");
+
+        try {
+          button.releasePointerCapture(pointerId);
+        } catch (error) {
+          // Pointer capture may already be released by the browser.
+        }
+      }
+
+      function toggleChest() {
+        state.open = !state.open;
+        state.target = state.open ? 1 : 0;
+        state.startProgress = state.progress;
+        state.startedAt = performance.now();
+        state.animating = true;
+        button.setAttribute("aria-pressed", String(state.open));
+        button.setAttribute("aria-label", state.open ? "Open chest" : "Closed chest");
+        playChestSound(state.open);
+        cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(tick);
+      }
+
+      function tick(now) {
+        const t = Math.min(1, (now - state.startedAt) / duration);
+        const eased = 1 - Math.pow(1 - t, 3);
+        state.progress = state.startProgress + (state.target - state.startProgress) * eased;
+        setOpenProgress(state.progress);
+
+        if (t < 1) {
+          raf = requestAnimationFrame(tick);
+        } else {
+          state.progress = state.target;
+          state.animating = false;
+          setOpenProgress(state.progress);
+        }
+      }
+
+      function setOpenProgress(progress) {
+        const angle = 86 * progress;
+        const { depth } = SIZE;
+        lidPivot.style.transform = `translate3d(0px, 0px, ${-depth / 2}px) rotateX(${angle}deg)`;
+      }
+
+      function updateCamera() {
+        camera.style.setProperty("--yaw", `${orbit.yaw}deg`);
+        camera.style.setProperty("--pitch", `${orbit.pitch}deg`);
+      }
+
+      function resize() {
+        const scale = Math.min(window.innerWidth / 680, window.innerHeight / 680, 1.08);
+        camera.style.setProperty("--scale", `${Math.max(0.62, scale)}`);
+      }
+
+      function clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+      }
+
+      function playChestSound(opening) {
+        try {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          const audio = new AudioContext();
+          const now = audio.currentTime;
+          const osc = audio.createOscillator();
+          const gain = audio.createGain();
+          const filter = audio.createBiquadFilter();
+
+          osc.type = "triangle";
+          osc.frequency.setValueAtTime(opening ? 150 : 92, now);
+          osc.frequency.exponentialRampToValueAtTime(opening ? 74 : 54, now + (opening ? 0.16 : 0.1));
+          filter.type = "lowpass";
+          filter.frequency.setValueAtTime(opening ? 740 : 380, now);
+          gain.gain.setValueAtTime(0.0001, now);
+          gain.gain.exponentialRampToValueAtTime(0.075, now + 0.012);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + (opening ? 0.2 : 0.13));
+
+          osc.connect(filter);
+          filter.connect(gain);
+          gain.connect(audio.destination);
+          osc.start(now);
+          osc.stop(now + 0.22);
+        } catch (error) {
+          // Sound is optional; some browsers block audio until direct user activation.
+        }
+      }
+    </script>
+  </body>
+</html>
