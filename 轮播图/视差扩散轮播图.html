@@ -264,7 +264,7 @@
 
       <div class="ui-overlay">
         <header class="topbar">
-          <div class="logo">JYeontu</div>
+          <div class="logo"></div>
         </header>
 
         <div class="side-indicator">
@@ -360,9 +360,11 @@
 
       function animateParallax() {
         parallaxState.currentX +=
-          (parallaxState.targetX - parallaxState.currentX) * parallaxConfig.ease;
+          (parallaxState.targetX - parallaxState.currentX) *
+          parallaxConfig.ease;
         parallaxState.currentY +=
-          (parallaxState.targetY - parallaxState.currentY) * parallaxConfig.ease;
+          (parallaxState.targetY - parallaxState.currentY) *
+          parallaxConfig.ease;
 
         applyParallaxTransforms(parallaxState.currentX, parallaxState.currentY);
 
@@ -527,7 +529,10 @@
         if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 40) {
           if (diffX < 0) {
             const nextIndex = (currentIndex + 1) % slides.length;
-            goToSlide(nextIndex, `${window.innerWidth}px ${window.innerHeight / 2}px`);
+            goToSlide(
+              nextIndex,
+              `${window.innerWidth}px ${window.innerHeight / 2}px`,
+            );
           } else {
             const prevIndex =
               (currentIndex - 1 + slides.length) % slides.length;
