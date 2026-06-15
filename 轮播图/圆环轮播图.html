@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>圆环聚焦轮播图</title>
+    <style>
+      :root {
+        --ink: #f8f4e8;
+        --gold: #e5c06d;
+        --jade: #84c9ad;
+        --deep: #0d1113;
+        --radius: min(34vw, 39vh, 300px);
+        --focus-wide-width: min(58vw, 560px);
+        --focus-portrait-height: min(calc(var(--radius) * 1.86), 70vh, 560px);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        min-height: 100%;
+        margin: 0;
+      }
+
+      body {
+        min-height: 100vh;
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        color: var(--ink);
+        font-family: Optima, "PingFang SC", "Microsoft YaHei", sans-serif;
+        background:
+          radial-gradient(circle at 20% 16%, rgba(132, 201, 173, 0.16), transparent 26%),
+          radial-gradient(circle at 82% 78%, rgba(229, 192, 109, 0.16), transparent 28%),
+          linear-gradient(135deg, #17110e 0%, #081011 58%, #0d1113 100%);
+      }
+
+      .gallery {
+        position: relative;
+        width: min(1120px, calc(100vw - 32px));
+        height: min(760px, calc(100vh - 32px));
+        min-height: 560px;
+        overflow: hidden;
+        border-radius: 8px;
+        background:
+          radial-gradient(circle at 50% 50%, rgba(248, 244, 232, 0.08), transparent 42%),
+          rgba(7, 10, 11, 0.72);
+        box-shadow:
+          0 38px 100px rgba(0, 0, 0, 0.54),
+          inset 0 0 0 1px rgba(248, 244, 232, 0.14);
+      }
+
+      .backdrop {
+        position: absolute;
+        inset: -8%;
+        background-image: var(--image);
+        background-size: cover;
+        background-position: center;
+        filter: blur(34px) brightness(0.44) saturate(1.12);
+        transform: scale(1.1);
+        transition: background-image 420ms ease;
+      }
+
+      .orbit {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        z-index: 4;
+        width: calc(var(--radius) * 2);
+        aspect-ratio: 1;
+        transform: translate(-50%, -50%);
+      }
+
+      .orbit::before,
+      .orbit::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        border: 1px solid rgba(248, 244, 232, 0.16);
+        pointer-events: none;
+      }
+
+      .orbit::after {
+        inset: 10%;
+        border-style: dashed;
+        border-color: rgba(132, 201, 173, 0.22);
+        animation: innerSpin 18s linear infinite;
+      }
+
+      @keyframes innerSpin {
+        to {
+          transform: rotate(1turn);
+        }
+      }
+
+      .card {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: clamp(48px, 5.8vw, 82px);
+        aspect-ratio: 3 / 4;
+        padding: 0;
+        border: 1px solid rgba(248, 244, 232, 0.24);
+        border-radius: 8px;
+        overflow: hidden;
+        cursor: pointer;
+        background: rgba(248, 244, 232, 0.08);
+        box-shadow: 0 16px 30px rgba(0, 0, 0, 0.28);
+        transform:
+          translate(-50%, -50%)
+          rotate(var(--angle))
+          translateY(calc(var(--radius) * -1))
+          rotate(calc(var(--angle) * -1))
+          scale(var(--scale, 0.9));
+        opacity: var(--opacity, 0.72);
+        transition:
+          transform 900ms cubic-bezier(0.19, 1, 0.22, 1),
+          opacity 360ms ease,
+          border-color 360ms ease,
+          box-shadow 360ms ease;
+      }
+
+      .card img {
+        width: 100%;
+        height: 100%;
+        display: block;
+        object-fit: cover;
+      }
+
+      .card.active {
+        --scale: 1.12;
+        --opacity: 1;
+        z-index: 5;
+        border-color: rgba(229, 192, 109, 0.9);
+        box-shadow:
+          0 18px 44px rgba(0, 0, 0, 0.44),
+          0 0 0 3px rgba(229, 192, 109, 0.18);
+      }
+
+      .focus {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        z-index: 3;
+        width: var(--focus-width, var(--focus-wide-width));
+        height: var(--focus-height, auto);
+        aspect-ratio: var(--focus-ratio, 16 / 10);
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        border-radius: 18px;
+        background: transparent;
+        border: 0;
+        box-shadow: 0 24px 58px rgba(0, 0, 0, 0.34);
+        transform: translate(-50%, -50%);
+        transition:
+          width 760ms cubic-bezier(0.19, 1, 0.22, 1),
+          height 760ms cubic-bezier(0.19, 1, 0.22, 1);
+      }
+
+      .focus img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        border-radius: inherit;
+        filter: contrast(1.03) saturate(1.03);
+      }
+
+      .gallery.switching .focus img {
+        animation: focusIn 760ms cubic-bezier(0.19, 1, 0.22, 1);
+      }
+
+      @keyframes focusIn {
+        0% {
+          opacity: 0.22;
+          transform: scale(0.92);
+          filter: blur(8px) brightness(1.28);
+        }
+        60% {
+          opacity: 1;
+          transform: scale(1.012);
+        }
+        100% {
+          transform: scale(1);
+          filter: contrast(1.03) saturate(1.03);
+        }
+      }
+
+      .light {
+        position: absolute;
+        inset: -25%;
+        z-index: 6;
+        opacity: 0.18;
+        pointer-events: none;
+        background: linear-gradient(112deg, transparent 42%, rgba(248, 244, 232, 0.64), transparent 58%);
+        transform: translateX(-55%) rotate(8deg);
+        animation: idleLight 7s ease-in-out infinite alternate;
+      }
+
+      .gallery.switching .light {
+        animation: sweepLight 760ms cubic-bezier(0.19, 1, 0.22, 1);
+      }
+
+      @keyframes idleLight {
+        to {
+          transform: translateX(28%) rotate(8deg);
+        }
+      }
+
+      @keyframes sweepLight {
+        from {
+          opacity: 0.55;
+          transform: translateX(-72%) rotate(8deg);
+        }
+        to {
+          opacity: 0;
+          transform: translateX(72%) rotate(8deg);
+        }
+      }
+
+      .nav {
+        position: absolute;
+        top: 50%;
+        z-index: 8;
+        width: 52px;
+        height: 52px;
+        border: 1px solid rgba(248, 244, 232, 0.28);
+        border-radius: 50%;
+        color: var(--ink);
+        cursor: pointer;
+        font: inherit;
+        font-size: 30px;
+        line-height: 1;
+        background: rgba(8, 10, 10, 0.58);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 14px 30px rgba(0, 0, 0, 0.32);
+        transform: translateY(-50%);
+        transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+      }
+
+      .nav:hover {
+        background: rgba(34, 45, 38, 0.76);
+        border-color: rgba(132, 201, 173, 0.72);
+        transform: translateY(-50%) scale(1.05);
+      }
+
+      .prev {
+        left: clamp(14px, 3vw, 30px);
+      }
+
+      .next {
+        right: clamp(14px, 3vw, 30px);
+      }
+
+      .dots {
+        position: absolute;
+        left: 50%;
+        bottom: 22px;
+        z-index: 8;
+        display: flex;
+        gap: 8px;
+        transform: translateX(-50%);
+      }
+
+      .dot {
+        width: 12px;
+        height: 12px;
+        padding: 0;
+        border: 0;
+        border-radius: 999px;
+        cursor: pointer;
+        background: rgba(248, 244, 232, 0.34);
+        transition: width 220ms ease, background 220ms ease;
+      }
+
+      .dot.active {
+        width: 38px;
+        background: var(--gold);
+      }
+
+      @media (max-width: 760px) {
+        body {
+          overflow: auto;
+        }
+
+        :root {
+          --radius: min(40vw, 28vh, 220px);
+          --focus-wide-width: min(78vw, 380px);
+          --focus-portrait-height: min(calc(var(--radius) * 1.86), 72vh, 520px);
+        }
+
+        .gallery {
+          width: min(94vw, 620px);
+          height: min(86vh, 720px);
+          min-height: 560px;
+        }
+
+        .card {
+          width: clamp(44px, 10vw, 62px);
+        }
+
+        .nav {
+          width: 44px;
+          height: 44px;
+          font-size: 26px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="gallery" id="gallery" aria-label="圆环聚焦轮播图">
+      <div class="backdrop" id="backdrop"></div>
+      <div class="focus">
+        <img id="focusImage" alt="" />
+      </div>
+      <div class="orbit" id="orbit"></div>
+      <span class="light" aria-hidden="true"></span>
+      <button type="button" class="nav prev" id="prev" aria-label="上一张">‹</button>
+      <button type="button" class="nav next" id="next" aria-label="下一张">›</button>
+      <div class="dots" id="dots"></div>
+    </main>
+
+    <script>
+      const slides = [
+        "../images/宫崎骏/千与千寻.jpg",
+        "../images/宫崎骏/龙猫.jpg",
+        "../images/宫崎骏/哈尔的移动城堡.jpg",
+        "../images/宫崎骏/幽灵公主.jpg",
+        "../images/宫崎骏/天空之城.jpg",
+        "../images/宫崎骏/魔女宅急便.jpg",
+        "../images/宫崎骏/悬崖上的金鱼姬.jpg",
+        "../images/宫崎骏/借东西的小人阿莉埃蒂.jpg",
+        "../images/宫崎骏/风之谷.jpg",
+        "../images/宫崎骏/起风了.jpg",
+        "../images/宫崎骏/红猪.jpg",
+        "../images/宫崎骏/侧耳倾听.jpg",
+      ];
+
+      const gallery = document.getElementById("gallery");
+      const orbit = document.getElementById("orbit");
+      const focusImage = document.getElementById("focusImage");
+      const backdrop = document.getElementById("backdrop");
+      const dots = document.getElementById("dots");
+      let index = 0;
+      let position = 0;
+      let timer = 0;
+      let clearMotion = 0;
+      const imageRatios = new Map();
+
+      slides.forEach((src, slideIndex) => {
+        const card = document.createElement("button");
+        card.type = "button";
+        card.className = "card";
+        card.setAttribute("aria-label", `切换到第 ${slideIndex + 1} 张`);
+        card.innerHTML = `<img src="${src}" alt="">`;
+        card.addEventListener("click", () => show(slideIndex));
+        orbit.appendChild(card);
+
+        const dot = document.createElement("button");
+        dot.type = "button";
+        dot.className = "dot";
+        dot.setAttribute("aria-label", `切换到第 ${slideIndex + 1} 张`);
+        dot.addEventListener("click", () => show(slideIndex));
+        dots.appendChild(dot);
+      });
+
+      function render() {
+        const src = slides[index];
+        focusImage.src = src;
+        backdrop.style.setProperty("--image", `url("${src}")`);
+        applyFocusSize(src);
+        const step = 360 / slides.length;
+        [...orbit.children].forEach((card, cardIndex) => {
+          card.style.setProperty("--angle", `${(cardIndex - position) * step}deg`);
+          card.classList.toggle("active", cardIndex === index);
+        });
+        [...dots.children].forEach((dot, dotIndex) => {
+          dot.classList.toggle("active", dotIndex === index);
+        });
+      }
+
+      function applyFocusSize(src) {
+        const ratio = imageRatios.get(src);
+        if (!ratio) return;
+        const isPortrait = ratio < 1;
+        gallery.style.setProperty("--focus-ratio", `${ratio}`);
+        gallery.style.setProperty(
+          "--focus-width",
+          isPortrait ? `calc(var(--focus-portrait-height) * ${ratio})` : `var(--focus-wide-width)`,
+        );
+        gallery.style.setProperty("--focus-height", isPortrait ? `var(--focus-portrait-height)` : `auto`);
+      }
+
+      focusImage.addEventListener("load", () => {
+        const ratio = focusImage.naturalWidth / focusImage.naturalHeight;
+        imageRatios.set(focusImage.getAttribute("src"), ratio);
+        applyFocusSize(focusImage.getAttribute("src"));
+      });
+
+      function normalizeIndex(value) {
+        return ((value % slides.length) + slides.length) % slides.length;
+      }
+
+      function show(nextIndex, direction = 0) {
+        const targetIndex = normalizeIndex(nextIndex);
+        if (direction > 0) {
+          position += 1;
+        } else if (direction < 0) {
+          position -= 1;
+        } else {
+          const currentIndex = normalizeIndex(position);
+          let delta = targetIndex - currentIndex;
+          if (delta > slides.length / 2) delta -= slides.length;
+          if (delta < -slides.length / 2) delta += slides.length;
+          position += delta;
+        }
+        index = targetIndex;
+        gallery.classList.remove("switching");
+        void gallery.offsetWidth;
+        render();
+        gallery.classList.add("switching");
+        window.clearTimeout(clearMotion);
+        clearMotion = window.setTimeout(() => gallery.classList.remove("switching"), 820);
+        restart();
+      }
+
+      function restart() {
+        window.clearInterval(timer);
+        timer = window.setInterval(() => show(index + 1, 1), 3600);
+      }
+
+      document.getElementById("prev").addEventListener("click", () => show(index - 1, -1));
+      document.getElementById("next").addEventListener("click", () => show(index + 1, 1));
+      gallery.addEventListener("pointerenter", () => window.clearInterval(timer));
+      gallery.addEventListener("pointerleave", restart);
+
+      render();
+      restart();
+    </script>
+  </body>
+</html>
