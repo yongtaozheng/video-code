@@ -21,6 +21,7 @@
 
       html,
       body {
+        width: 100%;
         min-height: 100%;
         margin: 0;
       }
@@ -28,41 +29,61 @@
       body {
         min-height: 100vh;
         min-height: 100dvh;
-        display: grid;
-        place-items: center;
         overflow: hidden;
         color: var(--ink);
         font-family: Optima, "PingFang SC", "Microsoft YaHei", sans-serif;
         background:
-          radial-gradient(circle at 20% 16%, rgba(132, 201, 173, 0.16), transparent 26%),
-          radial-gradient(circle at 82% 78%, rgba(229, 192, 109, 0.16), transparent 28%),
+          radial-gradient(
+            circle at 20% 16%,
+            rgba(132, 201, 173, 0.16),
+            transparent 26%
+          ),
+          radial-gradient(
+            circle at 82% 78%,
+            rgba(229, 192, 109, 0.16),
+            transparent 28%
+          ),
           linear-gradient(135deg, #17110e 0%, #081011 58%, #0d1113 100%);
       }
 
       .gallery {
         position: relative;
-        width: min(1120px, calc(100vw - 32px));
-        height: min(760px, calc(100vh - 32px));
-        min-height: 560px;
+        width: 100vw;
+        height: 100vh;
+        height: 100dvh;
+        min-height: 0;
         overflow: hidden;
-        border-radius: 8px;
+        border-radius: 0;
         background:
-          radial-gradient(circle at 50% 50%, rgba(248, 244, 232, 0.08), transparent 42%),
+          radial-gradient(
+            circle at 50% 50%,
+            rgba(248, 244, 232, 0.08),
+            transparent 42%
+          ),
           rgba(7, 10, 11, 0.72);
         box-shadow:
-          0 38px 100px rgba(0, 0, 0, 0.54),
           inset 0 0 0 1px rgba(248, 244, 232, 0.14);
       }
 
       .backdrop {
         position: absolute;
-        inset: -8%;
+        inset: -10vmax;
         background-image: var(--image);
         background-size: cover;
         background-position: center;
-        filter: blur(34px) brightness(0.44) saturate(1.12);
-        transform: scale(1.1);
+        filter: blur(20px) brightness(0.48) saturate(1.12);
+        transform: scale(1.04);
         transition: background-image 420ms ease;
+      }
+
+      .backdrop::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(circle at 50% 48%, transparent 0 22%, rgba(5, 8, 9, 0.2) 48%, rgba(5, 8, 9, 0.78) 100%),
+          linear-gradient(180deg, rgba(5, 8, 9, 0.24), rgba(5, 8, 9, 0.58));
+        pointer-events: none;
       }
 
       .orbit {
@@ -111,11 +132,8 @@
         cursor: pointer;
         background: rgba(248, 244, 232, 0.08);
         box-shadow: 0 16px 30px rgba(0, 0, 0, 0.28);
-        transform:
-          translate(-50%, -50%)
-          rotate(var(--angle))
-          translateY(calc(var(--radius) * -1))
-          rotate(calc(var(--angle) * -1))
+        transform: translate(-50%, -50%) rotate(var(--angle))
+          translateY(calc(var(--radius) * -1)) rotate(calc(var(--angle) * -1))
           scale(var(--scale, 0.9));
         opacity: var(--opacity, 0.72);
         transition:
@@ -199,7 +217,12 @@
         z-index: 6;
         opacity: 0.18;
         pointer-events: none;
-        background: linear-gradient(112deg, transparent 42%, rgba(248, 244, 232, 0.64), transparent 58%);
+        background: linear-gradient(
+          112deg,
+          transparent 42%,
+          rgba(248, 244, 232, 0.64),
+          transparent 58%
+        );
         transform: translateX(-55%) rotate(8deg);
         animation: idleLight 7s ease-in-out infinite alternate;
       }
@@ -242,7 +265,10 @@
         backdrop-filter: blur(10px);
         box-shadow: 0 14px 30px rgba(0, 0, 0, 0.32);
         transform: translateY(-50%);
-        transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+        transition:
+          transform 180ms ease,
+          background 180ms ease,
+          border-color 180ms ease;
       }
 
       .nav:hover {
@@ -277,7 +303,9 @@
         border-radius: 999px;
         cursor: pointer;
         background: rgba(248, 244, 232, 0.34);
-        transition: width 220ms ease, background 220ms ease;
+        transition:
+          width 220ms ease,
+          background 220ms ease;
       }
 
       .dot.active {
@@ -287,7 +315,7 @@
 
       @media (max-width: 760px) {
         body {
-          overflow: auto;
+          overflow: hidden;
         }
 
         :root {
@@ -297,9 +325,9 @@
         }
 
         .gallery {
-          width: min(94vw, 620px);
-          height: min(86vh, 720px);
-          min-height: 560px;
+          width: 100vw;
+          height: 100vh;
+          height: 100dvh;
         }
 
         .card {
@@ -322,8 +350,12 @@
       </div>
       <div class="orbit" id="orbit"></div>
       <span class="light" aria-hidden="true"></span>
-      <button type="button" class="nav prev" id="prev" aria-label="上一张">‹</button>
-      <button type="button" class="nav next" id="next" aria-label="下一张">›</button>
+      <button type="button" class="nav prev" id="prev" aria-label="上一张">
+        ‹
+      </button>
+      <button type="button" class="nav next" id="next" aria-label="下一张">
+        ›
+      </button>
       <div class="dots" id="dots"></div>
     </main>
 
@@ -333,9 +365,9 @@
         "../images/宫崎骏/龙猫.jpg",
         "../images/宫崎骏/哈尔的移动城堡.jpg",
         "../images/宫崎骏/幽灵公主.jpg",
-        "../images/宫崎骏/天空之城.jpg",
-        "../images/宫崎骏/魔女宅急便.jpg",
-        "../images/宫崎骏/悬崖上的金鱼姬.jpg",
+        // "../images/宫崎骏/天空之城.jpg",
+        // "../images/宫崎骏/魔女宅急便.jpg",
+        // "../images/宫崎骏/悬崖上的金鱼姬.jpg",
         "../images/宫崎骏/借东西的小人阿莉埃蒂.jpg",
         "../images/宫崎骏/风之谷.jpg",
         "../images/宫崎骏/起风了.jpg",
@@ -378,7 +410,10 @@
         applyFocusSize(src);
         const step = 360 / slides.length;
         [...orbit.children].forEach((card, cardIndex) => {
-          card.style.setProperty("--angle", `${(cardIndex - position) * step}deg`);
+          card.style.setProperty(
+            "--angle",
+            `${(cardIndex - position) * step}deg`,
+          );
           card.classList.toggle("active", cardIndex === index);
         });
         [...dots.children].forEach((dot, dotIndex) => {
@@ -393,9 +428,14 @@
         gallery.style.setProperty("--focus-ratio", `${ratio}`);
         gallery.style.setProperty(
           "--focus-width",
-          isPortrait ? `calc(var(--focus-portrait-height) * ${ratio})` : `var(--focus-wide-width)`,
+          isPortrait
+            ? `calc(var(--focus-portrait-height) * ${ratio})`
+            : `var(--focus-wide-width)`,
         );
-        gallery.style.setProperty("--focus-height", isPortrait ? `var(--focus-portrait-height)` : `auto`);
+        gallery.style.setProperty(
+          "--focus-height",
+          isPortrait ? `var(--focus-portrait-height)` : `auto`,
+        );
       }
 
       focusImage.addEventListener("load", () => {
@@ -427,7 +467,10 @@
         render();
         gallery.classList.add("switching");
         window.clearTimeout(clearMotion);
-        clearMotion = window.setTimeout(() => gallery.classList.remove("switching"), 820);
+        clearMotion = window.setTimeout(
+          () => gallery.classList.remove("switching"),
+          820,
+        );
         restart();
       }
 
@@ -436,9 +479,15 @@
         timer = window.setInterval(() => show(index + 1, 1), 3600);
       }
 
-      document.getElementById("prev").addEventListener("click", () => show(index - 1, -1));
-      document.getElementById("next").addEventListener("click", () => show(index + 1, 1));
-      gallery.addEventListener("pointerenter", () => window.clearInterval(timer));
+      document
+        .getElementById("prev")
+        .addEventListener("click", () => show(index - 1, -1));
+      document
+        .getElementById("next")
+        .addEventListener("click", () => show(index + 1, 1));
+      gallery.addEventListener("pointerenter", () =>
+        window.clearInterval(timer),
+      );
       gallery.addEventListener("pointerleave", restart);
 
       render();
