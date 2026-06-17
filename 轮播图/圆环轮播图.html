@@ -61,8 +61,7 @@
             transparent 42%
           ),
           rgba(7, 10, 11, 0.72);
-        box-shadow:
-          inset 0 0 0 1px rgba(248, 244, 232, 0.14);
+        box-shadow: inset 0 0 0 1px rgba(248, 244, 232, 0.14);
       }
 
       .backdrop {
@@ -81,7 +80,12 @@
         position: absolute;
         inset: 0;
         background:
-          radial-gradient(circle at 50% 48%, transparent 0 22%, rgba(5, 8, 9, 0.2) 48%, rgba(5, 8, 9, 0.78) 100%),
+          radial-gradient(
+            circle at 50% 48%,
+            transparent 0 22%,
+            rgba(5, 8, 9, 0.2) 48%,
+            rgba(5, 8, 9, 0.78) 100%
+          ),
           linear-gradient(180deg, rgba(5, 8, 9, 0.24), rgba(5, 8, 9, 0.58));
         pointer-events: none;
       }
@@ -362,7 +366,7 @@
     <script>
       const slides = [
         "../images/宫崎骏/千与千寻.jpg",
-        "../images/宫崎骏/龙猫.jpg",
+        // "../images/宫崎骏/龙猫.jpg",
         "../images/宫崎骏/哈尔的移动城堡.jpg",
         "../images/宫崎骏/幽灵公主.jpg",
         // "../images/宫崎骏/天空之城.jpg",
