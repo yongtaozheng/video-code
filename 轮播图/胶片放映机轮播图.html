@@ -120,6 +120,10 @@
         animation: filmPull 760ms cubic-bezier(0.3, 0.82, 0.34, 1);
       }
 
+      .screen.running.upward .frame {
+        animation-name: filmPullUp;
+      }
+
       @keyframes filmPull {
         0% {
           transform: translateY(-110%) rotate(-1.5deg);
@@ -130,6 +134,23 @@
         }
         72% {
           transform: translateY(-4%);
+        }
+        100% {
+          transform: translateY(0);
+          filter: sepia(0.22) contrast(1.08) saturate(0.9);
+        }
+      }
+
+      @keyframes filmPullUp {
+        0% {
+          transform: translateY(110%) rotate(1.5deg);
+          filter: sepia(0.5) contrast(1.4) blur(3px);
+        }
+        54% {
+          transform: translateY(-8%) rotate(-0.8deg);
+        }
+        72% {
+          transform: translateY(4%);
         }
         100% {
           transform: translateY(0);
@@ -324,20 +345,21 @@
           dot.type = "button";
           dot.className = "dot";
           dot.setAttribute("aria-label", `切换到第 ${dotIndex + 1} 张`);
-          dot.addEventListener("click", () => show(dotIndex));
+          dot.addEventListener("click", () => show(dotIndex, dotIndex < index ? -1 : 1));
           dots.appendChild(dot);
         });
       }
 
-      function show(nextIndex) {
+      function show(nextIndex, direction = 1) {
         index = (nextIndex + slides.length) % slides.length;
         const slide = slides[index];
-        screen.classList.remove("running");
+        screen.classList.remove("running", "upward");
         void screen.offsetWidth;
+        screen.classList.toggle("upward", direction < 0);
         screen.classList.add("running");
         window.clearTimeout(runningTimer);
         runningTimer = window.setTimeout(() => {
-          screen.classList.remove("running");
+          screen.classList.remove("running", "upward");
         }, 820);
         frame.style.setProperty("--image", `url("${slide.src}")`);
         [...dots.children].forEach((dot, dotIndex) => {
@@ -348,11 +370,11 @@
 
       function restart() {
         window.clearInterval(timer);
-        timer = window.setInterval(() => show(index + 1), 4200);
+        timer = window.setInterval(() => show(index + 1, 1), 4200);
       }
 
-      document.getElementById("prev").addEventListener("click", () => show(index - 1));
-      document.getElementById("next").addEventListener("click", () => show(index + 1));
+      document.getElementById("prev").addEventListener("click", () => show(index - 1, -1));
+      document.getElementById("next").addEventListener("click", () => show(index + 1, 1));
       screen.addEventListener("pointerenter", () => window.clearInterval(timer));
       screen.addEventListener("pointerleave", restart);
 
