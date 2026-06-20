@@ -1,0 +1,695 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>水滴湖面涟漪动画</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+      }
+
+      body {
+        margin: 0;
+        overflow: hidden;
+        background:
+          linear-gradient(180deg, #d8f3ff 0%, #7ecfff 48%, #1f82d8 100%);
+      }
+
+      canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="dropScene" aria-label="水滴凝结、滴入湖面并泛起涟漪的循环动画"></canvas>
+
+    <script>
+      const canvas = document.getElementById("dropScene");
+      const ctx = canvas.getContext("2d");
+
+      let width = 0;
+      let height = 0;
+      let dpr = 1;
+      let waterY = 0;
+
+      const cycleMs = 7000;
+      const dropStart = 0.5;
+      const impactStart = 0.75;
+
+      const condensationBeads = Array.from({ length: 34 }, (_, index) => ({
+        x: (((index * 37) % 100) - 50) / 50,
+        y: ((index * 23) % 100) / 100,
+        radius: 0.36 + ((index * 17) % 18) / 14,
+        delay: 0.08 + ((index * 29) % 100) / 330,
+        life: 0.38 + ((index * 13) % 42) / 180,
+        slide: 0.46 + ((index * 19) % 50) / 100,
+        wobble: ((index * 31) % 100) / 100,
+      }));
+
+      const surfaceLines = Array.from({ length: 26 }, (_, index) => ({
+        y: 16 + index * 16,
+        length: 0.24 + ((index * 19) % 46) / 100,
+        offset: ((index * 37) % 100) / 100,
+        alpha: 0.045 + ((index * 11) % 15) / 100,
+      }));
+
+      const clouds = [
+        { x: 0.18, y: 0.16, scale: 1.18, speed: 0.006, alpha: 0.52 },
+        { x: 0.72, y: 0.13, scale: 0.92, speed: 0.004, alpha: 0.46 },
+        { x: 0.48, y: 0.28, scale: 1.35, speed: 0.003, alpha: 0.28 },
+        { x: 0.9, y: 0.34, scale: 1.08, speed: 0.005, alpha: 0.32 },
+      ];
+
+      const splash = Array.from({ length: 22 }, (_, index) => {
+        const direction = index % 2 === 0 ? -1 : 1;
+        const spread = 0.35 + ((index * 23) % 85) / 85;
+        return {
+          vx: direction * (18 + spread * 86),
+          vy: -(76 + ((index * 29) % 116)),
+          radius: 0.9 + ((index * 17) % 18) / 12,
+          delay: ((index * 7) % 22) / 130,
+          life: 0.44 + ((index * 13) % 35) / 100,
+        };
+      });
+
+      function resize() {
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        width = window.innerWidth;
+        height = window.innerHeight;
+        waterY = height * 0.66;
+        canvas.width = Math.floor(width * dpr);
+        canvas.height = Math.floor(height * dpr);
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
+      window.addEventListener("resize", resize);
+      resize();
+
+      const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+      const lerp = (a, b, t) => a + (b - a) * t;
+      const smoothstep = (edge0, edge1, value) => {
+        const t = clamp((value - edge0) / (edge1 - edge0), 0, 1);
+        return t * t * (3 - 2 * t);
+      };
+      const easeInQuad = (t) => t * t;
+      const easeInCubic = (t) => t * t * t;
+      const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+      const easeOutQuart = (t) => 1 - Math.pow(1 - t, 4);
+      const impactY = () => waterY + Math.min(86, height * 0.13);
+      const gravityFall = (t) => clamp(0.03 * t + 0.97 * t * t, 0, 1);
+      const gravityVelocity = (t) => clamp(0.03 + 1.94 * t, 0, 2);
+
+      function surfaceWaveY(x, time, disturbance) {
+        const center = width * 0.5;
+        const nearImpact = Math.exp(-Math.pow((x - center) / Math.max(90, width * 0.18), 2));
+        return (
+          waterY +
+          Math.sin(x * 0.011 + time * 0.0011) * 1.55 +
+          Math.sin(x * 0.027 - time * 0.0017) * 0.9 +
+          disturbance.dimple * nearImpact * 0.22 +
+          disturbance.ring * nearImpact * Math.sin((x - center) * 0.055) * 0.35
+        );
+      }
+
+      function getImpactState(phase) {
+        if (phase < impactStart) {
+          return { t: 0, dimple: 0, ring: 0, wake: 0 };
+        }
+
+        const t = clamp((phase - impactStart) / (1 - impactStart), 0, 1);
+        const dimple = Math.sin(clamp(t * 2.15, 0, 1) * Math.PI) * 10;
+        const ring = Math.sin(clamp(t * 1.25, 0, 1) * Math.PI) * 2.2;
+        const wake = Math.sin(clamp(t * 1.05, 0, 1) * Math.PI);
+        return { t, dimple, ring, wake };
+      }
+
+      function drawCloud(x, y, scale, alpha, timeOffset) {
+        ctx.save();
+        ctx.globalCompositeOperation = "screen";
+        ctx.globalAlpha = alpha * 0.86;
+        ctx.filter = `blur(${1.2 * scale}px)`;
+
+        const puffs = [
+          [-76, 10, 48, 17, -0.05],
+          [-46, -1, 55, 24, 0.02],
+          [-8, -13, 58, 31, -0.08],
+          [36, -6, 66, 27, 0.05],
+          [82, 8, 44, 17, -0.03],
+          [10, 17, 126, 19, 0.01],
+        ];
+
+        const glow = ctx.createRadialGradient(x, y - 8 * scale, 0, x, y, 150 * scale);
+        glow.addColorStop(0, "rgba(255, 255, 255, 0.46)");
+        glow.addColorStop(0.45, "rgba(245, 252, 255, 0.2)");
+        glow.addColorStop(1, "rgba(255, 255, 255, 0)");
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.ellipse(x, y + 5 * scale, 148 * scale, 48 * scale, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        puffs.forEach(([px, py, rx, ry, tilt], index) => {
+          const sway = Math.sin(timeOffset + index * 1.8) * 2.4 * scale;
+          const puffGlow = ctx.createRadialGradient(
+            x + (px + sway) * scale,
+            y + (py - ry * 0.22) * scale,
+            0,
+            x + (px + sway) * scale,
+            y + py * scale,
+            rx * scale,
+          );
+          puffGlow.addColorStop(0, "rgba(255, 255, 255, 0.9)");
+          puffGlow.addColorStop(0.58, "rgba(250, 253, 255, 0.64)");
+          puffGlow.addColorStop(1, "rgba(230, 246, 255, 0.18)");
+          ctx.fillStyle = puffGlow;
+          ctx.beginPath();
+          ctx.ellipse(x + (px + sway) * scale, y + py * scale, rx * scale, ry * scale, tilt, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        ctx.globalCompositeOperation = "multiply";
+        ctx.globalAlpha = alpha * 0.18;
+        ctx.filter = `blur(${2.6 * scale}px)`;
+        ctx.fillStyle = "rgba(74, 164, 226, 0.55)";
+        ctx.beginPath();
+        ctx.ellipse(x + 10 * scale, y + 21 * scale, 124 * scale, 18 * scale, 0.02, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.globalCompositeOperation = "screen";
+        ctx.globalAlpha = alpha * 0.2;
+        ctx.filter = `blur(${4 * scale}px)`;
+        ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
+        ctx.beginPath();
+        ctx.ellipse(x - 18 * scale, y - 7 * scale, 84 * scale, 20 * scale, -0.06, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+      }
+
+      function drawClouds(time) {
+        clouds.forEach((cloud, index) => {
+          const drift = (time * 0.00001 * cloud.speed * width + index * width * 0.17) % (width * 1.24);
+          const x = ((cloud.x * width + drift + width * 0.12) % (width * 1.24)) - width * 0.12;
+          const y = height * cloud.y;
+          drawCloud(x, y, cloud.scale, cloud.alpha, time * 0.00022 + index);
+        });
+      }
+
+      function drawAtmosphere(time) {
+        const sky = ctx.createLinearGradient(0, 0, 0, height);
+        sky.addColorStop(0, "#bfeaff");
+        sky.addColorStop(0.28, "#84d2ff");
+        sky.addColorStop(0.58, "#57b8f6");
+        sky.addColorStop(1, "#1f79ce");
+        ctx.fillStyle = sky;
+        ctx.fillRect(0, 0, width, height);
+
+        const coolLight = ctx.createLinearGradient(width * 0.5, 0, width * 0.5, waterY);
+        coolLight.addColorStop(0, "rgba(255, 255, 255, 0.16)");
+        coolLight.addColorStop(0.25, "rgba(203, 240, 255, 0.13)");
+        coolLight.addColorStop(0.62, "rgba(101, 190, 255, 0.04)");
+        coolLight.addColorStop(1, "rgba(25, 126, 215, 0)");
+        ctx.fillStyle = coolLight;
+        ctx.fillRect(width * 0.2, 0, width * 0.6, waterY);
+
+        drawClouds(time);
+
+        ctx.save();
+        ctx.globalCompositeOperation = "screen";
+        ctx.lineCap = "round";
+        for (let i = 0; i < 8; i++) {
+          const y = height * (0.15 + i * 0.058);
+          const lift = Math.sin(time * 0.00012 + i * 1.7) * 10;
+          const alpha = 0.018 + i * 0.0028;
+          ctx.strokeStyle = `rgba(232, 250, 255, ${alpha * 1.45})`;
+          ctx.lineWidth = 7 + i * 1.4;
+          ctx.beginPath();
+          ctx.moveTo(width * (0.1 + i * 0.012), y + lift);
+          ctx.bezierCurveTo(width * 0.28, y - 8, width * 0.48, y + 10, width * 0.68, y + lift * 0.55);
+          ctx.bezierCurveTo(width * 0.8, y + 6, width * 0.88, y - 5, width * (0.96 - i * 0.01), y + lift * 0.45);
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        const vignette = ctx.createRadialGradient(width * 0.5, height * 0.48, height * 0.05, width * 0.5, height * 0.48, Math.max(width, height) * 0.72);
+        vignette.addColorStop(0, "rgba(0, 0, 0, 0)");
+        vignette.addColorStop(0.62, "rgba(18, 112, 190, 0.08)");
+        vignette.addColorStop(1, "rgba(2, 32, 94, 0.3)");
+        ctx.fillStyle = vignette;
+        ctx.fillRect(0, 0, width, height);
+      }
+
+      function drawWater(time, impact) {
+        const step = Math.max(10, width / 110);
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(0, waterY);
+        for (let x = 0; x <= width + step; x += step) {
+          ctx.lineTo(x, surfaceWaveY(x, time, impact));
+        }
+        ctx.lineTo(width, height);
+        ctx.lineTo(0, height);
+        ctx.closePath();
+        ctx.clip();
+
+        const water = ctx.createLinearGradient(0, waterY - 24, 0, height);
+        water.addColorStop(0, "rgba(129, 214, 255, 0.74)");
+        water.addColorStop(0.18, "rgba(53, 174, 244, 0.84)");
+        water.addColorStop(0.58, "rgba(18, 112, 205, 0.96)");
+        water.addColorStop(1, "#07509d");
+        ctx.fillStyle = water;
+        ctx.fillRect(0, waterY - 40, width, height - waterY + 40);
+
+        const reflection = ctx.createRadialGradient(width * 0.5, waterY + 12, 0, width * 0.5, waterY + 58, width * 0.26);
+        reflection.addColorStop(0, `rgba(246, 253, 255, ${0.24 + impact.wake * 0.16})`);
+        reflection.addColorStop(0.34, "rgba(147, 221, 255, 0.13)");
+        reflection.addColorStop(0.72, "rgba(42, 164, 239, 0.04)");
+        reflection.addColorStop(1, "rgba(0, 0, 0, 0)");
+        ctx.fillStyle = reflection;
+        ctx.fillRect(0, waterY - 36, width, height - waterY + 36);
+
+        surfaceLines.forEach((line, index) => {
+          const y = waterY + line.y;
+          const span = width * line.length * (1 - index * 0.01);
+          const cx = width * (0.5 + Math.sin(time * 0.00023 + index) * 0.03);
+          const start = cx - span * 0.5 + Math.sin(time * 0.00055 + index * 1.3) * 24;
+          const end = cx + span * 0.5;
+
+          ctx.save();
+          ctx.globalAlpha = Math.max(0, line.alpha - index * 0.002);
+          ctx.strokeStyle = "rgba(239, 252, 255, 0.74)";
+          ctx.lineWidth = 0.8;
+          ctx.lineCap = "round";
+          ctx.beginPath();
+          for (let x = start; x <= end; x += step) {
+            const localY = y + Math.sin(x * 0.018 + time * 0.001 + index) * (1 + index * 0.018);
+            if (x === start) {
+              ctx.moveTo(x, localY);
+            } else {
+              ctx.lineTo(x, localY);
+            }
+          }
+          ctx.stroke();
+          ctx.restore();
+        });
+
+        ctx.restore();
+
+        ctx.save();
+        ctx.strokeStyle = `rgba(244, 253, 255, ${0.48 + impact.wake * 0.14})`;
+        ctx.lineWidth = 1.15;
+        ctx.beginPath();
+        for (let x = 0; x <= width + step; x += step) {
+          const y = surfaceWaveY(x, time, impact);
+          if (x === 0) {
+            ctx.moveTo(x, y);
+          } else {
+            ctx.lineTo(x, y);
+          }
+        }
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawCondensation(cx, anchorY, phase, time) {
+        const wet = smoothstep(0.02, 0.28, phase);
+        const gather = smoothstep(0.16, 0.48, phase);
+        const release = smoothstep(dropStart - 0.04, dropStart + 0.035, phase);
+        const glisten = Math.max(0, wet * 0.55 + gather * 0.45 - release * 0.78);
+        const neckY = anchorY + 19 + gather * 17;
+
+        ctx.save();
+        ctx.globalCompositeOperation = "screen";
+
+        for (let i = 0; i < 5; i++) {
+          const spread = width * (0.035 + i * 0.018);
+          const topAlpha = (0.028 + glisten * 0.032) / (i + 1);
+          const beam = ctx.createLinearGradient(cx, 0, cx, waterY);
+          beam.addColorStop(0, `rgba(255, 255, 255, ${topAlpha * 1.35})`);
+          beam.addColorStop(0.28, `rgba(179, 231, 255, ${topAlpha * 1.35})`);
+          beam.addColorStop(0.72, "rgba(75, 181, 248, 0.018)");
+          beam.addColorStop(1, "rgba(33, 139, 220, 0)");
+          ctx.fillStyle = beam;
+          ctx.beginPath();
+          ctx.moveTo(cx - spread * 0.22, 0);
+          ctx.bezierCurveTo(cx - spread * 0.9, waterY * 0.2, cx - spread * 1.05, waterY * 0.56, cx - spread * 0.42, waterY);
+          ctx.lineTo(cx + spread * 0.42, waterY);
+          ctx.bezierCurveTo(cx + spread * 1.05, waterY * 0.56, cx + spread * 0.9, waterY * 0.2, cx + spread * 0.22, 0);
+          ctx.closePath();
+          ctx.fill();
+        }
+
+        const wetPatch = ctx.createRadialGradient(cx, anchorY + 22, 0, cx, anchorY + 22, 50);
+        wetPatch.addColorStop(0, `rgba(255, 255, 255, ${0.2 * wet * (1 - release * 0.55)})`);
+        wetPatch.addColorStop(0.38, `rgba(136, 217, 255, ${0.12 * wet * (1 - release * 0.55)})`);
+        wetPatch.addColorStop(1, "rgba(136, 217, 255, 0)");
+        ctx.fillStyle = wetPatch;
+        ctx.beginPath();
+        ctx.ellipse(cx, anchorY + 22, 46, 30, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = `rgba(250, 254, 255, ${0.14 + glisten * 0.28})`;
+        ctx.lineWidth = 0.9 + gather * 0.55;
+        ctx.beginPath();
+        ctx.moveTo(cx, 0);
+        ctx.bezierCurveTo(cx - 3.5, anchorY * 0.36, cx + 2.6, anchorY * 0.78, cx, neckY);
+        ctx.stroke();
+
+        condensationBeads.forEach((bead) => {
+          const local = clamp((phase - bead.delay) / bead.life, 0, 1);
+          if (local <= 0 || local >= 1.05) return;
+
+          const slide = smoothstep(0.18, 0.94, local);
+          const merge = smoothstep(0.66, 1, local) * gather;
+          const driftX = Math.sin(time * 0.0012 + bead.wobble * 9) * (1 - slide) * 2.2;
+          const startX = cx + bead.x * (22 + (1 - bead.y) * 22);
+          const startY = anchorY + 2 + bead.y * 33;
+          const targetX = cx + bead.x * 2.2 * (1 - merge);
+          const targetY = neckY - 5 + bead.slide * 12;
+          const x = lerp(startX + driftX, targetX, merge);
+          const y = lerp(startY + slide * 18, targetY, merge);
+          const alpha = Math.sin(clamp(local, 0, 1) * Math.PI) * (1 - release * 0.75) * 0.36;
+          const radius = bead.radius * (0.5 + wet * 0.42) * (1 + slide * 0.35);
+
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = "rgba(250, 254, 255, 0.84)";
+          ctx.beginPath();
+          ctx.ellipse(x, y, radius * (1 - slide * 0.12), radius * (1 + slide * 0.5), 0.08, 0, Math.PI * 2);
+          ctx.fill();
+
+          if (slide > 0.45 && merge < 0.9) {
+            ctx.globalAlpha = alpha * 0.16;
+            ctx.strokeStyle = "rgba(225, 246, 255, 0.74)";
+            ctx.lineWidth = Math.max(0.35, radius * 0.45);
+            ctx.beginPath();
+            ctx.moveTo(x, y - radius * 2.8);
+            ctx.quadraticCurveTo(x + bead.x * 2, y - radius, x, y + radius * 1.7);
+            ctx.stroke();
+          }
+        });
+
+        ctx.restore();
+      }
+
+      function dropPath(cx, cy, size, stretch) {
+        const h = size * (2.15 + stretch);
+        const w = size * (1.08 - stretch * 0.08);
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - h * 0.54);
+        ctx.bezierCurveTo(cx - w * 0.72, cy - h * 0.18, cx - w * 0.92, cy + h * 0.25, cx - w * 0.32, cy + h * 0.48);
+        ctx.bezierCurveTo(cx - w * 0.08, cy + h * 0.58, cx + w * 0.08, cy + h * 0.58, cx + w * 0.32, cy + h * 0.48);
+        ctx.bezierCurveTo(cx + w * 0.92, cy + h * 0.25, cx + w * 0.72, cy - h * 0.18, cx, cy - h * 0.54);
+        ctx.closePath();
+      }
+
+      function drawDrop(cx, cy, size, stretch, alpha, rotation = 0) {
+        const h = size * (2.15 + stretch);
+        const w = size * (1.08 - stretch * 0.08);
+
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(rotation);
+        ctx.translate(-cx, -cy);
+        ctx.globalAlpha = alpha;
+        ctx.shadowColor = "rgba(87, 190, 255, 0.5)";
+        ctx.shadowBlur = size * 1.45;
+
+        dropPath(cx, cy, size, stretch);
+        const glass = ctx.createLinearGradient(cx - w, cy - h * 0.5, cx + w * 0.75, cy + h * 0.52);
+        glass.addColorStop(0, "rgba(255, 255, 255, 0.94)");
+        glass.addColorStop(0.22, "rgba(203, 240, 255, 0.82)");
+        glass.addColorStop(0.55, "rgba(94, 194, 255, 0.66)");
+        glass.addColorStop(1, "rgba(19, 125, 219, 0.76)");
+        ctx.fillStyle = glass;
+        ctx.fill();
+
+        ctx.shadowBlur = 0;
+        ctx.globalCompositeOperation = "screen";
+        ctx.globalAlpha = alpha * 0.62;
+        ctx.fillStyle = "rgba(255, 255, 255, 0.84)";
+        ctx.beginPath();
+        ctx.ellipse(cx - w * 0.25, cy - h * 0.18, size * 0.16, size * 0.42, -0.32, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.globalAlpha = alpha * 0.18;
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.ellipse(cx + w * 0.1, cy + h * 0.05, w * 0.42, h * 0.34, -0.1, 0.2, Math.PI * 1.28);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function getAttachedDropState(cx, anchorY, phase) {
+        const mass = smoothstep(0.1, 0.45, phase);
+        const sag = smoothstep(0.27, dropStart, phase);
+        const pinch = smoothstep(dropStart - 0.055, dropStart + 0.025, phase);
+        const surfaceTension = Math.sin(clamp((phase - 0.34) / 0.17, 0, 1) * Math.PI) * 0.05;
+
+        return {
+          x: cx + Math.sin(phase * Math.PI * 8.5) * surfaceTension * 16,
+          y: anchorY + 11 + mass * 9 + sag * 25,
+          size: 1.7 + mass * 7.2 + sag * 2.4,
+          stretch: mass * 0.2 + sag * 1.35 + pinch * 1.25,
+          pinch,
+        };
+      }
+
+      function drawDropLifecycle(cx, anchorY, phase) {
+        if (phase > impactStart + 0.015) return;
+
+        const attached = getAttachedDropState(cx, anchorY, Math.min(phase, dropStart));
+        const isFalling = phase >= dropStart;
+        const releaseT = isFalling ? clamp((phase - dropStart) / (impactStart - dropStart), 0, 1) : 0;
+        const detachFade = isFalling ? 1 - smoothstep(0, 0.16, releaseT) : 1;
+        const neckFade = isFalling ? 1 - smoothstep(0, 0.1, releaseT) : 1;
+
+        if (!isFalling || neckFade > 0) {
+          ctx.save();
+          ctx.strokeStyle = `rgba(250, 254, 255, ${0.36 * neckFade})`;
+          ctx.lineWidth = Math.max(0.3, 2.6 * (1 - attached.pinch) * neckFade + 0.28);
+          ctx.beginPath();
+          ctx.moveTo(cx, anchorY - 2);
+          ctx.bezierCurveTo(cx + 1.2, anchorY + 10, attached.x - 0.8, attached.y - attached.size * 1.6, attached.x, attached.y - attached.size * 1.02);
+          ctx.stroke();
+
+          if (attached.pinch > 0.35 && neckFade > 0.15) {
+            ctx.globalAlpha = neckFade * 0.26;
+            ctx.fillStyle = "rgba(250, 254, 255, 0.82)";
+            ctx.beginPath();
+            ctx.ellipse(cx, anchorY + 10 + attached.pinch * 10, 1.1 * (1 - attached.pinch * 0.35), 8 + attached.pinch * 10, 0, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
+        }
+
+        if (!isFalling) {
+          const centerLock = smoothstep(dropStart - 0.08, dropStart, phase);
+          const drawX = lerp(attached.x, cx, centerLock);
+          drawDrop(drawX, attached.y, attached.size, attached.stretch, 0.92, Math.sin(phase * Math.PI * 7) * 0.035 * (1 - centerLock * 0.7));
+          return;
+        }
+
+        const t = releaseT;
+        const fall = gravityFall(t);
+        const startY = attached.y;
+        const hitY = impactY();
+        const y = lerp(startY, hitY - 8, fall);
+        const x = cx;
+        const velocity = gravityVelocity(t);
+        const stretch = attached.stretch * (1 - smoothstep(0, 0.2, t)) + (0.46 + velocity * 0.72) * smoothstep(0, 0.2, t);
+        const squash = smoothstep(0.92, 1, t);
+
+        const shadowT = smoothstep(0.72, 1, t);
+        if (shadowT > 0) {
+          ctx.save();
+          ctx.globalAlpha = shadowT * 0.34;
+          ctx.fillStyle = "rgba(226, 247, 255, 0.52)";
+          ctx.beginPath();
+          ctx.ellipse(cx, hitY + 1, 10 + shadowT * 18, 2.6 + shadowT * 5.2, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        if (t < 0.24) {
+          const threadFade = 1 - smoothstep(0.1, 0.24, t);
+          ctx.save();
+          ctx.globalAlpha = threadFade * 0.28;
+          ctx.strokeStyle = "rgba(239, 252, 255, 0.8)";
+          ctx.lineWidth = 0.75;
+          ctx.beginPath();
+          ctx.moveTo(cx, anchorY + 16);
+          ctx.bezierCurveTo(cx + 0.4, anchorY + 34, cx - 0.4, y - 28, cx, y - 12);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        for (let i = 0; i < 6; i++) {
+          const traceT = clamp(t - i * 0.032, 0, 1);
+          if (traceT <= 0) continue;
+          const traceFall = gravityFall(traceT);
+          const py = lerp(startY, hitY - 8, traceFall);
+          const px = cx;
+          ctx.save();
+          ctx.globalAlpha = (0.11 - i * 0.013) * (1 - t * 0.24);
+          ctx.fillStyle = "rgba(177, 230, 255, 0.7)";
+          ctx.beginPath();
+          ctx.ellipse(px, py - 16 - i * 4, 1.6 - i * 0.12, 4.2 - i * 0.3, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        const size = attached.size * (1 - smoothstep(0, 0.22, t)) + 8.2 * smoothstep(0, 0.22, t);
+        drawDrop(x, y + squash * 2, size + squash * 0.6, stretch - squash * 0.55, (1 - smoothstep(0.965, 1, t)) * (1 - detachFade * 0.03), Math.sin(t * Math.PI * 1.35) * 0.05);
+      }
+
+      function clipToWaterSurface(time, impact) {
+        const step = Math.max(10, width / 110);
+        ctx.beginPath();
+        ctx.moveTo(0, waterY);
+        for (let x = 0; x <= width + step; x += step) {
+          ctx.lineTo(x, surfaceWaveY(x, time, impact));
+        }
+        ctx.lineTo(width, height);
+        ctx.lineTo(0, height);
+        ctx.closePath();
+        ctx.clip();
+      }
+
+      function drawImpact(cx, phase, impact, time) {
+        if (impact.t <= 0) return;
+
+        const t = impact.t;
+        const crownT = clamp(t / 0.38, 0, 1);
+        const hitY = impactY();
+
+        ctx.save();
+        clipToWaterSurface(time, impact);
+        ctx.globalCompositeOperation = "screen";
+
+        const depression = Math.sin(clamp(t * 2.1, 0, 1) * Math.PI);
+        ctx.globalAlpha = depression * 0.5;
+        ctx.fillStyle = "rgba(11, 88, 171, 0.46)";
+        ctx.beginPath();
+        ctx.ellipse(cx, hitY + 2, 24 + depression * 30, 6 + depression * 9, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (crownT < 1) {
+          ctx.globalAlpha = Math.sin(crownT * Math.PI) * 0.56;
+          ctx.strokeStyle = "rgba(251, 254, 255, 0.92)";
+          ctx.lineWidth = 1.15;
+          ctx.beginPath();
+          for (let a = Math.PI * 0.08; a < Math.PI * 1.92; a += Math.PI / 18) {
+            const x = cx + Math.cos(a) * (18 + crownT * 18);
+            const y = hitY + Math.sin(a) * (4.5 + crownT * 6) - Math.abs(Math.sin(a)) * crownT * 10;
+            if (a === Math.PI * 0.08) {
+              ctx.moveTo(x, y);
+            } else {
+              ctx.lineTo(x, y);
+            }
+          }
+          ctx.stroke();
+        }
+
+        splash.forEach((particle) => {
+          const life = particle.life;
+          const pt = clamp((t - particle.delay) / life, 0, 1);
+          if (pt <= 0 || pt >= 1) return;
+
+          const x = cx + particle.vx * pt;
+          const y = hitY - 2 + particle.vy * pt + 245 * pt * pt;
+          ctx.globalAlpha = Math.sin(pt * Math.PI) * 0.62;
+          ctx.fillStyle = "rgba(239, 252, 255, 0.86)";
+          ctx.beginPath();
+          ctx.ellipse(x, y, particle.radius * (1 - pt * 0.34), particle.radius * 1.45, 0, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        const rings = [
+          { delay: 0, scale: 1, alpha: 0.58 },
+          { delay: 0.11, scale: 0.74, alpha: 0.38 },
+          { delay: 0.23, scale: 0.52, alpha: 0.24 },
+        ];
+
+        rings.forEach((ring) => {
+          const rt = clamp((t - ring.delay) / (1 - ring.delay), 0, 1);
+          if (rt <= 0) return;
+
+          const ease = easeOutQuart(rt);
+          const rx = (20 + ease * Math.min(340, width * 0.4)) * ring.scale;
+          const ry = (7 + ease * 50) * ring.scale;
+          const alpha = (1 - rt) * ring.alpha * 1.16;
+          const y = hitY + ease * 14;
+
+          ctx.globalAlpha = alpha;
+          ctx.strokeStyle = "rgba(251, 254, 255, 0.95)";
+          ctx.lineWidth = 1.1 + (1 - rt) * 1.45;
+          ctx.beginPath();
+          ctx.ellipse(cx, y, rx, ry, 0, 0, Math.PI * 2);
+          ctx.stroke();
+
+          ctx.globalAlpha = alpha * 0.34;
+          ctx.strokeStyle = "rgba(93, 196, 255, 0.78)";
+          ctx.lineWidth = 5.4;
+          ctx.beginPath();
+          ctx.ellipse(cx, y, rx * 0.8, ry * 0.72, 0, 0, Math.PI * 2);
+          ctx.stroke();
+
+          ctx.globalAlpha = alpha * 0.46;
+          ctx.strokeStyle = "rgba(195, 238, 255, 0.84)";
+          ctx.lineWidth = 0.95;
+          ctx.beginPath();
+          const arcStart = Math.PI * (1.05 + rt * 0.12);
+          const arcEnd = Math.PI * (1.95 - rt * 0.08);
+          ctx.ellipse(cx, y + ry * 0.08, rx * 1.03, ry * 1.04, 0, arcStart, arcEnd);
+          ctx.stroke();
+        });
+
+        ctx.restore();
+      }
+
+      function drawMicroTexture(time) {
+        ctx.save();
+        ctx.globalAlpha = 0.035;
+        ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+        const count = Math.floor(width * height / 52000);
+        for (let i = 0; i < count; i++) {
+          const x = ((i * 947 + Math.floor(time * 0.012)) % width);
+          const y = ((i * 613 + Math.floor(time * 0.009)) % height);
+          ctx.fillRect(x, y, 1, 1);
+        }
+        ctx.restore();
+      }
+
+      function animate(time) {
+        const phase = (time % cycleMs) / cycleMs;
+        const cx = width / 2;
+        const anchorY = Math.max(38, height * 0.078);
+        const impact = getImpactState(phase);
+
+        ctx.clearRect(0, 0, width, height);
+        drawAtmosphere(time);
+        drawWater(time, impact);
+        drawCondensation(cx, anchorY, phase, time);
+        drawDropLifecycle(cx, anchorY, phase);
+        drawImpact(cx, phase, impact, time);
+        drawMicroTexture(time);
+
+        requestAnimationFrame(animate);
+      }
+
+      requestAnimationFrame(animate);
+    </script>
+  </body>
+</html>
