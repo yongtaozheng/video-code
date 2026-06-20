@@ -1,0 +1,574 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>垂直轮播图</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Playfair+Display:wght@600;700&display=swap");
+
+      :root {
+        --bg: #ebe6dc;
+        --bg-2: #d7e5df;
+        --paper: #f7f2e8;
+        --line: rgba(60, 52, 40, 0.16);
+        --text: #2c251d;
+        --muted: #7d7060;
+        --accent: #c7673f;
+        --accent-soft: rgba(199, 103, 63, 0.15);
+        --shadow: 0 30px 60px rgba(58, 44, 34, 0.2);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        height: 100%;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Manrope", "PingFang SC", "Microsoft YaHei", sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at 15% 8%, rgba(198, 121, 81, 0.27), transparent 38%),
+          radial-gradient(circle at 85% 92%, rgba(78, 132, 116, 0.24), transparent 42%),
+          linear-gradient(130deg, var(--bg), var(--bg-2));
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+
+      .carousel-shell {
+        width: min(1120px, 100%);
+        height: min(680px, calc(100vh - 48px));
+        min-height: 500px;
+        border: 1px solid var(--line);
+        border-radius: 28px;
+        background: var(--paper);
+        box-shadow: var(--shadow);
+        display: grid;
+        grid-template-columns: 290px 1fr;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .carousel-shell::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background-image: linear-gradient(rgba(120, 100, 80, 0.04) 1px, transparent 1px);
+        background-size: 100% 34px;
+      }
+
+      .thumbs-panel {
+        border-right: 1px solid var(--line);
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.56), rgba(255, 255, 255, 0.26)),
+          rgba(245, 238, 227, 0.85);
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        position: relative;
+        z-index: 2;
+      }
+
+      .thumbs-title {
+        margin: 0;
+        padding: 22px 18px 14px;
+        font-size: 12px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 1.2px;
+        font-weight: 700;
+      }
+
+      .thumbs-list {
+        list-style: none;
+        margin: 0;
+        padding: 6px 14px 14px;
+        overflow-y: auto;
+        min-height: 0;
+      }
+
+      .thumbs-list::-webkit-scrollbar {
+        width: 7px;
+      }
+
+      .thumbs-list::-webkit-scrollbar-thumb {
+        border-radius: 999px;
+        background: rgba(99, 83, 64, 0.35);
+      }
+
+      .thumb-item {
+        margin: 0 0 12px;
+      }
+
+      .thumb-btn {
+        width: 100%;
+        border: 1px solid rgba(80, 70, 58, 0.14);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.72);
+        color: inherit;
+        text-align: left;
+        padding: 8px;
+        display: grid;
+        grid-template-columns: 84px 1fr;
+        gap: 12px;
+        align-items: center;
+        cursor: pointer;
+        transition:
+          transform 0.24s ease,
+          border-color 0.24s ease,
+          box-shadow 0.24s ease,
+          background-color 0.24s ease,
+          opacity 0.24s ease;
+        opacity: 0.8;
+      }
+
+      .thumb-btn:hover {
+        opacity: 1;
+        transform: translateX(2px);
+        border-color: rgba(100, 77, 53, 0.32);
+      }
+
+      .thumb-btn.is-active {
+        opacity: 1;
+        transform: translateX(4px);
+        border-color: var(--accent);
+        background: linear-gradient(90deg, var(--accent-soft), rgba(255, 255, 255, 0.7));
+        box-shadow: 0 12px 24px rgba(120, 76, 49, 0.18);
+      }
+
+      .thumb-btn img {
+        width: 84px;
+        height: 58px;
+        border-radius: 11px;
+        object-fit: cover;
+        display: block;
+      }
+
+      .thumb-text {
+        min-width: 0;
+      }
+
+      .thumb-text strong {
+        display: block;
+        font-size: 14px;
+        font-weight: 700;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .thumb-text span {
+        display: block;
+        margin-top: 5px;
+        font-size: 12px;
+        color: var(--muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .main-panel {
+        position: relative;
+        min-width: 0;
+        min-height: 0;
+        z-index: 1;
+      }
+
+      .viewport {
+        height: 100%;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .track {
+        height: 100%;
+        will-change: transform;
+      }
+
+      .slide {
+        width: 100%;
+        height: 100%;
+        position: relative;
+      }
+
+      .slide img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+
+      .slide::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(180deg, rgba(255, 246, 231, 0.1), rgba(45, 30, 18, 0.62)),
+          linear-gradient(130deg, rgba(255, 255, 255, 0.1), transparent 45%);
+      }
+
+      .caption {
+        position: absolute;
+        left: 28px;
+        right: 28px;
+        bottom: 28px;
+        z-index: 1;
+        color: #fff7ea;
+      }
+
+      .caption .meta {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 11px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 242, 223, 0.36);
+        background: rgba(33, 21, 12, 0.35);
+        font-size: 12px;
+        margin-bottom: 12px;
+        letter-spacing: 0.5px;
+      }
+
+      .caption h3 {
+        margin: 0;
+        font-size: clamp(26px, 2.5vw, 42px);
+        line-height: 1.08;
+        font-family: "Playfair Display", "Songti SC", serif;
+        letter-spacing: 0.4px;
+      }
+
+      .caption p {
+        margin: 10px 0 0;
+        font-size: 15px;
+        color: rgba(255, 245, 229, 0.88);
+        max-width: 75%;
+      }
+
+      .actions {
+        position: absolute;
+        right: 18px;
+        bottom: 18px;
+        z-index: 3;
+        display: flex;
+        gap: 9px;
+        padding: 8px;
+        border-radius: 999px;
+        background: rgba(255, 246, 235, 0.2);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.35);
+      }
+
+      .action-btn {
+        width: 42px;
+        height: 42px;
+        border: 1px solid rgba(255, 245, 230, 0.5);
+        border-radius: 999px;
+        background: rgba(58, 37, 20, 0.55);
+        color: #fff9ef;
+        font-size: 17px;
+        cursor: pointer;
+        transition:
+          transform 0.2s ease,
+          background-color 0.2s ease,
+          border-color 0.2s ease;
+      }
+
+      .action-btn:hover {
+        transform: translateY(-1px) scale(1.05);
+        border-color: #fff8ed;
+        background: rgba(58, 37, 20, 0.8);
+      }
+
+      .status {
+        position: absolute;
+        left: 18px;
+        top: 16px;
+        z-index: 3;
+        border: 1px solid rgba(255, 242, 223, 0.45);
+        border-radius: 999px;
+        background: rgba(60, 38, 21, 0.4);
+        backdrop-filter: blur(6px);
+        padding: 7px 11px;
+        font-size: 12px;
+        color: #fff4e2;
+        font-weight: 700;
+        letter-spacing: 0.4px;
+      }
+
+      @media (max-width: 980px) {
+        .carousel-shell {
+          grid-template-columns: 1fr;
+          height: auto;
+          min-height: 0;
+        }
+
+        .thumbs-panel {
+          order: 2;
+          border-right: none;
+          border-top: 1px solid var(--line);
+          max-height: 210px;
+          background: rgba(245, 238, 227, 0.9);
+        }
+
+        .thumbs-title {
+          padding-bottom: 10px;
+        }
+
+        .thumbs-list {
+          display: flex;
+          overflow-x: auto;
+          overflow-y: hidden;
+          padding: 0 12px 12px;
+          gap: 10px;
+        }
+
+        .thumb-item {
+          margin: 0;
+          flex: 0 0 238px;
+        }
+
+        .main-panel {
+          order: 1;
+          min-height: 460px;
+        }
+
+        .caption p {
+          max-width: 95%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <section class="carousel-shell" id="carouselShell" tabindex="0" aria-label="垂直轮播图">
+      <aside class="thumbs-panel">
+        <h2 class="thumbs-title">缩略图导航</h2>
+        <ul class="thumbs-list" id="thumbsList"></ul>
+      </aside>
+
+      <div class="main-panel">
+        <div class="status" id="statusText"></div>
+        <div class="viewport" id="viewport">
+          <div class="track" id="track"></div>
+        </div>
+        <div class="actions">
+          <button class="action-btn" id="prevBtn" type="button" aria-label="上一张">↑</button>
+          <button class="action-btn" id="nextBtn" type="button" aria-label="下一张">↓</button>
+        </div>
+      </div>
+    </section>
+
+    <script>
+      const slides = [
+        { title: "冰川边界", desc: "低温光影与山脊纹理", image: "https://picsum.photos/seed/vc-1/1400/900" },
+        { title: "森林晨雾", desc: "高密度绿意与雾化空气", image: "https://picsum.photos/seed/vc-2/1400/900" },
+        { title: "城市夜线", desc: "霓虹反射与高对比街景", image: "https://picsum.photos/seed/vc-3/1400/900" },
+        { title: "岩层日落", desc: "暖色渐变与地形切面", image: "https://picsum.photos/seed/vc-4/1400/900" },
+        { title: "海岸风暴", desc: "云层速度与浪面细节", image: "https://picsum.photos/seed/vc-5/1400/900" },
+        { title: "沙丘轨迹", desc: "风塑曲线与金色颗粒", image: "https://picsum.photos/seed/vc-6/1400/900" },
+      ];
+
+      const track = document.getElementById("track");
+      const thumbsList = document.getElementById("thumbsList");
+      const statusText = document.getElementById("statusText");
+      const shell = document.getElementById("carouselShell");
+      const viewport = document.getElementById("viewport");
+      const prevBtn = document.getElementById("prevBtn");
+      const nextBtn = document.getElementById("nextBtn");
+
+      const state = {
+        visualIndex: 1,
+        currentIndex: 0,
+        isAnimating: false,
+        autoplayMs: 3200,
+        autoplayTimer: null,
+      };
+
+      function createSlideNode(item) {
+        const node = document.createElement("article");
+        node.className = "slide";
+        const order = String((slides.indexOf(item) + 1)).padStart(2, "0");
+        node.innerHTML = `
+          <img src="${item.image}" alt="${item.title}" loading="lazy" />
+          <div class="caption">
+            <div class="meta">Gallery ${order}</div>
+            <h3>${item.title}</h3>
+            <p>${item.desc}</p>
+          </div>
+        `;
+        return node;
+      }
+
+      function renderTrack() {
+        const frag = document.createDocumentFragment();
+        frag.appendChild(createSlideNode(slides[slides.length - 1]));
+        slides.forEach((item) => frag.appendChild(createSlideNode(item)));
+        frag.appendChild(createSlideNode(slides[0]));
+        track.innerHTML = "";
+        track.appendChild(frag);
+      }
+
+      function renderThumbs() {
+        const frag = document.createDocumentFragment();
+        slides.forEach((item, index) => {
+          const li = document.createElement("li");
+          li.className = "thumb-item";
+          li.innerHTML = `
+            <button class="thumb-btn" data-index="${index}" type="button" aria-label="切换到 ${item.title}">
+              <img src="${item.image}" alt="" loading="lazy" />
+              <div class="thumb-text">
+                <strong>${item.title}</strong>
+                <span>${item.desc}</span>
+              </div>
+            </button>
+          `;
+          frag.appendChild(li);
+        });
+        thumbsList.innerHTML = "";
+        thumbsList.appendChild(frag);
+      }
+
+      function setTrack(visualIndex, animate = true) {
+        track.style.transition = animate ? "transform 560ms cubic-bezier(0.22, 0.61, 0.36, 1)" : "none";
+        track.style.transform = `translate3d(0, -${visualIndex * 100}%, 0)`;
+      }
+
+      function updateStatus() {
+        statusText.textContent = `${state.currentIndex + 1} / ${slides.length}`;
+      }
+
+      function updateThumbs() {
+        const buttons = thumbsList.querySelectorAll(".thumb-btn");
+        buttons.forEach((btn, idx) => {
+          const active = idx === state.currentIndex;
+          btn.classList.toggle("is-active", active);
+          btn.setAttribute("aria-current", active ? "true" : "false");
+        });
+        const activeBtn = buttons[state.currentIndex];
+        if (activeBtn) {
+          activeBtn.scrollIntoView({ block: "center", inline: "center", behavior: "smooth" });
+        }
+      }
+
+      function syncFromVisual() {
+        if (state.visualIndex === 0) {
+          state.visualIndex = slides.length;
+          setTrack(state.visualIndex, false);
+        } else if (state.visualIndex === slides.length + 1) {
+          state.visualIndex = 1;
+          setTrack(state.visualIndex, false);
+        }
+        state.currentIndex = state.visualIndex - 1;
+        updateStatus();
+        updateThumbs();
+      }
+
+      function goBy(step) {
+        if (state.isAnimating) return;
+        state.isAnimating = true;
+        state.visualIndex += step;
+        setTrack(state.visualIndex, true);
+      }
+
+      function goTo(index) {
+        if (index < 0 || index >= slides.length) return;
+        if (state.isAnimating) return;
+        const targetVisual = index + 1;
+        if (targetVisual === state.visualIndex) return;
+        state.isAnimating = true;
+        state.visualIndex = targetVisual;
+        setTrack(state.visualIndex, true);
+      }
+
+      function startAutoplay() {
+        stopAutoplay();
+        state.autoplayTimer = setInterval(() => {
+          goBy(1);
+        }, state.autoplayMs);
+      }
+
+      function stopAutoplay() {
+        if (state.autoplayTimer) {
+          clearInterval(state.autoplayTimer);
+          state.autoplayTimer = null;
+        }
+      }
+
+      function onTransitionEnd() {
+        state.isAnimating = false;
+        syncFromVisual();
+      }
+
+      function bindEvents() {
+        nextBtn.addEventListener("click", () => goBy(1));
+        prevBtn.addEventListener("click", () => goBy(-1));
+
+        thumbsList.addEventListener("click", (event) => {
+          const btn = event.target.closest(".thumb-btn");
+          if (!btn) return;
+          goTo(Number(btn.dataset.index));
+        });
+
+        track.addEventListener("transitionend", onTransitionEnd);
+
+        shell.addEventListener("mouseenter", stopAutoplay);
+        shell.addEventListener("mouseleave", startAutoplay);
+        shell.addEventListener("focusin", stopAutoplay);
+        shell.addEventListener("focusout", startAutoplay);
+
+        shell.addEventListener("keydown", (event) => {
+          if (event.key === "ArrowDown") {
+            event.preventDefault();
+            goBy(1);
+          } else if (event.key === "ArrowUp") {
+            event.preventDefault();
+            goBy(-1);
+          }
+        });
+
+        let touchStartY = 0;
+        viewport.addEventListener(
+          "touchstart",
+          (event) => {
+            touchStartY = event.changedTouches[0].clientY;
+          },
+          { passive: true },
+        );
+
+        viewport.addEventListener(
+          "touchend",
+          (event) => {
+            const endY = event.changedTouches[0].clientY;
+            const deltaY = endY - touchStartY;
+            if (Math.abs(deltaY) < 40) return;
+            if (deltaY > 0) goBy(-1);
+            else goBy(1);
+          },
+          { passive: true },
+        );
+
+        document.addEventListener("visibilitychange", () => {
+          if (document.hidden) stopAutoplay();
+          else startAutoplay();
+        });
+      }
+
+      function init() {
+        renderTrack();
+        renderThumbs();
+        setTrack(state.visualIndex, false);
+        syncFromVisual();
+        bindEvents();
+        startAutoplay();
+      }
+
+      init();
+    </script>
+  </body>
+</html>
