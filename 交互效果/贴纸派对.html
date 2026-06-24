@@ -1,0 +1,760 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>贴纸派对</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cherry+Bomb+One&family=DynaPuff:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      :root {
+        color-scheme: light;
+        --ink: #2c2925;
+        --paper: #f5f0e5;
+        --paper-deep: #e7dbc8;
+        --pink: #ff9797;
+        --blue: #8fa0f8;
+        --green: #7ec27c;
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        color: var(--ink);
+        overflow: hidden;
+        font-family:
+          "DynaPuff",
+          "PingFang SC",
+          "Hiragino Sans GB",
+          "Microsoft YaHei",
+          "Comic Sans MS",
+          "Marker Felt",
+          cursive;
+        background:
+          linear-gradient(115deg, rgba(255, 151, 151, 0.14) 0 14%, transparent 14% 100%),
+          linear-gradient(295deg, rgba(126, 194, 124, 0.16) 0 17%, transparent 17% 100%),
+          repeating-linear-gradient(45deg, rgba(143, 160, 248, 0.1) 0 2px, transparent 2px 36px),
+          repeating-linear-gradient(-45deg, rgba(255, 204, 51, 0.12) 0 2px, transparent 2px 42px),
+          linear-gradient(135deg, #f7fbff 0%, #e8f3ff 45%, #fff0e2 100%);
+      }
+
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        background-image:
+          linear-gradient(rgba(92, 73, 56, 0.06) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(92, 73, 56, 0.055) 1px, transparent 1px);
+        background-size:
+          44px 44px,
+          44px 44px;
+        mix-blend-mode: multiply;
+        opacity: 0.65;
+      }
+
+      .stage {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+        min-height: 560px;
+        isolation: isolate;
+      }
+
+      .desk-shadow {
+        position: absolute;
+        left: 50%;
+        top: 55%;
+        width: min(78vw, 850px);
+        height: min(30vw, 270px);
+        border-radius: 50%;
+        background: radial-gradient(ellipse, rgba(61, 42, 30, 0.18), transparent 68%);
+        transform: translate(-50%, -50%);
+        filter: blur(14px);
+        z-index: 0;
+      }
+
+      .scrap,
+      .tape,
+      .pin {
+        position: absolute;
+        pointer-events: none;
+        z-index: 1;
+      }
+
+      .scrap {
+        width: clamp(82px, 12vw, 160px);
+        aspect-ratio: 1.5;
+        border: 2px solid rgba(54, 44, 36, 0.08);
+        background:
+          linear-gradient(115deg, rgba(255, 255, 255, 0.56), transparent 42%),
+          repeating-linear-gradient(
+            0deg,
+            rgba(80, 64, 46, 0.09) 0 1px,
+            transparent 1px 11px
+          ),
+          #f9d972;
+        box-shadow: 0 18px 30px rgba(69, 45, 25, 0.12);
+        clip-path: polygon(3% 12%, 92% 0, 100% 88%, 8% 100%);
+      }
+
+      .scrap-a {
+        left: 7vw;
+        top: 13vh;
+        rotate: -13deg;
+      }
+
+      .scrap-b {
+        right: 8vw;
+        bottom: 12vh;
+        rotate: 12deg;
+        background:
+          linear-gradient(115deg, rgba(255, 255, 255, 0.56), transparent 42%),
+          repeating-linear-gradient(
+            90deg,
+            rgba(80, 64, 46, 0.08) 0 1px,
+            transparent 1px 12px
+          ),
+          #bce1ff;
+      }
+
+      .tape {
+        width: clamp(70px, 9vw, 120px);
+        height: 30px;
+        border: 1px solid rgba(111, 88, 61, 0.1);
+        border-radius: 4px;
+        background:
+          linear-gradient(90deg, transparent 0 9px, rgba(255, 255, 255, 0.2) 9px 11px, transparent 11px),
+          rgba(255, 235, 170, 0.68);
+        box-shadow: 0 8px 18px rgba(77, 54, 36, 0.08);
+        backdrop-filter: blur(2px);
+      }
+
+      .tape-a {
+        left: 23vw;
+        top: 23vh;
+        rotate: 18deg;
+      }
+
+      .tape-b {
+        right: 24vw;
+        top: 18vh;
+        rotate: -10deg;
+      }
+
+      .pin {
+        width: 14px;
+        height: 14px;
+        border: 2px solid #fff8ef;
+        border-radius: 50%;
+        background: #ff5e73;
+        box-shadow:
+          0 2px 0 rgba(100, 44, 49, 0.16),
+          0 12px 18px rgba(94, 51, 42, 0.16);
+      }
+
+      .pin-a {
+        left: 18vw;
+        bottom: 20vh;
+      }
+
+      .pin-b {
+        right: 18vw;
+        top: 31vh;
+        background: #65b8ff;
+      }
+
+      .sticker {
+        --text-color: #ffcc33;
+        --text-size: clamp(62px, 8vw, 120px);
+        --stroke-width: calc(var(--text-size) * 0.35);
+        --stroke-color: #fffefa;
+        --outline-width: max(1px, calc(var(--text-size) * 0.018));
+        --outline-color: color-mix(in srgb, var(--text-color), #7d5c41 18%);
+        --x: 0px;
+        --y: 0px;
+        --rot: 0deg;
+        --tilt: 0deg;
+        --hover-x: 0px;
+        --hover-y: 0px;
+        --scatter-x: 0px;
+        --scatter-y: 0px;
+        --float-y: 0px;
+        --scale: 1;
+
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        z-index: 3;
+        appearance: none;
+        border: 0;
+        padding: calc(var(--stroke-width) * 0.55);
+        margin: 0;
+        color: var(--text-color);
+        background: transparent;
+        cursor: grab;
+        font-family:
+          "Cherry Bomb One",
+          "DynaPuff",
+          "PingFang SC",
+          "Hiragino Sans GB",
+          "Microsoft YaHei",
+          "Comic Sans MS",
+          cursive;
+        font-size: var(--text-size);
+        line-height: 0.9;
+        letter-spacing: 0;
+        white-space: nowrap;
+        touch-action: none;
+        user-select: none;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: calc(var(--text-size) * 0.08);
+        filter:
+          drop-shadow(var(--outline-width) 0 var(--outline-color))
+          drop-shadow(calc(var(--outline-width) * -1) 0 var(--outline-color))
+          drop-shadow(0 var(--outline-width) var(--outline-color))
+          drop-shadow(0 calc(var(--outline-width) * -1) var(--outline-color))
+          drop-shadow(0 18px 16px rgba(81, 56, 35, 0.2));
+        transform:
+          translate(
+            calc(-50% + var(--x) + var(--hover-x) + var(--scatter-x)),
+            calc(-50% + var(--y) + var(--hover-y) + var(--scatter-y) + var(--float-y))
+          )
+          rotate(calc(var(--rot) + var(--tilt)))
+          scale(var(--scale));
+        transition:
+          color 0.22s ease,
+          filter 0.22s ease,
+          transform 0.28s cubic-bezier(0.2, 1.15, 0.25, 1);
+        will-change: transform;
+      }
+
+      .sticker-word {
+        --line-stroke-width: var(--stroke-width);
+        position: relative;
+        display: block;
+        color: var(--text-color);
+        line-height: 0.9;
+        -webkit-text-stroke: var(--line-stroke-width) var(--stroke-color);
+        paint-order: stroke fill;
+      }
+
+      .sticker-word::before {
+        content: attr(data-text);
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(
+            40deg,
+            color-mix(in srgb, var(--text-color), #352617 8%) 18%,
+            var(--text-color) 32%,
+            color-mix(in srgb, var(--text-color), #fff 72%) 48% 56%,
+            color-mix(in srgb, var(--text-color), #fff 18%) 70%,
+            color-mix(in srgb, var(--text-color), #3d251a 12%) 88%
+          );
+        background-clip: text;
+        -webkit-background-clip: text;
+        -webkit-text-stroke: 0 transparent;
+        text-shadow: 0 1px 0 rgba(255, 255, 255, 0.24);
+        pointer-events: none;
+      }
+
+      .sticker-cn {
+        --line-stroke-width: var(--stroke-width);
+        font-size: var(--text-size);
+      }
+
+      .sticker-en {
+        --line-stroke-width: calc(var(--text-size) * 0.11);
+        font-family: "DynaPuff", "Cherry Bomb One", "Comic Sans MS", cursive;
+        font-size: calc(var(--text-size) * 0.27);
+        line-height: 0.95;
+        text-transform: uppercase;
+      }
+
+      .sticker-en::before {
+        background:
+          linear-gradient(
+            40deg,
+            color-mix(in srgb, var(--text-color), #4f3528 20%) 18%,
+            color-mix(in srgb, var(--text-color), #fff 8%) 38%,
+            color-mix(in srgb, var(--text-color), #fff 68%) 50% 57%,
+            color-mix(in srgb, var(--text-color), #4f3528 12%) 84%
+          );
+        background-clip: text;
+        -webkit-background-clip: text;
+      }
+
+      .sticker:hover,
+      .sticker:focus-visible {
+        --scale: 1.07;
+        filter:
+          drop-shadow(var(--outline-width) 0 var(--outline-color))
+          drop-shadow(calc(var(--outline-width) * -1) 0 var(--outline-color))
+          drop-shadow(0 var(--outline-width) var(--outline-color))
+          drop-shadow(0 calc(var(--outline-width) * -1) var(--outline-color))
+          drop-shadow(0 25px 22px rgba(81, 56, 35, 0.26));
+      }
+
+      .sticker:focus-visible {
+        outline: 3px dashed rgba(44, 41, 37, 0.42);
+        outline-offset: 8px;
+      }
+
+      .sticker.is-dragging {
+        --scale: 1.11;
+        cursor: grabbing;
+        z-index: 10;
+        transition:
+          color 0.18s ease,
+          filter 0.18s ease;
+      }
+
+      .sticker.is-popped {
+        animation: sticker-pop 0.34s cubic-bezier(0.2, 1.7, 0.34, 1);
+      }
+
+      .hello {
+        --text-color: #ffcc33;
+        --text-size: clamp(76px, 10vw, 136px);
+        --stroke-width: calc(var(--text-size) * 0.31);
+        --x: 0px;
+        --y: -8px;
+        --rot: -3deg;
+        z-index: 5;
+      }
+
+      .blueming {
+        --text-color: #8fa0f8;
+        --text-size: clamp(36px, 5vw, 64px);
+        --x: clamp(-330px, -26vw, -168px);
+        --y: clamp(-178px, -15vw, -92px);
+        --rot: -15deg;
+      }
+
+      .palette {
+        --text-color: #7ec27c;
+        --text-size: clamp(33px, 4.6vw, 60px);
+        --x: clamp(-180px, -11vw, -82px);
+        --y: clamp(-292px, -28vw, -172px);
+        --rot: 10deg;
+      }
+
+      .lilac {
+        --text-color: #f1c1ff;
+        --text-size: clamp(39px, 5.8vw, 74px);
+        --x: clamp(142px, 18vw, 250px);
+        --y: clamp(-272px, -22vw, -142px);
+        --rot: 4deg;
+      }
+
+      .love {
+        --text-color: #ffd6d6;
+        --text-size: clamp(35px, 4.8vw, 62px);
+        --x: clamp(-330px, -25vw, -170px);
+        --y: clamp(115px, 15vw, 190px);
+        --rot: 6deg;
+      }
+
+      .eight {
+        --text-color: #c8e7ff;
+        --text-size: clamp(36px, 5.1vw, 66px);
+        --x: clamp(170px, 27vw, 330px);
+        --y: clamp(116px, 15vw, 194px);
+        --rot: -10deg;
+      }
+
+      .good {
+        --text-color: #ffae57;
+        --text-size: clamp(35px, 4.9vw, 64px);
+        --x: clamp(152px, 23vw, 310px);
+        --y: clamp(-95px, -8vw, -52px);
+        --rot: 11deg;
+      }
+
+      .friday {
+        --text-color: #ff9797;
+        --text-size: clamp(36px, 5.1vw, 66px);
+        --x: clamp(-108px, -8vw, -58px);
+        --y: clamp(188px, 24vw, 290px);
+        --rot: -11deg;
+      }
+
+      .burst-piece {
+        position: fixed;
+        left: var(--left);
+        top: var(--top);
+        z-index: 20;
+        width: var(--size);
+        height: calc(var(--size) * 0.52);
+        border-radius: 999px;
+        pointer-events: none;
+        background: var(--piece-color);
+        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.42) inset;
+        animation: burst 760ms cubic-bezier(0.08, 0.72, 0.2, 1) forwards;
+      }
+
+      .burst-ring {
+        position: fixed;
+        left: var(--left);
+        top: var(--top);
+        z-index: 19;
+        width: 24px;
+        height: 24px;
+        border: 3px solid var(--ring-color);
+        border-radius: 50%;
+        pointer-events: none;
+        transform: translate(-50%, -50%);
+        animation: ring 520ms ease-out forwards;
+      }
+
+      @keyframes burst {
+        0% {
+          opacity: 1;
+          transform: translate(-50%, -50%) rotate(0deg) scale(1);
+        }
+        100% {
+          opacity: 0;
+          transform:
+            translate(calc(-50% + var(--dx)), calc(-50% + var(--dy)))
+            rotate(var(--spin))
+            scale(0.2);
+        }
+      }
+
+      @keyframes ring {
+        0% {
+          opacity: 0.9;
+          transform: translate(-50%, -50%) scale(0.2);
+        }
+        100% {
+          opacity: 0;
+          transform: translate(-50%, -50%) scale(4.5);
+        }
+      }
+
+      @keyframes sticker-pop {
+        0%,
+        100% {
+          translate: 0 0;
+        }
+        45% {
+          translate: 0 -10px;
+        }
+      }
+
+      @media (max-width: 680px) {
+        .stage {
+          min-height: 520px;
+        }
+
+        .hello {
+          --text-size: clamp(72px, 20vw, 104px);
+        }
+
+        .blueming {
+          --x: -25vw;
+          --y: -27vw;
+        }
+
+        .palette {
+          --x: -20vw;
+          --y: -48vw;
+        }
+
+        .lilac {
+          --x: 24vw;
+          --y: -42vw;
+        }
+
+        .love {
+          --x: -25vw;
+          --y: 31vw;
+        }
+
+        .eight {
+          --x: 28vw;
+          --y: 30vw;
+        }
+
+        .good {
+          --x: 27vw;
+          --y: -16vw;
+        }
+
+        .friday {
+          --x: -8vw;
+          --y: 48vw;
+        }
+
+        .scrap-a,
+        .tape-a {
+          left: 5vw;
+        }
+
+        .scrap-b,
+        .tape-b {
+          right: 4vw;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 1ms !important;
+          animation-iteration-count: 1 !important;
+          scroll-behavior: auto !important;
+          transition-duration: 1ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="stage" aria-label="Interactive sticker collage">
+      <div class="desk-shadow"></div>
+      <div class="scrap scrap-a"></div>
+      <div class="scrap scrap-b"></div>
+      <div class="tape tape-a"></div>
+      <div class="tape tape-b"></div>
+      <div class="pin pin-a"></div>
+      <div class="pin pin-b"></div>
+    </main>
+
+    <script>
+      const stickers = [
+        { class: "hello", cn: "元气满格", en: "full power" },
+        { class: "blueming", cn: "开心营业", en: "happy open" },
+        { class: "palette", cn: "灵感开花", en: "ideas bloom" },
+        { class: "lilac", cn: "闪闪发光", en: "shine on" },
+        { class: "love", cn: "可爱补给", en: "cute boost" },
+        { class: "eight", cn: "好运发射", en: "lucky shot" },
+        { class: "good", cn: "摸鱼许可", en: "chill pass" },
+        { class: "friday", cn: "周五快乐", en: "fri-yay" },
+      ];
+
+      const stage = document.querySelector(".stage");
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const palette = ["#ffcc33", "#8fa0f8", "#7ec27c", "#f1c1ff", "#ffd6d6", "#c8e7ff", "#ffae57", "#ff9797"];
+      const pointer = {
+        x: window.innerWidth / 2,
+        y: window.innerHeight / 2,
+        active: false,
+      };
+
+      const fragment = document.createDocumentFragment();
+      stickers.forEach((sticker, index) => {
+        const el = document.createElement("button");
+        el.type = "button";
+        el.className = `sticker ${sticker.class}`;
+        el.dataset.cn = sticker.cn;
+        el.dataset.en = sticker.en;
+        el.ariaLabel = `${sticker.cn}, ${sticker.en} sticker`;
+
+        const cn = document.createElement("span");
+        cn.className = "sticker-word sticker-cn";
+        cn.dataset.text = sticker.cn;
+        cn.textContent = sticker.cn;
+
+        const en = document.createElement("span");
+        en.className = "sticker-word sticker-en";
+        en.dataset.text = sticker.en;
+        en.textContent = sticker.en;
+
+        el.append(cn, en);
+        el.style.setProperty("--phase", index * 0.7);
+        fragment.appendChild(el);
+      });
+      stage.appendChild(fragment);
+
+      const stickerEls = [...document.querySelectorAll(".sticker")];
+      let activeSticker = null;
+      let dragState = null;
+      let topZ = 20;
+
+      function stageCenter() {
+        const rect = stage.getBoundingClientRect();
+        return {
+          x: rect.left + rect.width / 2,
+          y: rect.top + rect.height / 2,
+        };
+      }
+
+      function clamp(value, min, max) {
+        return Math.min(max, Math.max(min, value));
+      }
+
+      function setStickerCenter(el, clientX, clientY) {
+        const center = stageCenter();
+        const pad = Math.max(34, Math.min(window.innerWidth, window.innerHeight) * 0.08);
+        const x = clamp(clientX - center.x, -window.innerWidth / 2 + pad, window.innerWidth / 2 - pad);
+        const y = clamp(clientY - center.y, -window.innerHeight / 2 + pad, window.innerHeight / 2 - pad);
+        el.style.setProperty("--x", `${x}px`);
+        el.style.setProperty("--y", `${y}px`);
+      }
+
+      function popSticker(el, x, y) {
+        const color = getComputedStyle(el).getPropertyValue("--text-color").trim() || palette[0];
+        el.classList.remove("is-popped");
+        void el.offsetWidth;
+        el.classList.add("is-popped");
+        createBurst(x, y, color);
+      }
+
+      function createBurst(x, y, baseColor) {
+        if (reducedMotion) return;
+
+        const ring = document.createElement("span");
+        ring.className = "burst-ring";
+        ring.style.setProperty("--left", `${x}px`);
+        ring.style.setProperty("--top", `${y}px`);
+        ring.style.setProperty("--ring-color", baseColor);
+        document.body.appendChild(ring);
+        ring.addEventListener("animationend", () => ring.remove(), { once: true });
+
+        for (let i = 0; i < 18; i++) {
+          const piece = document.createElement("span");
+          const angle = (Math.PI * 2 * i) / 18 + Math.random() * 0.42;
+          const distance = 48 + Math.random() * 82;
+          const color = Math.random() > 0.42 ? baseColor : palette[Math.floor(Math.random() * palette.length)];
+          piece.className = "burst-piece";
+          piece.style.setProperty("--left", `${x}px`);
+          piece.style.setProperty("--top", `${y}px`);
+          piece.style.setProperty("--dx", `${Math.cos(angle) * distance}px`);
+          piece.style.setProperty("--dy", `${Math.sin(angle) * distance}px`);
+          piece.style.setProperty("--spin", `${(Math.random() > 0.5 ? 1 : -1) * (180 + Math.random() * 420)}deg`);
+          piece.style.setProperty("--size", `${7 + Math.random() * 9}px`);
+          piece.style.setProperty("--piece-color", color);
+          document.body.appendChild(piece);
+          piece.addEventListener("animationend", () => piece.remove(), { once: true });
+        }
+      }
+
+      function scatterNearby(x, y) {
+        stickerEls.forEach((el) => {
+          if (el === activeSticker) return;
+
+          const rect = el.getBoundingClientRect();
+          const cx = rect.left + rect.width / 2;
+          const cy = rect.top + rect.height / 2;
+          const dx = cx - x;
+          const dy = cy - y;
+          const distance = Math.hypot(dx, dy);
+          const reach = Math.max(window.innerWidth, window.innerHeight) * 0.42;
+          if (distance > reach || distance < 0.1) return;
+
+          const force = (1 - distance / reach) * 62;
+          el.style.setProperty("--scatter-x", `${(dx / distance) * force}px`);
+          el.style.setProperty("--scatter-y", `${(dy / distance) * force}px`);
+          window.setTimeout(() => {
+            el.style.setProperty("--scatter-x", "0px");
+            el.style.setProperty("--scatter-y", "0px");
+          }, 260);
+        });
+      }
+
+      window.addEventListener("pointermove", (event) => {
+        pointer.x = event.clientX;
+        pointer.y = event.clientY;
+        pointer.active = true;
+
+        if (dragState) {
+          setStickerCenter(activeSticker, event.clientX - dragState.offsetX, event.clientY - dragState.offsetY);
+          const dx = event.clientX - dragState.lastX;
+          activeSticker.style.setProperty("--tilt", `${clamp(dx * 0.38, -12, 12)}deg`);
+          dragState.lastX = event.clientX;
+          dragState.moved += Math.abs(event.clientX - dragState.startX) + Math.abs(event.clientY - dragState.startY);
+        }
+      });
+
+      window.addEventListener("pointerleave", () => {
+        pointer.active = false;
+      });
+
+      stickerEls.forEach((el) => {
+        el.addEventListener("pointerdown", (event) => {
+          activeSticker = el;
+          const rect = el.getBoundingClientRect();
+          el.setPointerCapture(event.pointerId);
+          el.classList.add("is-dragging");
+          el.style.zIndex = `${++topZ}`;
+          dragState = {
+            offsetX: event.clientX - (rect.left + rect.width / 2),
+            offsetY: event.clientY - (rect.top + rect.height / 2),
+            startX: event.clientX,
+            startY: event.clientY,
+            lastX: event.clientX,
+            moved: 0,
+          };
+        });
+
+        el.addEventListener("pointerup", (event) => {
+          if (!dragState) return;
+          const wasTap = dragState.moved < 18;
+          el.releasePointerCapture(event.pointerId);
+          el.classList.remove("is-dragging");
+          el.style.setProperty("--tilt", "0deg");
+          dragState = null;
+
+          if (wasTap) {
+            popSticker(el, event.clientX, event.clientY);
+            scatterNearby(event.clientX, event.clientY);
+          }
+          activeSticker = null;
+        });
+
+        el.addEventListener("pointercancel", () => {
+          el.classList.remove("is-dragging");
+          el.style.setProperty("--tilt", "0deg");
+          dragState = null;
+          activeSticker = null;
+        });
+
+        el.addEventListener("keydown", (event) => {
+          if (event.key !== "Enter" && event.key !== " ") return;
+          event.preventDefault();
+          const rect = el.getBoundingClientRect();
+          popSticker(el, rect.left + rect.width / 2, rect.top + rect.height / 2);
+        });
+      });
+
+      function animate(time) {
+        if (!reducedMotion) {
+          stickerEls.forEach((el, index) => {
+            if (el === activeSticker) return;
+
+            const rect = el.getBoundingClientRect();
+            const cx = rect.left + rect.width / 2;
+            const cy = rect.top + rect.height / 2;
+            const dx = pointer.x - cx;
+            const dy = pointer.y - cy;
+            const distance = Math.hypot(dx, dy);
+            const pull = pointer.active ? Math.max(0, 1 - distance / 280) : 0;
+            const phase = index * 0.67;
+            const floatY = Math.sin(time * 0.0012 + phase) * (4 + (index % 3) * 1.5);
+
+            el.style.setProperty("--float-y", `${floatY}px`);
+            el.style.setProperty("--tilt", `${clamp((dx / Math.max(distance, 1)) * pull * 8, -8, 8)}deg`);
+            el.style.setProperty("--hover-x", `${clamp((-dx / Math.max(distance, 1)) * pull * 18, -18, 18)}px`);
+            el.style.setProperty("--hover-y", `${clamp((-dy / Math.max(distance, 1)) * pull * 14, -14, 14)}px`);
+          });
+        }
+        requestAnimationFrame(animate);
+      }
+
+      requestAnimationFrame(animate);
+    </script>
+  </body>
+</html>
