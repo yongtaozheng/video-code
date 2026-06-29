@@ -1,0 +1,826 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>图片对比</title>
+    <style>
+      :root {
+        --bg: #f4efe7;
+        --paper: #fffaf1;
+        --ink: #251f1a;
+        --muted: #756b61;
+        --line: #f26d3d;
+        --line-dark: #b83f24;
+        --before: #2f6f73;
+        --after: #d85c3a;
+        --panel: rgba(255, 250, 241, 0.88);
+        --shadow: rgba(83, 52, 27, 0.18);
+        --split: 50%;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        color: var(--ink);
+        font-family:
+          "Avenir Next", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+          sans-serif;
+        background:
+          linear-gradient(90deg, rgba(37, 31, 26, 0.04) 1px, transparent 1px),
+          linear-gradient(180deg, rgba(37, 31, 26, 0.04) 1px, transparent 1px),
+          radial-gradient(
+            circle at 12% 18%,
+            rgba(47, 111, 115, 0.22),
+            transparent 26%
+          ),
+          radial-gradient(
+            circle at 86% 14%,
+            rgba(242, 109, 61, 0.24),
+            transparent 24%
+          ),
+          linear-gradient(135deg, #f7f0df, #e9f0e5 56%, #f5d7c7);
+        background-size:
+          36px 36px,
+          36px 36px,
+          auto,
+          auto,
+          auto;
+        display: grid;
+        place-items: center;
+        padding: 28px 18px;
+      }
+
+      .wrap {
+        width: min(1120px, 96vw);
+      }
+
+      .hero {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 18px;
+        margin-bottom: 16px;
+      }
+
+      .title {
+        margin: 0;
+        font-size: clamp(24px, 4vw, 44px);
+        line-height: 1.08;
+        font-weight: 800;
+        letter-spacing: 0;
+      }
+
+      .subtitle {
+        max-width: 520px;
+        margin: 8px 0 0;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.7;
+      }
+
+      .badge {
+        flex: 0 0 auto;
+        border: 1px solid rgba(37, 31, 26, 0.18);
+        border-radius: 999px;
+        background: rgba(255, 250, 241, 0.74);
+        padding: 8px 12px;
+        color: #47382f;
+        font-size: 12px;
+        font-weight: 700;
+        box-shadow: 0 10px 22px rgba(83, 52, 27, 0.1);
+      }
+
+      .compare-card {
+        position: relative;
+        aspect-ratio: 16 / 9;
+        width: 100%;
+        overflow: hidden;
+        border: 1px solid rgba(37, 31, 26, 0.18);
+        border-radius: 8px;
+        background: #d8cec0;
+        box-shadow:
+          0 28px 70px var(--shadow),
+          inset 0 0 0 1px rgba(255, 255, 255, 0.45);
+        user-select: none;
+        touch-action: none;
+      }
+
+      .compare-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 4;
+        pointer-events: none;
+        background:
+          linear-gradient(
+            90deg,
+            rgba(0, 0, 0, 0.22),
+            transparent 16%,
+            transparent 84%,
+            rgba(0, 0, 0, 0.18)
+          ),
+          linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.22),
+            transparent 18%,
+            transparent 78%,
+            rgba(0, 0, 0, 0.18)
+          );
+        opacity: 0.48;
+      }
+
+      .layer {
+        position: absolute;
+        inset: 0;
+      }
+
+      .layer img {
+        width: 100%;
+        height: 100%;
+        display: block;
+        object-fit: fill;
+        pointer-events: none;
+      }
+
+      .layer-before {
+        clip-path: inset(0 calc(100% - var(--split)) 0 0);
+        filter: drop-shadow(10px 0 18px rgba(37, 31, 26, 0.22));
+        z-index: 2;
+      }
+
+      .layer-after {
+        z-index: 1;
+      }
+
+      .label {
+        position: absolute;
+        z-index: 6;
+        top: 16px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.34);
+        border-radius: 999px;
+        padding: 8px 12px;
+        color: #fffdf8;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        background: rgba(37, 31, 26, 0.42);
+        backdrop-filter: blur(12px);
+      }
+
+      .label::before {
+        content: "";
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: currentColor;
+      }
+
+      .label.before {
+        left: 16px;
+      }
+
+      .label.after {
+        right: 16px;
+      }
+
+      .divider {
+        position: absolute;
+        z-index: 7;
+        top: 0;
+        left: var(--split);
+        width: 3px;
+        height: 100%;
+        transform: translateX(-50%);
+        background: linear-gradient(
+          180deg,
+          transparent,
+          #ffe5c2 14%,
+          var(--line) 48%,
+          #ffe5c2 86%,
+          transparent
+        );
+        box-shadow:
+          0 0 0 1px rgba(37, 31, 26, 0.18),
+          0 0 22px rgba(242, 109, 61, 0.72);
+        pointer-events: none;
+      }
+
+      .divider::before,
+      .divider::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        width: 24px;
+        height: 2px;
+        transform: translateX(-50%);
+        border-radius: 999px;
+        background: rgba(255, 250, 241, 0.82);
+      }
+
+      .divider::before {
+        top: 18px;
+      }
+
+      .divider::after {
+        bottom: 18px;
+      }
+
+      .handle {
+        position: absolute;
+        z-index: 8;
+        left: var(--split);
+        top: 50%;
+        width: 62px;
+        height: 62px;
+        transform: translate(-50%, -50%);
+        border: 2px solid rgba(255, 255, 255, 0.92);
+        border-radius: 50%;
+        background: linear-gradient(
+          90deg,
+          var(--before) 0 48%,
+          var(--after) 52% 100%
+        );
+        box-shadow:
+          0 0 0 9px rgba(255, 250, 241, 0.26),
+          0 16px 32px rgba(37, 31, 26, 0.34);
+        pointer-events: none;
+      }
+
+      .handle::before,
+      .handle::after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        width: 12px;
+        height: 12px;
+        border-top: 3px solid #fffaf1;
+        border-right: 3px solid #fffaf1;
+      }
+
+      .handle::before {
+        left: 12px;
+        transform: translateY(-50%) rotate(-135deg);
+      }
+
+      .handle::after {
+        right: 12px;
+        transform: translateY(-50%) rotate(45deg);
+      }
+
+      .range-hit {
+        position: absolute;
+        z-index: 9;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        opacity: 0;
+        cursor: ew-resize;
+      }
+
+      .control-panel {
+        display: grid;
+        grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
+        gap: 14px;
+        margin-top: 14px;
+      }
+
+      .panel {
+        border: 1px solid rgba(37, 31, 26, 0.16);
+        border-radius: 8px;
+        background: var(--panel);
+        padding: 14px;
+        box-shadow: 0 18px 42px rgba(83, 52, 27, 0.12);
+        backdrop-filter: blur(14px);
+      }
+
+      .upload-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .upload-box {
+        position: relative;
+        display: grid;
+        grid-template-columns: 64px minmax(0, 1fr);
+        gap: 12px;
+        align-items: center;
+        min-height: 92px;
+        border: 1px dashed rgba(37, 31, 26, 0.28);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.34);
+        padding: 12px;
+      }
+
+      .thumb {
+        width: 64px;
+        height: 64px;
+        overflow: hidden;
+        border: 1px solid rgba(37, 31, 26, 0.15);
+        border-radius: 6px;
+        background: #e5dacd;
+      }
+
+      .thumb img {
+        width: 100%;
+        height: 100%;
+        display: block;
+        object-fit: cover;
+      }
+
+      .upload-title {
+        margin: 0 0 4px;
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      .file-name {
+        display: block;
+        overflow: hidden;
+        max-width: 100%;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.5;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .upload-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 9px;
+        flex-wrap: wrap;
+      }
+
+      .file-input {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+      }
+
+      .file-button,
+      button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 36px;
+        border: 1px solid rgba(37, 31, 26, 0.18);
+        border-radius: 8px;
+        color: var(--ink);
+        background: #fff7ea;
+        padding: 8px 12px;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 800;
+        cursor: pointer;
+        transition:
+          transform 0.18s ease,
+          border-color 0.18s ease,
+          background 0.18s ease,
+          box-shadow 0.18s ease;
+      }
+
+      .file-button:hover,
+      button:hover {
+        transform: translateY(-1px);
+        border-color: rgba(184, 63, 36, 0.45);
+        background: #fff1da;
+        box-shadow: 0 8px 18px rgba(83, 52, 27, 0.12);
+      }
+
+      .file-button:focus-visible,
+      button:focus-visible,
+      .range-hit:focus-visible {
+        outline: 3px solid rgba(242, 109, 61, 0.32);
+        outline-offset: 3px;
+      }
+
+      .primary {
+        border-color: transparent;
+        color: #fffaf1;
+        background: var(--line-dark);
+      }
+
+      .primary:hover {
+        color: #fffaf1;
+        background: #9f321c;
+      }
+
+      .actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .progress {
+        color: #47382f;
+        font-size: 13px;
+      }
+
+      .progress strong {
+        display: inline-flex;
+        min-width: 56px;
+        justify-content: flex-end;
+        color: var(--line-dark);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .buttons {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .split-range {
+        width: 100%;
+        accent-color: var(--line-dark);
+      }
+
+      .hint {
+        margin: 10px 0 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.7;
+      }
+
+      @media (max-width: 820px) {
+        body {
+          padding: 18px 12px;
+        }
+
+        .hero,
+        .actions {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .control-panel,
+        .upload-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .buttons {
+          justify-content: flex-start;
+        }
+
+        .handle {
+          width: 52px;
+          height: 52px;
+        }
+
+        .label {
+          top: 10px;
+          padding: 7px 10px;
+          font-size: 11px;
+        }
+
+        .label.before {
+          left: 10px;
+        }
+
+        .label.after {
+          right: 10px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <header class="hero">
+        <div>
+          <h1 class="title">图片对比</h1>
+          <p class="subtitle">上传两张图片，拖动中线查看前后变化</p>
+        </div>
+        <div class="badge">Before / After</div>
+      </header>
+
+      <section class="compare-card" id="compare">
+        <div class="layer layer-before">
+          <img
+            id="beforeImage"
+            src="../../images/IMG_6589.JPG"
+            alt="对比左侧 Before 图片"
+          />
+        </div>
+        <div class="layer layer-after" id="afterLayer">
+          <img
+            id="afterImage"
+            src="../../images/image_1782715853.png"
+            alt="对比右侧 After 图片"
+          />
+        </div>
+
+        <span class="label before">Before</span>
+        <span class="label after">After</span>
+        <div class="divider" aria-hidden="true"></div>
+        <div class="handle" aria-hidden="true"></div>
+        <input
+          id="slider"
+          class="range-hit"
+          type="range"
+          min="0"
+          max="100"
+          value="50"
+          step="0.1"
+          aria-label="图片对比滑块"
+        />
+      </section>
+
+      <section class="control-panel">
+        <div class="panel">
+          <div class="upload-grid">
+            <article class="upload-box">
+              <div class="thumb">
+                <img id="beforeThumb" src="../../images/IMG_6589.JPG" alt="" />
+              </div>
+              <div>
+                <p class="upload-title">左侧 / Before</p>
+                <span class="file-name" id="beforeName">IMG_6589.JPG</span>
+                <div class="upload-actions">
+                  <label class="file-button" for="beforeUpload"
+                    >上传左侧图片</label
+                  >
+                  <input
+                    id="beforeUpload"
+                    class="file-input"
+                    type="file"
+                    accept="image/*"
+                  />
+                </div>
+              </div>
+            </article>
+
+            <article class="upload-box">
+              <div class="thumb">
+                <img
+                  id="afterThumb"
+                  src="../../images/image_1782715853.png"
+                  alt=""
+                />
+              </div>
+              <div>
+                <p class="upload-title">右侧 / After</p>
+                <span class="file-name" id="afterName"
+                  >image_1782715853.png</span
+                >
+                <div class="upload-actions">
+                  <label class="file-button" for="afterUpload"
+                    >上传右侧图片</label
+                  >
+                  <input
+                    id="afterUpload"
+                    class="file-input"
+                    type="file"
+                    accept="image/*"
+                  />
+                </div>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="actions">
+            <div class="progress">
+              当前位置：<strong id="percent">50.0%</strong>
+            </div>
+            <div class="buttons">
+              <button id="autoBtn" class="primary" type="button">
+                自动巡航
+              </button>
+              <button id="swapBtn" type="button">交换</button>
+              <button id="resetBtn" type="button">重置</button>
+            </div>
+          </div>
+          <input
+            id="splitRange"
+            class="split-range"
+            type="range"
+            min="0"
+            max="100"
+            value="50"
+            step="0.1"
+            aria-label="调整对比位置"
+          />
+          <p class="hint">支持鼠标拖拽、触摸滑动、键盘方向键微调。</p>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const compare = document.getElementById("compare");
+      const slider = document.getElementById("slider");
+      const splitRange = document.getElementById("splitRange");
+      const percent = document.getElementById("percent");
+      const autoBtn = document.getElementById("autoBtn");
+      const swapBtn = document.getElementById("swapBtn");
+      const resetBtn = document.getElementById("resetBtn");
+      const beforeImage = document.getElementById("beforeImage");
+      const afterImage = document.getElementById("afterImage");
+      const beforeThumb = document.getElementById("beforeThumb");
+      const afterThumb = document.getElementById("afterThumb");
+      const beforeUpload = document.getElementById("beforeUpload");
+      const afterUpload = document.getElementById("afterUpload");
+      const beforeName = document.getElementById("beforeName");
+      const afterName = document.getElementById("afterName");
+
+      const defaults = {
+        before: "../../images/IMG_6589.JPG",
+        beforeName: "IMG_6589.JPG",
+        after: "../../images/image_1782715853.png",
+        afterName: "image_1782715853.png",
+      };
+
+      let beforeObjectUrl = "";
+      let afterObjectUrl = "";
+      let autoFrame = null;
+      let autoDirection = 1;
+      let pointerDragging = false;
+
+      const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+      function setImage(side, src, name, objectUrl = "") {
+        const isBefore = side === "before";
+        const image = isBefore ? beforeImage : afterImage;
+        const thumb = isBefore ? beforeThumb : afterThumb;
+        const label = isBefore ? beforeName : afterName;
+
+        if (isBefore && beforeObjectUrl && beforeObjectUrl !== objectUrl) {
+          URL.revokeObjectURL(beforeObjectUrl);
+        }
+
+        if (!isBefore && afterObjectUrl && afterObjectUrl !== objectUrl) {
+          URL.revokeObjectURL(afterObjectUrl);
+        }
+
+        image.src = src;
+        thumb.src = src;
+        label.textContent = name;
+
+        if (isBefore) {
+          beforeObjectUrl = objectUrl;
+        } else {
+          afterObjectUrl = objectUrl;
+        }
+      }
+
+      function handleUpload(side, event) {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+        if (!file.type.startsWith("image/")) {
+          event.target.value = "";
+          return;
+        }
+
+        const objectUrl = URL.createObjectURL(file);
+        setImage(side, objectUrl, file.name, objectUrl);
+        stopAuto();
+      }
+
+      function applySplit(value) {
+        const split = clamp(Number(value), 0, 100);
+        compare.style.setProperty("--split", `${split}%`);
+        slider.value = split;
+        splitRange.value = split;
+        percent.textContent = `${split.toFixed(1)}%`;
+      }
+
+      function stopAuto() {
+        if (!autoFrame) return;
+        cancelAnimationFrame(autoFrame);
+        autoFrame = null;
+        autoBtn.textContent = "自动巡航";
+      }
+
+      function autoStep() {
+        const next = Number(slider.value) + autoDirection * 0.35;
+
+        if (next >= 100 || next <= 0) {
+          autoDirection *= -1;
+        }
+
+        applySplit(clamp(next, 0, 100));
+        autoFrame = requestAnimationFrame(autoStep);
+      }
+
+      function startAuto() {
+        stopAuto();
+        autoBtn.textContent = "停止巡航";
+        autoDirection = Number(slider.value) >= 95 ? -1 : 1;
+        autoFrame = requestAnimationFrame(autoStep);
+      }
+
+      function setFromPointer(clientX) {
+        const rect = compare.getBoundingClientRect();
+        const ratio = clamp((clientX - rect.left) / rect.width, 0, 1);
+        applySplit(ratio * 100);
+      }
+
+      function swapImages() {
+        const currentBefore = {
+          src: beforeImage.src,
+          name: beforeName.textContent,
+          objectUrl: beforeObjectUrl,
+        };
+        const currentAfter = {
+          src: afterImage.src,
+          name: afterName.textContent,
+          objectUrl: afterObjectUrl,
+        };
+
+        beforeImage.src = currentAfter.src;
+        beforeThumb.src = currentAfter.src;
+        beforeName.textContent = currentAfter.name;
+        beforeObjectUrl = currentAfter.objectUrl;
+
+        afterImage.src = currentBefore.src;
+        afterThumb.src = currentBefore.src;
+        afterName.textContent = currentBefore.name;
+        afterObjectUrl = currentBefore.objectUrl;
+      }
+
+      slider.addEventListener("input", () => {
+        stopAuto();
+        applySplit(slider.value);
+      });
+
+      splitRange.addEventListener("input", () => {
+        stopAuto();
+        applySplit(splitRange.value);
+      });
+
+      compare.addEventListener("pointerdown", (event) => {
+        pointerDragging = true;
+        stopAuto();
+        compare.setPointerCapture(event.pointerId);
+        setFromPointer(event.clientX);
+      });
+
+      compare.addEventListener("pointermove", (event) => {
+        if (!pointerDragging) return;
+        setFromPointer(event.clientX);
+      });
+
+      const stopPointerDrag = () => {
+        pointerDragging = false;
+      };
+
+      compare.addEventListener("pointerup", stopPointerDrag);
+      compare.addEventListener("pointercancel", stopPointerDrag);
+      compare.addEventListener("pointerleave", (event) => {
+        if (event.buttons === 0) pointerDragging = false;
+      });
+
+      afterUpload.addEventListener("change", (event) =>
+        handleUpload("after", event),
+      );
+      beforeUpload.addEventListener("change", (event) =>
+        handleUpload("before", event),
+      );
+
+      autoBtn.addEventListener("click", () => {
+        if (autoFrame) stopAuto();
+        else startAuto();
+      });
+
+      swapBtn.addEventListener("click", () => {
+        stopAuto();
+        swapImages();
+      });
+
+      resetBtn.addEventListener("click", () => {
+        stopAuto();
+        setImage("before", defaults.before, defaults.beforeName);
+        setImage("after", defaults.after, defaults.afterName);
+        beforeUpload.value = "";
+        afterUpload.value = "";
+        applySplit(50);
+      });
+
+      window.addEventListener("beforeunload", () => {
+        if (beforeObjectUrl) URL.revokeObjectURL(beforeObjectUrl);
+        if (afterObjectUrl) URL.revokeObjectURL(afterObjectUrl);
+      });
+
+      applySplit(50);
+    </script>
+  </body>
+</html>
