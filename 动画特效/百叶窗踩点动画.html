@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>百叶窗踩点动画</title>
+  <style>
+    :root {
+      --bg: #0c0d10;
+      --surface: rgba(22, 24, 30, 0.82);
+      --surface-strong: rgba(31, 34, 43, 0.92);
+      --line: rgba(255, 255, 255, 0.13);
+      --text: #f4f0e8;
+      --muted: rgba(244, 240, 232, 0.62);
+      --amber: #f0b64b;
+      --cyan: #65d7d0;
+      --rose: #e66562;
+      --green: #8ac06f;
+      --pane-count: 7;
+      --stage-radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: min(2.6vw, 24px);
+      color: var(--text);
+      background:
+        radial-gradient(circle at 18% 16%, rgba(240, 182, 75, 0.2), transparent 30%),
+        radial-gradient(circle at 82% 22%, rgba(101, 215, 208, 0.17), transparent 28%),
+        linear-gradient(140deg, #0c0d10 0%, #151314 44%, #10151a 100%);
+      font-family: "Avenir Next", "PingFang SC", "Microsoft YaHei", sans-serif;
+      overflow: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.22;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+      background-size: 38px 38px;
+      mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.55), transparent 78%);
+    }
+
+    .app {
+      width: min(1660px, 100%);
+      margin: 0 auto;
+      display: block;
+    }
+
+    .showcase {
+      min-width: 0;
+    }
+
+    .stage-shell {
+      position: relative;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.1), transparent 28%),
+        rgba(255, 255, 255, 0.045);
+      box-shadow: 0 28px 70px rgba(0, 0, 0, 0.38);
+    }
+
+    .stage {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      overflow: hidden;
+      border-radius: var(--stage-radius);
+      background: #08090b;
+      isolation: isolate;
+      perspective: 1100px;
+    }
+
+    .base-image {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scale(1.012);
+      filter: saturate(1.02) contrast(1.04);
+    }
+
+    .base-image.is-swapping {
+      animation: baseSwap 420ms ease both;
+    }
+
+    .shade {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
+      background:
+        linear-gradient(to top, rgba(0, 0, 0, 0.48), transparent 48%),
+        radial-gradient(circle at center, transparent 0%, rgba(0, 0, 0, 0.24) 100%);
+      mix-blend-mode: multiply;
+    }
+
+    .blinds {
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+      display: grid;
+      pointer-events: none;
+      transform-style: preserve-3d;
+    }
+
+    .stage.vertical .blinds {
+      grid-template-columns: repeat(var(--pane-count), minmax(0, 1fr));
+    }
+
+    .stage.horizontal .blinds {
+      grid-template-rows: repeat(var(--pane-count), minmax(0, 1fr));
+    }
+
+    .pane {
+      position: relative;
+      overflow: hidden;
+      opacity: 0;
+      background: #111318;
+      transition: opacity 80ms linear;
+      will-change: clip-path, transform, opacity;
+    }
+
+    .stage.vertical .pane {
+      clip-path: inset(0 50% 0 50%);
+      border-left: 1px solid rgba(255, 255, 255, 0.08);
+      border-right: 1px solid rgba(0, 0, 0, 0.28);
+    }
+
+    .stage.horizontal .pane {
+      clip-path: inset(50% 0 50% 0);
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      border-bottom: 1px solid rgba(0, 0, 0, 0.3);
+    }
+
+    .pane.revealed {
+      opacity: 1;
+    }
+
+    .stage.vertical .pane.revealed {
+      clip-path: inset(0);
+    }
+
+    .stage.horizontal .pane.revealed {
+      clip-path: inset(0);
+    }
+
+    .stage.vertical .pane.active {
+      animation: verticalBlindHit 430ms cubic-bezier(0.18, 0.84, 0.2, 1) both;
+    }
+
+    .stage.horizontal .pane.active {
+      animation: horizontalBlindHit 430ms cubic-bezier(0.18, 0.84, 0.2, 1) both;
+    }
+
+    .pane img {
+      position: absolute;
+      object-fit: cover;
+      max-width: none;
+      pointer-events: none;
+      filter: saturate(1.08) contrast(1.04);
+    }
+
+    .stage.vertical .pane img {
+      top: 0;
+      left: calc(var(--i) * -100%);
+      width: calc(var(--pane-count) * 100%);
+      height: 100%;
+    }
+
+    .stage.horizontal .pane img {
+      top: calc(var(--i) * -100%);
+      left: 0;
+      width: 100%;
+      height: calc(var(--pane-count) * 100%);
+    }
+
+    .scanline {
+      position: absolute;
+      inset: 0;
+      z-index: 4;
+      pointer-events: none;
+      opacity: 0.34;
+      background: repeating-linear-gradient(
+        to bottom,
+        rgba(255, 255, 255, 0.08) 0,
+        rgba(255, 255, 255, 0.08) 1px,
+        transparent 1px,
+        transparent 5px
+      );
+      mix-blend-mode: soft-light;
+    }
+
+    @keyframes verticalBlindHit {
+      0% {
+        clip-path: inset(0 50% 0 50%);
+        transform: rotateY(-68deg) scaleX(0.88);
+      }
+      64% {
+        clip-path: inset(0);
+        transform: rotateY(8deg) scaleX(1.02);
+      }
+      100% {
+        clip-path: inset(0);
+        transform: rotateY(0) scaleX(1);
+      }
+    }
+
+    @keyframes horizontalBlindHit {
+      0% {
+        clip-path: inset(50% 0 50% 0);
+        transform: rotateX(68deg) scaleY(0.86);
+      }
+      64% {
+        clip-path: inset(0);
+        transform: rotateX(-8deg) scaleY(1.02);
+      }
+      100% {
+        clip-path: inset(0);
+        transform: rotateX(0) scaleY(1);
+      }
+    }
+
+    @keyframes baseSwap {
+      0% {
+        transform: scale(1.03);
+      }
+      100% {
+        transform: scale(1.012);
+      }
+    }
+
+    @media (max-width: 900px) {
+      .app {
+        width: 100%;
+      }
+    }
+
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="showcase" aria-label="百叶窗踩点动画舞台">
+      <div class="stage-shell">
+        <div class="stage vertical" id="stage">
+          <img class="base-image" id="baseImage" alt="" />
+          <div class="blinds" id="blinds"></div>
+          <div class="shade"></div>
+          <div class="scanline"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const images = [
+      {
+        src: "https://c-ssl.dtstatic.com/uploads/blog/202505/01/wgSgbBNmt9Dxwqd.thumb.1000_0.jpg",
+        name: "图片 1",
+      },
+      {
+        src: "https://c-ssl.dtstatic.com/uploads/blog/202505/01/B8S2gPm5il63bN7.thumb.1000_0.jpg",
+        name: "图片 2",
+      },
+      {
+        src: "https://c-ssl.dtstatic.com/uploads/blog/202505/01/YxSmpYnjuqdG15x.thumb.1000_0.jpg",
+        name: "图片 3",
+      },
+      {
+        src: "https://c-ssl.dtstatic.com/uploads/blog/202505/01/N5SG9vZ3FPA5ovn.thumb.1000_0.jpg",
+        name: "图片 4",
+      },
+      {
+        src: "https://c-ssl.dtstatic.com/uploads/blog/202409/12/XxSOq479iQ0vzwM.thumb.1000_0.jpg",
+        name: "图片 5",
+      },
+      {
+        src: "https://c-ssl.dtstatic.com/uploads/blog/202409/12/8gSNj2LzTgLJA7Q.thumb.1000_0.jpg",
+        name: "图片 6",
+      },
+      {
+        src: "https://c-ssl.dtstatic.com/uploads/blog/202504/22/lGSMoJeluxoAXM6.thumb.1000_0.jpg",
+        name: "图片 7",
+      },
+    ];
+
+    const stage = document.getElementById("stage");
+    const baseImage = document.getElementById("baseImage");
+    const blinds = document.getElementById("blinds");
+
+    const state = {
+      playing: false,
+      timer: null,
+      bpm: 126,
+      count: 7,
+      direction: "vertical",
+      currentIndex: 0,
+      targetIndex: 1,
+      revealed: [],
+      order: [],
+      step: 0,
+      beat: 1,
+      completing: false,
+    };
+
+    function seededUnit(seed) {
+      const x = Math.sin(seed) * 10000;
+      return x - Math.floor(x);
+    }
+
+    function buildOrder(seed, count) {
+      const result = Array.from({ length: count }, (_, index) => index);
+      for (let i = result.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(seededUnit(seed + i * 37) * (i + 1));
+        const temp = result[i];
+        result[i] = result[j];
+        result[j] = temp;
+      }
+      return result;
+    }
+
+    function getCycleSeed() {
+      return (
+        state.currentIndex * 101 +
+        state.targetIndex * 503 +
+        state.count * 211 +
+        (state.direction === "vertical" ? 307 : 613) +
+        state.beat * 17
+      );
+    }
+
+    function renderPanes() {
+      blinds.innerHTML = "";
+      document.documentElement.style.setProperty("--pane-count", state.count);
+
+      for (let i = 0; i < state.count; i += 1) {
+        const pane = document.createElement("div");
+        pane.className = "pane";
+        pane.style.setProperty("--i", i);
+
+        const img = document.createElement("img");
+        img.src = images[state.targetIndex].src;
+        img.alt = "";
+        pane.appendChild(img);
+        blinds.appendChild(pane);
+      }
+    }
+
+    function resetCycle() {
+      state.targetIndex = (state.currentIndex + 1) % images.length;
+      state.revealed = Array(state.count).fill(false);
+      state.order = buildOrder(getCycleSeed(), state.count);
+      state.step = 0;
+      state.completing = false;
+      renderPanes();
+      updateScene();
+    }
+
+    function updateScene() {
+      const current = images[state.currentIndex];
+      const target = images[state.targetIndex];
+      baseImage.src = current.src;
+      baseImage.alt = current.name;
+
+      Array.from(blinds.children).forEach((pane, index) => {
+        pane.classList.toggle("revealed", state.revealed[index]);
+        pane.classList.remove("active");
+        const img = pane.querySelector("img");
+        if (img) img.src = target.src;
+      });
+    }
+
+    function triggerBeat() {
+      if (state.completing) return;
+      if (state.step >= state.count) {
+        finishCycle();
+        return;
+      }
+
+      const paneIndex = state.order[state.step];
+      state.revealed[paneIndex] = true;
+      state.step += 1;
+      state.beat += 1;
+
+      updateScene();
+
+      const pane = blinds.children[paneIndex];
+      if (pane) {
+        pane.classList.remove("active");
+        void pane.offsetWidth;
+        pane.classList.add("active", "revealed");
+      }
+
+      if (state.step >= state.count) {
+        state.completing = true;
+        window.setTimeout(finishCycle, 360);
+      }
+    }
+
+    function finishCycle() {
+      if (!state.completing && state.step < state.count) return;
+      state.currentIndex = state.targetIndex;
+      baseImage.classList.remove("is-swapping");
+      void baseImage.offsetWidth;
+      baseImage.classList.add("is-swapping");
+      resetCycle();
+    }
+
+    function beatInterval() {
+      return 60000 / state.bpm;
+    }
+
+    function scheduleNextBeat() {
+      window.clearTimeout(state.timer);
+      if (!state.playing) return;
+      state.timer = window.setTimeout(() => {
+        triggerBeat();
+        scheduleNextBeat();
+      }, beatInterval());
+    }
+
+    function updatePlayingTimer() {
+      window.clearTimeout(state.timer);
+      if (state.playing) scheduleNextBeat();
+    }
+
+    function setPlaying(nextPlaying) {
+      state.playing = nextPlaying;
+      updatePlayingTimer();
+    }
+
+    function setDirection(direction) {
+      state.direction = direction;
+      stage.classList.toggle("vertical", direction === "vertical");
+      stage.classList.toggle("horizontal", direction === "horizontal");
+      resetCycle();
+    }
+
+    stage.addEventListener("click", () => {
+      setPlaying(!state.playing);
+      if (state.playing) triggerBeat();
+    });
+
+    window.addEventListener("keydown", (event) => {
+      if (event.code === "Space") {
+        event.preventDefault();
+        triggerBeat();
+        updatePlayingTimer();
+      }
+    });
+
+    window.addEventListener("beforeunload", () => {
+      window.clearTimeout(state.timer);
+    });
+
+    setDirection("vertical");
+    window.setTimeout(() => setPlaying(true), 380);
+  </script>
+</body>
+</html>
