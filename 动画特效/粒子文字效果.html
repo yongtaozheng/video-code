@@ -1,0 +1,752 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>粒子文字效果</title>
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      :root {
+        --paper: #fff7df;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+      }
+
+      body {
+        overflow: hidden;
+        color: var(--paper);
+        background:
+          linear-gradient(135deg, rgba(255, 190, 85, 0.1), transparent 26%),
+          linear-gradient(315deg, rgba(94, 231, 255, 0.09), transparent 34%),
+          repeating-linear-gradient(
+            90deg,
+            rgba(255, 255, 255, 0.028) 0,
+            rgba(255, 255, 255, 0.028) 1px,
+            transparent 1px,
+            transparent 96px
+          ),
+          repeating-linear-gradient(
+            0deg,
+            rgba(255, 255, 255, 0.018) 0,
+            rgba(255, 255, 255, 0.018) 1px,
+            transparent 1px,
+            transparent 88px
+          ),
+          #030407;
+        font-family:
+          "Songti SC", "Noto Serif SC", "PingFang SC", "Microsoft YaHei", serif;
+      }
+
+      #particleText {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+    </style>
+  </head>
+
+  <body>
+    <canvas id="particleText"></canvas>
+
+    <script>
+      const canvas = document.getElementById("particleText");
+      const ctx = canvas.getContext("2d");
+
+      // 在这里配置显示文案、粒子密度和色彩方案。
+      const particleTextConfig = {
+        text: "HELLO WORLD\n你好 世界",
+        particleGap: 8,
+        paletteIndex: 0,
+        mouseRepel: true,
+        ambientParticles: 190,
+        connectionDensity: 18,
+      };
+
+      const palettes = [
+        ["#f4d35e", "#5dd9c1", "#ff5d8f"],
+        ["#fff1ba", "#ff8f4a", "#4cc9f0"],
+        ["#d7ff62", "#70d6ff", "#ff70a6"],
+      ].map((palette) => palette.map(hexToRgb));
+
+      const state = {
+        width: 0,
+        height: 0,
+        dpr: 1,
+        particles: [],
+        ambientParticles: [],
+        targets: [],
+        textBounds: null,
+        text: particleTextConfig.text,
+        gap: particleTextConfig.particleGap,
+        paletteIndex: particleTextConfig.paletteIndex,
+        seed: 1,
+        clearFrames: 8,
+        lastTime: 0,
+        mouse: {
+          x: -9999,
+          y: -9999,
+          active: false,
+          radius: 132,
+        },
+      };
+
+      const TAU = Math.PI * 2;
+
+      class Particle {
+        constructor(rng, target = null) {
+          const start = target
+            ? randomNearTarget(target, rng)
+            : randomEdgePoint(rng);
+          this.x = start.x;
+          this.y = start.y;
+          this.prevX = this.x;
+          this.prevY = this.y;
+          this.vx = (rng() - 0.5) * 18;
+          this.vy = (rng() - 0.5) * 18;
+          this.tx = this.x;
+          this.ty = this.y;
+          this.size = 1;
+          this.alpha = 1;
+          this.seed = rng();
+          this.phase = rng() * TAU;
+          this.depth = 0.7 + rng() * 0.7;
+        }
+
+        setTarget(target, rng) {
+          this.tx = target.x;
+          this.ty = target.y;
+          this.alpha = target.alpha;
+          this.size = target.size * this.depth;
+          this.seed = rng();
+          this.phase = rng() * TAU;
+        }
+
+        snapToTarget(rng) {
+          this.x = this.tx + (rng() - 0.5) * state.gap * 2.2;
+          this.y = this.ty + (rng() - 0.5) * state.gap * 2.2;
+          this.prevX = this.x;
+          this.prevY = this.y;
+          this.vx = (rng() - 0.5) * 0.4;
+          this.vy = (rng() - 0.5) * 0.4;
+        }
+
+        update(now, dt) {
+          this.prevX = this.x;
+          this.prevY = this.y;
+
+          const breath = Math.sin(now * 0.0012 + this.phase) * 0.9;
+          const orbit = Math.cos(now * 0.0009 + this.phase) * 0.65;
+          const targetX = this.tx + breath;
+          const targetY = this.ty + orbit;
+
+          const dx = targetX - this.x;
+          const dy = targetY - this.y;
+          const spring = 0.085;
+          this.vx += dx * spring * dt;
+          this.vy += dy * spring * dt;
+
+          if (particleTextConfig.mouseRepel && state.mouse.active) {
+            const mx = this.x - state.mouse.x;
+            const my = this.y - state.mouse.y;
+            const md = Math.hypot(mx, my);
+
+            if (md > 0.1 && md < state.mouse.radius) {
+              const force = (1 - md / state.mouse.radius) ** 2;
+              this.vx += (mx / md) * force * 11 * dt;
+              this.vy += (my / md) * force * 11 * dt;
+            }
+          }
+
+          this.vx *= 0.76 ** dt;
+          this.vy *= 0.76 ** dt;
+          this.x += this.vx * dt;
+          this.y += this.vy * dt;
+        }
+
+        draw(now, palette) {
+          const speed = Math.hypot(this.vx, this.vy);
+          const distance = Math.hypot(this.tx - this.x, this.ty - this.y);
+          const colorT =
+            (this.tx / Math.max(1, state.width) +
+              this.ty / Math.max(1, state.height) +
+              this.seed * 0.8 +
+              Math.sin(now * 0.00045 + this.phase) * 0.08) %
+            1;
+          const color = mixPalette(palette, colorT < 0 ? colorT + 1 : colorT);
+          const settleAlpha = Math.max(0.58, 1 - distance / 170) * this.alpha;
+          const trailAlpha = Math.min(0.28, 0.05 + speed * 0.01) * settleAlpha;
+
+          ctx.strokeStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${trailAlpha})`;
+          ctx.lineWidth = Math.max(0.55, this.size * 0.46);
+          ctx.beginPath();
+          ctx.moveTo(this.prevX, this.prevY);
+          ctx.lineTo(this.x, this.y);
+          ctx.stroke();
+
+          ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${settleAlpha})`;
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.size * 0.7, 0, TAU);
+          ctx.fill();
+        }
+      }
+
+      class AmbientParticle {
+        constructor(rng, bounds) {
+          const edgeBias = rng();
+          const centerX = bounds.cx || state.width / 2;
+          const centerY = bounds.cy || state.height / 2;
+          const radiusX = Math.max(bounds.width * 0.9, state.width * 0.2);
+          const radiusY = Math.max(bounds.height * 1.35, state.height * 0.2);
+          const angle = rng() * TAU;
+          const radius =
+            edgeBias < 0.72 ? 0.75 + rng() * 0.55 : 1.5 + rng() * 1.4;
+
+          this.x = centerX + Math.cos(angle) * radiusX * radius;
+          this.y = centerY + Math.sin(angle) * radiusY * radius;
+          this.vx = (rng() - 0.5) * 0.38;
+          this.vy = (rng() - 0.5) * 0.24;
+          this.size = 0.45 + rng() * 1.7;
+          this.alpha = 0.12 + rng() * 0.62;
+          this.phase = rng() * TAU;
+          this.colorSeed = rng();
+        }
+
+        update(dt) {
+          this.x += this.vx * dt;
+          this.y += this.vy * dt;
+
+          const margin = 90;
+          if (this.x < -margin) this.x = state.width + margin;
+          if (this.x > state.width + margin) this.x = -margin;
+          if (this.y < -margin) this.y = state.height + margin;
+          if (this.y > state.height + margin) this.y = -margin;
+        }
+
+        draw(now, palette) {
+          const pulse = 0.45 + Math.sin(now * 0.0011 + this.phase) * 0.28;
+          const color = mixPalette(palette, this.colorSeed);
+          ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${
+            this.alpha * pulse
+          })`;
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.size, 0, TAU);
+          ctx.fill();
+        }
+      }
+
+      function resizeCanvas() {
+        state.dpr = Math.min(window.devicePixelRatio || 1, 2);
+        state.width = window.innerWidth;
+        state.height = window.innerHeight;
+        canvas.width = Math.floor(state.width * state.dpr);
+        canvas.height = Math.floor(state.height * state.dpr);
+        canvas.style.width = `${state.width}px`;
+        canvas.style.height = `${state.height}px`;
+        ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
+        state.mouse.radius = state.width < 640 ? 78 : 112;
+        rebuildText(true);
+      }
+
+      function rebuildText(hardClear = false) {
+        const value = particleTextConfig.text.trim();
+        state.text = value || "粒子文字";
+        state.gap = particleTextConfig.particleGap;
+        state.paletteIndex = particleTextConfig.paletteIndex;
+        state.seed = hashString(
+          `${state.text}-${state.width}-${state.height}-${state.gap}`,
+        );
+        const rng = mulberry32(state.seed);
+        state.targets = createTextTargets(state.text, rng);
+        state.ambientParticles = createAmbientParticles(rng);
+        syncParticles(state.targets, rng, hardClear);
+        state.clearFrames = hardClear ? 8 : 4;
+      }
+
+      function createTextTargets(text, rng) {
+        const offscreen = document.createElement("canvas");
+        offscreen.width = state.width;
+        offscreen.height = state.height;
+        const off = offscreen.getContext("2d", { willReadFrequently: true });
+        const maxWidth = state.width * (state.width < 700 ? 0.92 : 0.92);
+        const maxHeight = state.height * (state.width < 700 ? 0.36 : 0.48);
+        let fontSize = Math.min(
+          state.width < 700 ? 96 : 220,
+          state.height * 0.28,
+        );
+        let lines = [];
+
+        while (fontSize >= 28) {
+          off.font = makeFont(fontSize);
+          lines = wrapLines(off, text, maxWidth);
+          const textHeight = lines.length * fontSize * 1.14;
+          const widest = Math.max(
+            ...lines.map((line) => off.measureText(line).width),
+          );
+          if (textHeight <= maxHeight && widest <= maxWidth) {
+            break;
+          }
+          fontSize -= 4;
+        }
+
+        off.clearRect(0, 0, state.width, state.height);
+        off.font = makeFont(fontSize);
+        off.textAlign = "center";
+        off.textBaseline = "middle";
+        off.fillStyle = "#ffffff";
+        off.shadowColor = "rgba(255,255,255,0.55)";
+        off.shadowBlur = Math.max(10, fontSize * 0.08);
+
+        const lineHeight = fontSize * 1.12;
+        const stageY = state.height * (state.width < 700 ? 0.39 : 0.46);
+        const startY = stageY - ((lines.length - 1) * lineHeight) / 2;
+        lines.forEach((line, index) => {
+          off.fillText(line, state.width / 2, startY + index * lineHeight);
+        });
+
+        const image = off.getImageData(0, 0, state.width, state.height);
+        const data = image.data;
+        const targets = [];
+        const gap = state.gap;
+        const maxParticles = state.width < 700 ? 4800 : 9200;
+        const bounds = {
+          minX: state.width,
+          minY: state.height,
+          maxX: 0,
+          maxY: 0,
+        };
+
+        for (let y = 0; y < state.height; y += gap) {
+          for (let x = 0; x < state.width; x += gap) {
+            const index = (Math.floor(y) * state.width + Math.floor(x)) * 4 + 3;
+            const alpha = data[index] / 255;
+            if (alpha > 0.16) {
+              targets.push({
+                x: x + (rng() - 0.5) * gap * 0.34,
+                y: y + (rng() - 0.5) * gap * 0.34,
+                alpha: 0.64 + alpha * 0.36,
+                size: Math.max(0.8, gap * (0.16 + rng() * 0.08)),
+              });
+              bounds.minX = Math.min(bounds.minX, x);
+              bounds.minY = Math.min(bounds.minY, y);
+              bounds.maxX = Math.max(bounds.maxX, x);
+              bounds.maxY = Math.max(bounds.maxY, y);
+            }
+          }
+        }
+
+        shuffle(targets, rng);
+        setTextBounds(bounds);
+
+        if (targets.length > maxParticles) {
+          const trimmed = [];
+          const step = targets.length / maxParticles;
+          for (let i = 0; i < maxParticles; i += 1) {
+            trimmed.push(targets[Math.floor(i * step)]);
+          }
+          return trimmed;
+        }
+
+        return targets;
+      }
+
+      function syncParticles(targets, rng, snapToTargets = false) {
+        while (state.particles.length < targets.length) {
+          state.particles.push(
+            new Particle(rng, targets[state.particles.length]),
+          );
+        }
+        if (state.particles.length > targets.length) {
+          state.particles.length = targets.length;
+        }
+        targets.forEach((target, index) => {
+          state.particles[index].setTarget(target, rng);
+          if (snapToTargets) {
+            state.particles[index].snapToTarget(rng);
+          }
+        });
+      }
+
+      function drawBackground(now) {
+        ctx.globalCompositeOperation = "source-over";
+        ctx.globalAlpha = 1;
+
+        if (state.clearFrames > 0) {
+          state.clearFrames -= 1;
+          ctx.fillStyle = "#030407";
+        } else {
+          ctx.fillStyle = "rgba(3, 4, 7, 0.72)";
+        }
+        ctx.fillRect(0, 0, state.width, state.height);
+
+        drawAtmosphere(now);
+        ctx.save();
+        ctx.globalAlpha = 0.24;
+        ctx.strokeStyle = "rgba(255, 247, 223, 0.04)";
+        ctx.lineWidth = 1;
+        const yOffset = (now * 0.014) % 118;
+        for (let y = yOffset; y < state.height; y += 118) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(state.width, y);
+          ctx.stroke();
+        }
+        ctx.strokeStyle = "rgba(94, 231, 255, 0.025)";
+        const xOffset = (now * 0.009) % 112;
+        for (let x = xOffset; x < state.width; x += 112) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, state.height);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function animate(now = 0) {
+        const dt = state.lastTime
+          ? Math.min(1.8, (now - state.lastTime) / 16.67)
+          : 1;
+        state.lastTime = now;
+        drawBackground(now);
+
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        const palette = palettes[state.paletteIndex];
+        drawAmbientParticles(now, dt, palette);
+        drawTextAura(now, palette);
+        drawTargetDots(now, palette);
+        drawEnergyLinks(now, palette);
+        state.particles.forEach((particle) => {
+          particle.update(now, dt);
+          particle.draw(now, palette);
+        });
+        ctx.restore();
+
+        requestAnimationFrame(animate);
+      }
+
+      function createAmbientParticles(rng) {
+        const bounds = state.textBounds || getFallbackBounds();
+        const particles = [];
+        for (let i = 0; i < particleTextConfig.ambientParticles; i += 1) {
+          particles.push(new AmbientParticle(rng, bounds));
+        }
+        return particles;
+      }
+
+      function drawAmbientParticles(now, dt, palette) {
+        state.ambientParticles.forEach((particle) => {
+          particle.update(dt);
+          particle.draw(now, palette);
+        });
+      }
+
+      function drawAtmosphere(now) {
+        const bounds = state.textBounds || getFallbackBounds();
+        const drift = Math.sin(now * 0.00035) * 28;
+        const cx = bounds.cx + drift;
+        const cy = bounds.cy + Math.cos(now * 0.00042) * 12;
+
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+
+        const glow = ctx.createRadialGradient(
+          cx,
+          cy,
+          0,
+          cx,
+          cy,
+          Math.max(state.width, state.height) * 0.58,
+        );
+        glow.addColorStop(0, "rgba(94, 231, 255, 0.16)");
+        glow.addColorStop(0.32, "rgba(255, 190, 85, 0.055)");
+        glow.addColorStop(0.68, "rgba(255, 93, 158, 0.035)");
+        glow.addColorStop(1, "rgba(0, 0, 0, 0)");
+        ctx.fillStyle = glow;
+        ctx.fillRect(0, 0, state.width, state.height);
+
+        ctx.globalAlpha = 0.18;
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 7; i += 1) {
+          const y = cy - bounds.height * 1.55 + i * bounds.height * 0.52;
+          const xShift = Math.sin(now * 0.0005 + i) * 80;
+          const beam = ctx.createLinearGradient(0, y, state.width, y + 160);
+          beam.addColorStop(0, "rgba(94, 231, 255, 0)");
+          beam.addColorStop(0.45, "rgba(94, 231, 255, 0.22)");
+          beam.addColorStop(0.56, "rgba(255, 247, 223, 0.16)");
+          beam.addColorStop(1, "rgba(255, 93, 158, 0)");
+          ctx.strokeStyle = beam;
+          ctx.beginPath();
+          ctx.moveTo(-120, y + xShift);
+          ctx.bezierCurveTo(
+            state.width * 0.32,
+            y - 80,
+            state.width * 0.68,
+            y + 190,
+            state.width + 120,
+            y + 80 - xShift,
+          );
+          ctx.stroke();
+        }
+
+        ctx.restore();
+      }
+
+      function drawTextAura(now, palette) {
+        const bounds = state.textBounds || getFallbackBounds();
+        const width = bounds.width * (1.42 + Math.sin(now * 0.0008) * 0.02);
+        const height = bounds.height * (1.9 + Math.cos(now * 0.0007) * 0.03);
+        const colorB = palette[1];
+
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        ctx.lineWidth = 1;
+
+        for (let i = 0; i < 4; i += 1) {
+          const scale = 1 + i * 0.14;
+          const alpha = 0.2 - i * 0.035;
+          ctx.strokeStyle = `rgba(${colorB.r}, ${colorB.g}, ${colorB.b}, ${alpha})`;
+          ctx.beginPath();
+          ctx.ellipse(
+            bounds.cx,
+            bounds.cy + bounds.height * 0.08,
+            width * 0.5 * scale,
+            height * 0.5 * scale,
+            Math.sin(now * 0.00035) * 0.08,
+            0,
+            TAU,
+          );
+          ctx.stroke();
+        }
+
+        ctx.restore();
+      }
+
+      function drawEnergyLinks(now, palette) {
+        const step = Math.max(8, particleTextConfig.connectionDensity);
+        const color = palette[1];
+
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        ctx.lineWidth = 0.55;
+
+        for (let i = 0; i < state.targets.length - step * 3; i += step) {
+          const pulse = Math.sin(now * 0.003 + i * 0.13);
+          if (pulse < 0.72) continue;
+
+          const a = state.targets[i];
+          const b = state.targets[i + step * 2];
+          const dx = a.x - b.x;
+          const dy = a.y - b.y;
+          const distance = Math.hypot(dx, dy);
+          if (distance > state.gap * 9) continue;
+
+          ctx.strokeStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${
+            (pulse - 0.72) * 0.46
+          })`;
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.stroke();
+        }
+
+        ctx.restore();
+      }
+
+      function wrapLines(context, text, maxWidth) {
+        const rawLines = text.split(/\n/);
+        const lines = [];
+
+        rawLines.forEach((rawLine) => {
+          const chars = [...rawLine.trim()];
+          if (!chars.length) {
+            lines.push("");
+            return;
+          }
+
+          let line = "";
+          chars.forEach((char) => {
+            const test = line + char;
+            if (context.measureText(test).width > maxWidth && line) {
+              lines.push(line);
+              line = char;
+            } else {
+              line = test;
+            }
+          });
+          if (line) {
+            lines.push(line);
+          }
+        });
+
+        return lines.length ? lines : ["粒子文字"];
+      }
+
+      function makeFont(size) {
+        return `900 ${size}px "Songti SC", "Noto Serif SC", "PingFang SC", "Microsoft YaHei", serif`;
+      }
+
+      function randomEdgePoint(rng) {
+        const side = Math.floor(rng() * 4);
+        if (side === 0) return { x: rng() * state.width, y: -30 };
+        if (side === 1) return { x: state.width + 30, y: rng() * state.height };
+        if (side === 2) return { x: rng() * state.width, y: state.height + 30 };
+        return { x: -30, y: rng() * state.height };
+      }
+
+      function randomNearTarget(target, rng) {
+        const angle = rng() * TAU;
+        const radius = state.gap * (1.5 + rng() * 6);
+        return {
+          x: target.x + Math.cos(angle) * radius,
+          y: target.y + Math.sin(angle) * radius,
+        };
+      }
+
+      function drawTargetDots(now, palette) {
+        state.targets.forEach((target, index) => {
+          if (index % 2 === 1) return;
+          const colorT =
+            (target.x / Math.max(1, state.width) +
+              target.y / Math.max(1, state.height) +
+              Math.sin(now * 0.00035 + index) * 0.05) %
+            1;
+          const color = mixPalette(palette, colorT < 0 ? colorT + 1 : colorT);
+          ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${0.14 * target.alpha})`;
+          ctx.beginPath();
+          ctx.arc(
+            target.x,
+            target.y,
+            Math.max(0.8, target.size * 0.82),
+            0,
+            TAU,
+          );
+          ctx.fill();
+        });
+      }
+
+      function setTextBounds(bounds) {
+        if (bounds.minX > bounds.maxX || bounds.minY > bounds.maxY) {
+          state.textBounds = getFallbackBounds();
+          return;
+        }
+
+        state.textBounds = {
+          ...bounds,
+          width: bounds.maxX - bounds.minX,
+          height: bounds.maxY - bounds.minY,
+          cx: (bounds.minX + bounds.maxX) / 2,
+          cy: (bounds.minY + bounds.maxY) / 2,
+        };
+      }
+
+      function getFallbackBounds() {
+        const width = state.width * 0.5;
+        const height = state.height * 0.24;
+        const cx = state.width / 2;
+        const cy = state.height * 0.46;
+        return {
+          minX: cx - width / 2,
+          minY: cy - height / 2,
+          maxX: cx + width / 2,
+          maxY: cy + height / 2,
+          width,
+          height,
+          cx,
+          cy,
+        };
+      }
+
+      function hexToRgb(hex) {
+        const value = hex.replace("#", "");
+        const bigint = parseInt(value, 16);
+        return {
+          r: (bigint >> 16) & 255,
+          g: (bigint >> 8) & 255,
+          b: bigint & 255,
+        };
+      }
+
+      function mixPalette(palette, t) {
+        const scaled = t * (palette.length - 1);
+        const index = Math.min(palette.length - 2, Math.floor(scaled));
+        const localT = scaled - index;
+        return mixColor(palette[index], palette[index + 1], localT);
+      }
+
+      function mixColor(a, b, t) {
+        const ease = t * t * (3 - 2 * t);
+        return {
+          r: Math.round(a.r + (b.r - a.r) * ease),
+          g: Math.round(a.g + (b.g - a.g) * ease),
+          b: Math.round(a.b + (b.b - a.b) * ease),
+        };
+      }
+
+      function hashString(value) {
+        let hash = 2166136261;
+        for (let i = 0; i < value.length; i += 1) {
+          hash ^= value.charCodeAt(i);
+          hash = Math.imul(hash, 16777619);
+        }
+        return hash >>> 0;
+      }
+
+      function mulberry32(seed) {
+        return function random() {
+          let t = (seed += 0x6d2b79f5);
+          t = Math.imul(t ^ (t >>> 15), t | 1);
+          t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+          return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+      }
+
+      function shuffle(array, rng) {
+        for (let i = array.length - 1; i > 0; i -= 1) {
+          const j = Math.floor(rng() * (i + 1));
+          [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+      }
+
+      function debounce(fn, wait) {
+        let timer = 0;
+        return (...args) => {
+          clearTimeout(timer);
+          timer = setTimeout(() => fn(...args), wait);
+        };
+      }
+
+      window.addEventListener("pointermove", (event) => {
+        state.mouse.x = event.clientX;
+        state.mouse.y = event.clientY;
+        state.mouse.active = true;
+      });
+
+      window.addEventListener("pointerleave", () => {
+        state.mouse.active = false;
+      });
+
+      window.addEventListener(
+        "resize",
+        debounce(() => {
+          resizeCanvas();
+        }, 140),
+      );
+
+      resizeCanvas();
+      requestAnimationFrame(animate);
+    </script>
+  </body>
+</html>
