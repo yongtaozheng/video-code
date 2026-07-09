@@ -1,0 +1,967 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>像素拼合转场 - 自动演示</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden}
+body{
+  font-family:"Avenir Next","PingFang SC","Microsoft YaHei",sans-serif;
+  color:#f6f4ec;
+  background:
+    radial-gradient(circle at 14% 16%,rgba(29,211,176,.22),transparent 31%),
+    radial-gradient(circle at 84% 20%,rgba(255,197,89,.18),transparent 30%),
+    linear-gradient(140deg,#050607 0%,#0f1212 48%,#090b10 100%);
+}
+body.demo-running{cursor:none}
+body::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  opacity:.19;
+  background-image:
+    linear-gradient(rgba(255,255,255,.055) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px);
+  background-size:32px 32px;
+  mask-image:linear-gradient(to bottom,rgba(0,0,0,.8),transparent 78%);
+}
+
+:root{
+  --bg:#050607;
+  --surface:rgba(14,17,18,.82);
+  --surface-strong:rgba(22,26,28,.94);
+  --line:rgba(255,255,255,.14);
+  --text:#f6f4ec;
+  --muted:rgba(246,244,236,.62);
+  --mint:#1dd3b0;
+  --amber:#ffc559;
+  --coral:#ff6b5f;
+  --ink:#050607;
+  --stage-radius:8px;
+  --cols:12;
+  --rows:8;
+  --cell-dur:520ms;
+}
+
+.sc{
+  position:fixed;
+  inset:0;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  opacity:0;
+  transition:opacity .6s ease;
+  z-index:10;
+}
+.sc.active{opacity:1}
+.sc.cw{
+  opacity:1;
+  clip-path:circle(0 at 50% 50%);
+  transition:clip-path .9s cubic-bezier(.77,0,.175,1);
+}
+.sc.cw.open{clip-path:circle(150vmax at 50% 50%)}
+
+#fakeCursor{
+  position:fixed;
+  z-index:9999;
+  pointer-events:none;
+  transform:translate(-50%,-50%);
+  opacity:0;
+  transition:opacity .3s;
+}
+#cursorRing{
+  width:32px;
+  height:32px;
+  border:2px solid rgba(29,211,176,.85);
+  border-radius:50%;
+  box-shadow:0 0 18px rgba(29,211,176,.22);
+  transition:transform .15s;
+}
+#cursorDot{
+  position:absolute;
+  top:50%;
+  left:50%;
+  width:6px;
+  height:6px;
+  background:var(--mint);
+  border-radius:50%;
+  transform:translate(-50%,-50%);
+}
+.click-ripple{
+  position:fixed;
+  z-index:9998;
+  pointer-events:none;
+  width:40px;
+  height:40px;
+  border:2px solid rgba(29,211,176,.6);
+  border-radius:50%;
+  transform:translate(-50%,-50%) scale(1);
+  animation:cRipple .5s ease-out forwards;
+}
+@keyframes cRipple{to{transform:translate(-50%,-50%) scale(2.5);opacity:0}}
+
+#startScreen{
+  background:rgba(0,0,0,.82);
+  z-index:100;
+}
+#startBtn{
+  width:80px;
+  height:80px;
+  border:2px solid var(--mint);
+  border-radius:50%;
+  background:rgba(29,211,176,.1);
+  color:var(--mint);
+  font-size:28px;
+  cursor:pointer;
+  font-family:inherit;
+  transition:all .3s;
+}
+#startBtn:hover{background:rgba(29,211,176,.18);transform:scale(1.05)}
+#startBtn:disabled{opacity:.5;cursor:default;transform:none}
+.start-title{font-size:24px;margin-bottom:32px;opacity:.76;color:var(--text);letter-spacing:.06em}
+.start-hint{font-size:12px;margin-top:16px;opacity:.45;color:var(--text)}
+
+#titleScene{
+  background:
+    radial-gradient(circle at 14% 16%,rgba(29,211,176,.22),transparent 31%),
+    radial-gradient(circle at 84% 20%,rgba(255,197,89,.18),transparent 30%),
+    linear-gradient(140deg,#050607 0%,#0f1212 48%,#090b10 100%);
+}
+.title-mark{
+  display:grid;
+  grid-template-columns:repeat(6,12px);
+  grid-template-rows:repeat(4,12px);
+  gap:5px;
+  margin-bottom:26px;
+  opacity:0;
+  transform:translateY(12px) scale(.96);
+  transition:all .8s cubic-bezier(.19,1,.22,1);
+}
+.title-mark i{
+  display:block;
+  background:rgba(29,211,176,.82);
+  box-shadow:0 0 18px rgba(29,211,176,.28);
+}
+.title-mark i:nth-child(3n){background:rgba(255,197,89,.9)}
+.title-mark i:nth-child(4n){background:rgba(255,107,95,.82)}
+.title-main{
+  font-size:52px;
+  font-weight:700;
+  letter-spacing:.06em;
+  color:var(--text);
+  text-shadow:0 4px 28px rgba(29,211,176,.28);
+  opacity:0;
+  transform:translateY(20px);
+  transition:all .8s cubic-bezier(.19,1,.22,1) .1s;
+}
+.title-sub{
+  font-size:18px;
+  color:var(--muted);
+  margin-top:14px;
+  letter-spacing:.1em;
+  opacity:0;
+  transform:translateY(16px);
+  transition:all .8s cubic-bezier(.19,1,.22,1) .3s;
+}
+.title-line{
+  width:0;
+  height:2px;
+  background:linear-gradient(90deg,transparent,rgba(29,211,176,.65),rgba(255,197,89,.55),transparent);
+  margin-top:22px;
+  transition:width 1s cubic-bezier(.19,1,.22,1) .5s;
+}
+#titleScene.active .title-mark{opacity:1;transform:translateY(0) scale(1)}
+#titleScene.active .title-main{opacity:1;transform:translateY(0)}
+#titleScene.active .title-sub{opacity:1;transform:translateY(0)}
+#titleScene.active .title-line{width:220px}
+
+#demoScene{
+  background:
+    radial-gradient(circle at 14% 16%,rgba(29,211,176,.22),transparent 31%),
+    radial-gradient(circle at 84% 20%,rgba(255,197,89,.18),transparent 30%),
+    linear-gradient(140deg,#050607 0%,#0f1212 48%,#090b10 100%);
+  padding:min(2.6vw,24px);
+}
+#demoScene::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  opacity:.19;
+  background-image:
+    linear-gradient(rgba(255,255,255,.055) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px);
+  background-size:32px 32px;
+  mask-image:linear-gradient(to bottom,rgba(0,0,0,.8),transparent 78%);
+}
+
+.stage-shell{
+  position:relative;
+  width:min(1660px,100%);
+  padding:10px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:
+    linear-gradient(135deg,rgba(255,255,255,.12),transparent 24%),
+    rgba(255,255,255,.045);
+  box-shadow:0 28px 72px rgba(0,0,0,.44);
+}
+.stage{
+  position:relative;
+  width:100%;
+  aspect-ratio:16/9;
+  overflow:hidden;
+  border-radius:var(--stage-radius);
+  background:#000;
+  isolation:isolate;
+}
+.bg-img{
+  position:absolute;
+  inset:0;
+  background-size:contain;
+  background-position:center;
+  background-repeat:no-repeat;
+  background-color:#000;
+  transform:scale(1.012);
+  filter:saturate(1.03) contrast(1.03);
+}
+.bg-img.is-swapping{animation:bgSwap 420ms ease both}
+.pixel-grid{
+  position:absolute;
+  inset:0;
+  display:grid;
+  z-index:10;
+  grid-template-columns:repeat(var(--cols),minmax(0,1fr));
+  grid-template-rows:repeat(var(--rows),minmax(0,1fr));
+  pointer-events:none;
+}
+.pixel-cell{
+  position:relative;
+  overflow:hidden;
+  opacity:0;
+  transform:scale(0) rotate(var(--rot,0deg));
+  filter:brightness(2.05) blur(4px);
+  will-change:opacity,transform,filter;
+}
+.pixel-cell.show{
+  opacity:1;
+  transform:scale(1) rotate(0deg);
+  filter:brightness(1) blur(0);
+  transition:
+    opacity var(--cell-dur) cubic-bezier(.34,1.56,.64,1),
+    transform var(--cell-dur) cubic-bezier(.34,1.56,.64,1),
+    filter var(--cell-dur) ease;
+}
+.cell-img{
+  position:absolute;
+  max-width:none;
+  max-height:none;
+  background-size:contain;
+  background-position:center;
+  background-repeat:no-repeat;
+  background-color:#000;
+  pointer-events:none;
+}
+.stage-shade{
+  position:absolute;
+  inset:0;
+  z-index:12;
+  pointer-events:none;
+  background:
+    linear-gradient(to top,rgba(0,0,0,.36),transparent 52%),
+    radial-gradient(circle at center,transparent 0%,rgba(0,0,0,.22) 100%);
+  mix-blend-mode:multiply;
+}
+.pixel-gridline{
+  position:absolute;
+  inset:0;
+  z-index:13;
+  pointer-events:none;
+  opacity:.2;
+  background:
+    linear-gradient(rgba(255,255,255,.08) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.07) 1px,transparent 1px);
+  background-size:calc(100% / var(--cols)) calc(100% / var(--rows));
+}
+@keyframes bgSwap{0%{transform:scale(1.035);filter:saturate(1.18) contrast(1.08)}100%{transform:scale(1.012);filter:saturate(1.03) contrast(1.03)}}
+
+.code-sc{background:#262a30}
+.code-panel{
+  width:min(760px,90vw);
+  border-radius:8px;
+  overflow:hidden;
+  box-shadow:0 20px 60px rgba(0,0,0,.5);
+}
+.code-head{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:12px 16px;
+  background:#1f2328;
+  font-size:13px;
+  color:rgba(255,255,255,.64);
+}
+.tl{display:flex;gap:7px}
+.tl i{width:12px;height:12px;border-radius:50%;display:block}
+.tl i:nth-child(1){background:#ff5f57}
+.tl i:nth-child(2){background:#febc2e}
+.tl i:nth-child(3){background:#28c840}
+.code-body{
+  padding:18px 0;
+  background:#262a30;
+  color:#c4cad4;
+  font-family:"SF Mono","Fira Code",Menlo,Consolas,monospace;
+  font-size:14px;
+  line-height:1.7;
+  overflow-x:auto;
+}
+.cl{
+  padding:0 20px;
+  white-space:pre;
+  transition:background .4s;
+  min-height:1.7em;
+}
+.cl.hl{background:rgba(29,211,176,.13)}
+.cl.hl2{background:rgba(255,197,89,.13)}
+.ln{
+  display:inline-block;
+  width:2.5em;
+  text-align:right;
+  margin-right:1.5em;
+  color:rgba(255,255,255,.22);
+  user-select:none;
+}
+.kw{color:#c678dd}
+.fn{color:#61afef}
+.str{color:#98c379}
+.num{color:#d19a66}
+.cm{color:#6b7280;font-style:italic}
+.pr{color:#e5c07b}
+
+#annotation{
+  position:fixed;
+  bottom:48px;
+  left:50%;
+  transform:translateX(-50%) translateY(8px);
+  background:rgba(0,0,0,.7);
+  backdrop-filter:blur(16px);
+  padding:14px 28px;
+  border-radius:8px;
+  border:1px solid rgba(29,211,176,.18);
+  font-size:15px;
+  color:rgba(255,255,255,.92);
+  z-index:200;
+  opacity:0;
+  transition:all .4s ease;
+  max-width:80vw;
+  text-align:center;
+  pointer-events:none;
+}
+#annotation.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#progressBar{
+  position:fixed;
+  bottom:0;
+  left:0;
+  right:0;
+  height:3px;
+  background:rgba(255,255,255,.06);
+  z-index:300;
+}
+#progressFill{
+  height:100%;
+  width:0%;
+  background:linear-gradient(90deg,var(--mint),var(--amber),var(--coral));
+  transition:width .1s linear;
+}
+#pauseHint{
+  position:fixed;
+  top:20px;
+  right:20px;
+  background:rgba(0,0,0,.72);
+  color:rgba(255,255,255,.82);
+  padding:8px 16px;
+  border-radius:8px;
+  font-size:13px;
+  z-index:300;
+  display:none;
+}
+
+#endScene{
+  background:
+    radial-gradient(circle at 14% 16%,rgba(29,211,176,.22),transparent 31%),
+    radial-gradient(circle at 84% 20%,rgba(255,197,89,.18),transparent 30%),
+    linear-gradient(140deg,#050607 0%,#0f1212 48%,#090b10 100%);
+  gap:24px;
+}
+.end-text{
+  font-size:42px;
+  font-weight:600;
+  letter-spacing:.1em;
+  color:var(--text);
+  text-shadow:0 4px 20px rgba(29,211,176,.22);
+  opacity:0;
+  transform:translateY(20px);
+  transition:all .8s cubic-bezier(.19,1,.22,1);
+}
+.end-sub{
+  font-size:16px;
+  color:rgba(246,244,236,.54);
+  opacity:0;
+  transform:translateY(12px);
+  transition:all .8s cubic-bezier(.19,1,.22,1) .2s;
+}
+#endScene.active .end-text,#endScene.active .end-sub{opacity:1;transform:translateY(0)}
+#replayBtn{
+  padding:12px 32px;
+  border:1px solid rgba(29,211,176,.42);
+  border-radius:8px;
+  background:rgba(29,211,176,.08);
+  color:var(--mint);
+  font-size:16px;
+  cursor:pointer;
+  font-family:inherit;
+  opacity:0;
+  transform:translateY(12px);
+  transition:all .6s .4s;
+}
+#endScene.active #replayBtn{opacity:1;transform:translateY(0)}
+#replayBtn:hover{background:rgba(29,211,176,.16);border-color:rgba(29,211,176,.6)}
+
+@media (max-width:700px){
+  .title-main{font-size:34px}
+  .title-sub{font-size:13px;max-width:82vw;text-align:center;line-height:1.7}
+  .code-body{font-size:12px}
+  #annotation{font-size:13px;padding:12px 16px;max-width:88vw}
+}
+</style>
+</head>
+<body>
+
+<div id="fakeCursor"><div id="cursorRing"></div><div id="cursorDot"></div></div>
+
+<div id="startScreen" class="sc" style="display:flex;opacity:1">
+  <div style="text-align:center">
+    <div class="start-title">像素拼合转场</div>
+    <button id="startBtn" disabled>...</button>
+    <div class="start-hint">点击或按空格开始</div>
+  </div>
+</div>
+
+<div id="titleScene" class="sc">
+  <div class="title-mark" aria-hidden="true">
+    <i></i><i></i><i></i><i></i><i></i><i></i>
+    <i></i><i></i><i></i><i></i><i></i><i></i>
+    <i></i><i></i><i></i><i></i><i></i><i></i>
+    <i></i><i></i><i></i><i></i><i></i><i></i>
+  </div>
+  <div class="title-main">像素拼合转场</div>
+  <div class="title-sub">CSS Grid 像素块 × 缩放旋转 × 排序延迟拼图</div>
+  <div class="title-line"></div>
+</div>
+
+<div id="demoScene" class="sc">
+  <div class="stage-shell">
+    <div class="stage" id="stage">
+      <div class="bg-img" id="bgImg"></div>
+      <div class="stage-shade"></div>
+      <div class="pixel-gridline"></div>
+    </div>
+  </div>
+</div>
+
+<div id="codeScene1" class="sc cw code-sc">
+  <div class="code-panel">
+    <div class="code-head">
+      <span class="tl"><i></i><i></i><i></i></span>
+      <span>pixel-cell — 缩放旋转 + 完整图片偏移</span>
+    </div>
+    <div class="code-body" id="codeBody1"></div>
+  </div>
+</div>
+
+<div id="codeScene2" class="sc cw code-sc">
+  <div class="code-panel">
+    <div class="code-head">
+      <span class="tl"><i></i><i></i><i></i></span>
+      <span>pixelTransitionTo — 网格生成 + 排序延迟</span>
+    </div>
+    <div class="code-body" id="codeBody2"></div>
+  </div>
+</div>
+
+<div id="endScene" class="sc">
+  <div class="end-text">感谢观看</div>
+  <div class="end-sub">CSS Grid 像素块 × 缩放旋转 × 排序延迟拼图</div>
+  <button id="replayBtn">↻ 重播</button>
+</div>
+
+<div id="annotation"><span id="annText"></span></div>
+<div id="progressBar"><div id="progressFill"></div></div>
+<div id="pauseHint">已暂停（空格继续）</div>
+
+<script>
+(() => {
+  const stage = document.getElementById('stage');
+  const bgImg = document.getElementById('bgImg');
+  const startBtn = document.getElementById('startBtn');
+
+  const images = [
+    '../../images/20220829143113_709aa.jpeg',
+    '../../images/20220915224545_c2170.jpeg',
+    '../../images/20230327231735_a195d.jpg',
+    '../../images/7392069948318558889.png',
+    '../../images/IMG_6589.JPG',
+  ];
+
+  const pState = {
+    current:0,
+    transitioning:false,
+    mode:'center',
+    cols:12,
+    rows:8,
+    stagger:16,
+    cellDur:520,
+    auto:false,
+    autoTimer:null,
+    generation:0,
+  };
+
+  function buildCodePanel(id, lines) {
+    const c = document.getElementById(id);
+    lines.forEach(item => {
+      const d = document.createElement('div');
+      d.className = 'cl';
+      if (item.id) d.id = item.id;
+      d.innerHTML = item.html;
+      c.appendChild(d);
+    });
+  }
+
+  buildCodePanel('codeBody1', [
+    { id:'c1l1', html:'<span class="ln"> 1</span><span class="cm">/* 每个 cell 先缩成 0，并带一点随机旋转和高亮模糊 */</span>' },
+    { id:'c1l2', html:'<span class="ln"> 2</span><span class="pr">.pixel-cell</span> {' },
+    { id:'c1l3', html:'<span class="ln"> 3</span>  <span class="pr">opacity</span>: <span class="num">0</span>;' },
+    { id:'c1l4', html:'<span class="ln"> 4</span>  <span class="pr">transform</span>: <span class="fn">scale</span>(<span class="num">0</span>) <span class="fn">rotate</span>(<span class="kw">var</span>(<span class="str">--rot</span>));' },
+    { id:'c1l5', html:'<span class="ln"> 5</span>  <span class="pr">filter</span>: <span class="fn">brightness</span>(<span class="num">2.05</span>) <span class="fn">blur</span>(<span class="num">4px</span>);' },
+    { id:'c1l6', html:'<span class="ln"> 6</span>}' },
+    { id:'c1l7', html:'<span class="ln"> 7</span>' },
+    { id:'c1l8', html:'<span class="ln"> 8</span><span class="cm">/* show 后弹性放大到 1，旋转归零，形成像素拼合感 */</span>' },
+    { id:'c1l9', html:'<span class="ln"> 9</span><span class="pr">.pixel-cell.show</span> {' },
+    { id:'c1l10', html:'<span class="ln">10</span>  <span class="pr">opacity</span>: <span class="num">1</span>;' },
+    { id:'c1l11', html:'<span class="ln">11</span>  <span class="pr">transform</span>: <span class="fn">scale</span>(<span class="num">1</span>) <span class="fn">rotate</span>(<span class="num">0deg</span>);' },
+    { id:'c1l12', html:'<span class="ln">12</span>  <span class="pr">transition</span>: transform <span class="kw">var</span>(<span class="str">--cell-dur</span>) <span class="fn">cubic-bezier</span>(<span class="num">.34,1.56,.64,1</span>);' },
+    { id:'c1l13', html:'<span class="ln">13</span>}' },
+    { id:'c1l14', html:'<span class="ln">14</span>' },
+    { id:'c1l15', html:'<span class="ln">15</span><span class="cm">/* 每格都放完整图片，再用 left/top 偏移到自己的切片 */</span>' },
+    { id:'c1l16', html:'<span class="ln">16</span>img.style.<span class="pr">left</span> = <span class="str">`${-c * cellW}px`</span>;' },
+    { id:'c1l17', html:'<span class="ln">17</span>img.style.<span class="pr">top</span> = <span class="str">`${-r * cellH}px`</span>;' },
+    { id:'c1l18', html:'<span class="ln">18</span>img.style.<span class="pr">width</span> = <span class="str">`${rect.width}px`</span>;' },
+    { id:'c1l19', html:'<span class="ln">19</span>img.style.<span class="pr">height</span> = <span class="str">`${rect.height}px`</span>;' }
+  ]);
+
+  buildCodePanel('codeBody2', [
+    { id:'c2l1', html:'<span class="ln"> 1</span><span class="cm">/* 生成 12 x 8 的 CSS Grid 像素块 */</span>' },
+    { id:'c2l2', html:'<span class="ln"> 2</span><span class="kw">for</span> (<span class="kw">let</span> r = <span class="num">0</span>; r &lt; ROWS; r++) {' },
+    { id:'c2l3', html:'<span class="ln"> 3</span>  <span class="kw">for</span> (<span class="kw">let</span> c = <span class="num">0</span>; c &lt; COLS; c++) {' },
+    { id:'c2l4', html:'<span class="ln"> 4</span>    <span class="kw">const</span> cell = document.<span class="fn">createElement</span>(<span class="str">"div"</span>);' },
+    { id:'c2l5', html:'<span class="ln"> 5</span>    cells.<span class="fn">push</span>({ el: cell, r, c });' },
+    { id:'c2l6', html:'<span class="ln"> 6</span>  }' },
+    { id:'c2l7', html:'<span class="ln"> 7</span>}' },
+    { id:'c2l8', html:'<span class="ln"> 8</span>' },
+    { id:'c2l9', html:'<span class="ln"> 9</span><span class="cm">/* 根据模式排序：中心向外、斜向扫过、边缘向内或随机 */</span>' },
+    { id:'c2l10', html:'<span class="ln">10</span>cells.<span class="fn">sort</span>((a, b) =&gt; {' },
+    { id:'c2l11', html:'<span class="ln">11</span>  <span class="kw">return</span> <span class="fn">orderWeight</span>(a, mode) - <span class="fn">orderWeight</span>(b, mode);' },
+    { id:'c2l12', html:'<span class="ln">12</span>});' },
+    { id:'c2l13', html:'<span class="ln">13</span>' },
+    { id:'c2l14', html:'<span class="ln">14</span><span class="cm">/* 按排序结果逐个加 show，形成连续拼图节奏 */</span>' },
+    { id:'c2l15', html:'<span class="ln">15</span>cells.<span class="fn">forEach</span>((cell, i) =&gt; {' },
+    { id:'c2l16', html:'<span class="ln">16</span>  <span class="fn">setTimeout</span>(() =&gt; cell.el.classList.<span class="fn">add</span>(<span class="str">"show"</span>), i * STAGGER);' },
+    { id:'c2l17', html:'<span class="ln">17</span>});' },
+    { id:'c2l18', html:'<span class="ln">18</span>' },
+    { id:'c2l19', html:'<span class="ln">19</span><span class="fn">sleep</span>(cells.length * STAGGER + CELL_DUR).<span class="fn">then</span>(() =&gt; <span class="fn">swapBaseImage</span>());' }
+  ]);
+
+  function showImage(index) {
+    bgImg.style.backgroundImage = `url(${images[index]})`;
+  }
+
+  function seededUnit(seed) {
+    const x = Math.sin(seed) * 10000;
+    return x - Math.floor(x);
+  }
+
+  function orderWeight(cell, mode, seed) {
+    const centerR = (pState.rows - 1) / 2;
+    const centerC = (pState.cols - 1) / 2;
+    const jitter = seededUnit(seed + cell.r * 97 + cell.c * 131) * .7;
+    if (mode === 'diagonal') return cell.r + cell.c * .92 + jitter;
+    if (mode === 'edge') return -Math.hypot(cell.r - centerR, cell.c - centerC) + jitter;
+    if (mode === 'random') return seededUnit(seed + cell.r * 313 + cell.c * 571) * 20;
+    return Math.hypot(cell.r - centerR, cell.c - centerC) + jitter;
+  }
+
+  async function pixelTransitionTo(nextIndex, mode) {
+    if (pState.transitioning || images.length < 2) return;
+    pState.transitioning = true;
+    pState.mode = mode || pState.mode;
+    pState.generation++;
+    const generation = pState.generation;
+    const url = images[nextIndex];
+    const rect = stage.getBoundingClientRect();
+    const cellW = rect.width / pState.cols;
+    const cellH = rect.height / pState.rows;
+    const seed = nextIndex * 1009 + pState.current * 503 + pState.generation * 37;
+
+    document.documentElement.style.setProperty('--cols', pState.cols);
+    document.documentElement.style.setProperty('--rows', pState.rows);
+    document.documentElement.style.setProperty('--cell-dur', `${pState.cellDur}ms`);
+
+    const grid = document.createElement('div');
+    grid.className = 'pixel-grid';
+    const cells = [];
+
+    for (let r = 0; r < pState.rows; r++) {
+      for (let c = 0; c < pState.cols; c++) {
+        const cell = document.createElement('div');
+        cell.className = 'pixel-cell';
+        cell.style.setProperty('--rot', `${(seededUnit(seed + r * 23 + c * 41) - .5) * 22}deg`);
+
+        const img = document.createElement('div');
+        img.className = 'cell-img';
+        img.style.backgroundImage = `url(${url})`;
+        img.style.left = `${-c * cellW}px`;
+        img.style.top = `${-r * cellH}px`;
+        img.style.width = `${rect.width}px`;
+        img.style.height = `${rect.height}px`;
+
+        cell.appendChild(img);
+        grid.appendChild(cell);
+        cells.push({ el:cell, r, c });
+      }
+    }
+
+    stage.appendChild(grid);
+    cells.sort((a, b) => orderWeight(a, pState.mode, seed) - orderWeight(b, pState.mode, seed));
+
+    await sleep(30);
+    cells.forEach((cell, i) => {
+      setTimeout(() => {
+        if (generation === pState.generation) cell.el.classList.add('show');
+      }, i * pState.stagger);
+    });
+
+    const totalWait = cells.length * pState.stagger + pState.cellDur + 120;
+    await sleep(totalWait);
+    if (generation !== pState.generation) {
+      grid.remove();
+      return;
+    }
+
+    pState.current = nextIndex;
+    showImage(pState.current);
+    bgImg.classList.remove('is-swapping');
+    void bgImg.offsetWidth;
+    bgImg.classList.add('is-swapping');
+    grid.remove();
+    pState.transitioning = false;
+  }
+
+  function resetPixels() {
+    stopPixelAuto();
+    pState.generation++;
+    pState.current = 0;
+    pState.transitioning = false;
+    pState.mode = 'center';
+    document.querySelectorAll('.pixel-grid').forEach(el => el.remove());
+    showImage(0);
+  }
+
+  function startPixelAuto() {
+    stopPixelAuto();
+    pState.auto = true;
+    const modes = ['center','diagonal','random','edge'];
+    let modeIndex = 0;
+    const run = () => {
+      if (!pState.auto) return;
+      const next = (pState.current + 1) % images.length;
+      pixelTransitionTo(next, modes[modeIndex % modes.length]).then(() => {
+        modeIndex++;
+        if (pState.auto) pState.autoTimer = setTimeout(run, 1200);
+      });
+    };
+    pState.autoTimer = setTimeout(run, 200);
+  }
+
+  function stopPixelAuto() {
+    pState.auto = false;
+    clearTimeout(pState.autoTimer);
+    pState.autoTimer = null;
+  }
+
+  function showScene(id) {
+    const el = document.getElementById(id);
+    el.style.display = 'flex';
+    requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('active')));
+  }
+
+  function hideScene(id) {
+    const el = document.getElementById(id);
+    el.classList.remove('active');
+    setTimeout(() => { el.style.display = 'none'; }, 700);
+  }
+
+  function showCW(id) {
+    const el = document.getElementById(id);
+    el.style.display = 'flex';
+    setTimeout(() => { el.classList.add('open'); }, 50);
+  }
+
+  function hideCW(id) {
+    const el = document.getElementById(id);
+    el.classList.remove('open');
+    setTimeout(() => { el.style.display = 'none'; }, 1000);
+  }
+
+  function showAnnotation(text) {
+    document.getElementById('annText').textContent = text;
+    document.getElementById('annotation').classList.add('show');
+  }
+
+  function hideAnnotation() {
+    document.getElementById('annotation').classList.remove('show');
+  }
+
+  function hlLines(ids) {
+    document.querySelectorAll('.cl.hl,.cl.hl2').forEach(el => el.classList.remove('hl','hl2'));
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.add('hl');
+    });
+  }
+
+  const cursor = document.getElementById('fakeCursor');
+  let cursorX = window.innerWidth / 2;
+  let cursorY = window.innerHeight / 2;
+  let cursorAnimId = null;
+  cursor.style.left = `${cursorX}px`;
+  cursor.style.top = `${cursorY}px`;
+
+  function moveCursor(toX, toY, duration, cb) {
+    if (cursorAnimId) cancelAnimationFrame(cursorAnimId);
+    const fromX = cursorX;
+    const fromY = cursorY;
+    const start = performance.now();
+    function step(now) {
+      const t = Math.min((now - start) / duration, 1);
+      const ease = t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+      cursorX = fromX + (toX - fromX) * ease;
+      cursorY = fromY + (toY - fromY) * ease;
+      cursor.style.left = `${cursorX}px`;
+      cursor.style.top = `${cursorY}px`;
+      if (t < 1) cursorAnimId = requestAnimationFrame(step);
+      else {
+        cursorAnimId = null;
+        if (cb) cb();
+      }
+    }
+    cursorAnimId = requestAnimationFrame(step);
+  }
+
+  function clickEffect() {
+    document.getElementById('cursorRing').style.transform = 'scale(.8)';
+    setTimeout(() => { document.getElementById('cursorRing').style.transform = ''; }, 150);
+    const rip = document.createElement('div');
+    rip.className = 'click-ripple';
+    rip.style.left = `${cursorX}px`;
+    rip.style.top = `${cursorY}px`;
+    document.body.appendChild(rip);
+    setTimeout(() => rip.remove(), 500);
+  }
+
+  function preloadImages() {
+    let loaded = 0;
+    images.forEach(src => {
+      const img = new Image();
+      img.onload = img.onerror = () => {
+        loaded++;
+        const pct = Math.round(loaded / images.length * 100);
+        startBtn.textContent = `${pct}%`;
+        if (loaded >= images.length) {
+          startBtn.textContent = '▶';
+          startBtn.disabled = false;
+        }
+      };
+      img.src = src;
+    });
+  }
+
+  const TOTAL = 58;
+  const tl = [
+    { t:0.0, fn:() => showScene('titleScene') },
+    { t:3.0, fn:() => {
+      hideScene('titleScene');
+      showScene('demoScene');
+      resetPixels();
+      cursor.style.opacity = '1';
+      document.body.classList.add('demo-running');
+    }},
+    { t:4.4, fn:() => {
+      const r = stage.getBoundingClientRect();
+      moveCursor(r.left + r.width * .5, r.top + r.height * .5, 700, () => {
+        clickEffect();
+        pixelTransitionTo(1, 'center');
+      });
+    }},
+    { t:6.5, fn:() => showAnnotation('先生成 12 x 8 的像素网格，每个格子从中心向外弹出，拼成下一张图') },
+    { t:8.8, fn:() => { hideAnnotation(); pixelTransitionTo(2, 'diagonal'); } },
+    { t:10.9, fn:() => showAnnotation('只改变排序权重，就能从“中心爆开”变成“斜向扫过”') },
+    { t:13.0, fn:() => { hideAnnotation(); pixelTransitionTo(3, 'random'); } },
+    { t:15.3, fn:() => pixelTransitionTo(4, 'edge') },
+    { t:17.4, fn:() => showAnnotation('转场完成后再替换底图，并移除临时 grid，页面只保留最终图片') },
+
+    { t:20.0, fn:() => { cursor.style.opacity = '0'; document.body.classList.remove('demo-running'); hideAnnotation(); stopPixelAuto(); hideScene('demoScene'); } },
+    { t:20.5, fn:() => showCW('codeScene1') },
+    { t:22.0, fn:() => {
+      hlLines(['c1l3','c1l4','c1l5']);
+      showAnnotation('① 初始状态 opacity=0、scale(0)、随机 rotate，并加高亮模糊，让碎片像从画面里冒出来');
+    }},
+    { t:25.5, fn:() => {
+      hlLines(['c1l9','c1l10','c1l11','c1l12']);
+      showAnnotation('② 添加 show 后用弹性 cubic-bezier 放大到 1，旋转归零，像素块逐个“咔哒”归位');
+    }},
+    { t:29.0, fn:() => {
+      hlLines(['c1l16','c1l17','c1l18','c1l19']);
+      showAnnotation('③ 每个格子内部都是完整图片，只是按行列偏移 left/top，最终拼出一张完整画面');
+    }},
+
+    { t:32.0, fn:() => { hideAnnotation(); hlLines([]); } },
+    { t:32.5, fn:() => hideCW('codeScene1') },
+    { t:33.5, fn:() => showCW('codeScene2') },
+    { t:35.0, fn:() => {
+      hlLines(['c2l2','c2l3','c2l4','c2l5']);
+      showAnnotation('① 双层循环生成像素块，cells 数组记录每块的位置，方便后面排序控制节奏');
+    }},
+    { t:38.5, fn:() => {
+      hlLines(['c2l9','c2l10','c2l11','c2l12']);
+      showAnnotation('② 排序函数是转场的导演：中心距离、r+c、随机值、边缘距离都能变成不同动线');
+    }},
+    { t:42.0, fn:() => {
+      hlLines(['c2l15','c2l16','c2l19']);
+      showAnnotation('③ setTimeout 按 i × STAGGER 延迟触发，全部完成后替换底图并清理临时 DOM');
+    }},
+
+    { t:44.5, fn:() => { hideAnnotation(); hlLines([]); } },
+    { t:45.0, fn:() => hideCW('codeScene2') },
+    { t:45.5, fn:() => {
+      showScene('demoScene');
+      resetPixels();
+      cursor.style.opacity = '1';
+      document.body.classList.add('demo-running');
+      startPixelAuto();
+    }},
+    { t:53.5, fn:() => {
+      cursor.style.opacity = '0';
+      document.body.classList.remove('demo-running');
+      stopPixelAuto();
+      hideScene('demoScene');
+      showScene('endScene');
+    }},
+  ];
+
+  let playing = false;
+  let paused = false;
+  let t0 = 0;
+  let pauseT = 0;
+  let tlIdx = 0;
+
+  function tick(now) {
+    if (!playing || paused) return;
+    const elapsed = (now - t0) / 1000;
+    while (tlIdx < tl.length && tl[tlIdx].t <= elapsed) {
+      tl[tlIdx].fn();
+      tlIdx++;
+    }
+    document.getElementById('progressFill').style.width = `${Math.min(1, elapsed / TOTAL) * 100}%`;
+    if (elapsed >= TOTAL) {
+      playing = false;
+      document.body.classList.remove('demo-running');
+      return;
+    }
+    requestAnimationFrame(tick);
+  }
+
+  function startDemo() {
+    document.getElementById('startScreen').style.display = 'none';
+    resetAll();
+    playing = true;
+    paused = false;
+    tlIdx = 0;
+    t0 = performance.now();
+    requestAnimationFrame(tick);
+  }
+
+  function resetAll() {
+    stopPixelAuto();
+    resetPixels();
+    ['titleScene','demoScene','codeScene1','codeScene2','endScene'].forEach(id => {
+      const el = document.getElementById(id);
+      el.style.display = 'none';
+      el.classList.remove('active','open');
+    });
+    hideAnnotation();
+    hlLines([]);
+    cursor.style.opacity = '0';
+    document.body.classList.remove('demo-running');
+    document.getElementById('progressFill').style.width = '0%';
+  }
+
+  startBtn.addEventListener('click', () => {
+    if (!startBtn.disabled) startDemo();
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.code !== 'Space') return;
+    e.preventDefault();
+    if (!playing && document.getElementById('startScreen').style.display !== 'none') {
+      if (!startBtn.disabled) startDemo();
+      return;
+    }
+    if (!playing) return;
+    if (paused) {
+      paused = false;
+      t0 += performance.now() - pauseT;
+      document.getElementById('pauseHint').style.display = 'none';
+      requestAnimationFrame(tick);
+    } else {
+      paused = true;
+      pauseT = performance.now();
+      document.getElementById('pauseHint').style.display = 'block';
+      stopPixelAuto();
+    }
+  });
+
+  document.getElementById('replayBtn').addEventListener('click', () => {
+    resetAll();
+    startDemo();
+  });
+
+  window.addEventListener('resize', () => {
+    document.querySelectorAll('.pixel-grid').forEach(el => el.remove());
+    pState.transitioning = false;
+    showImage(pState.current);
+  });
+
+  function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  showImage(0);
+  preloadImages();
+})();
+</script>
+</body>
+</html>
