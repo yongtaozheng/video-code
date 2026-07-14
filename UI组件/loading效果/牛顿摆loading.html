@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>牛顿摆Loading</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #0b0d13;
+            overflow: hidden;
+            font-family: 'Segoe UI', 'PingFang SC', sans-serif;
+        }
+
+        .wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 50px;
+        }
+
+        .canvas-box {
+            position: relative;
+        }
+
+        canvas {
+            display: block;
+            cursor: grab;
+        }
+
+        canvas:active {
+            cursor: grabbing;
+        }
+
+        /* 底部信息 */
+        .bottom-info {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .loading-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .loading-text {
+            color: rgba(255, 255, 255, 0.45);
+            font-size: 12px;
+            letter-spacing: 6px;
+            text-transform: uppercase;
+        }
+
+        .progress-track {
+            width: 140px;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 1px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            border-radius: 1px;
+            background: linear-gradient(90deg, rgba(180, 200, 255, 0.3), rgba(180, 200, 255, 0.7));
+            transition: width 0.3s ease;
+        }
+
+        .percent {
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 11px;
+            font-variant-numeric: tabular-nums;
+            min-width: 30px;
+            text-align: right;
+        }
+
+        .physics-row {
+            display: flex;
+            gap: 32px;
+        }
+
+        .physics-item {
+            text-align: center;
+        }
+
+        .physics-label {
+            color: rgba(255, 255, 255, 0.18);
+            font-size: 9px;
+            letter-spacing: 2.5px;
+            text-transform: uppercase;
+        }
+
+        .physics-val {
+            color: rgba(255, 255, 255, 0.45);
+            font-size: 13px;
+            font-variant-numeric: tabular-nums;
+            margin-top: 4px;
+        }
+
+        .hint {
+            color: rgba(255, 255, 255, 0.12);
+            font-size: 10px;
+            letter-spacing: 1px;
+        }
+
+        @media (max-width: 600px) {
+            canvas { width: 360px; height: 420px; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            canvas { animation: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <div class="canvas-box">
+            <canvas id="c"></canvas>
+        </div>
+        <div class="bottom-info">
+            <div class="loading-row">
+                <span class="loading-text">Loading</span>
+                <div class="progress-track"><div class="progress-fill" id="pf"></div></div>
+                <span class="percent" id="pct">0%</span>
+            </div>
+            <div class="physics-row">
+                <div class="physics-item">
+                    <div class="physics-label">Kinetic</div>
+                    <div class="physics-val" id="vKE">0.00</div>
+                </div>
+                <div class="physics-item">
+                    <div class="physics-label">Potential</div>
+                    <div class="physics-val" id="vPE">0.00</div>
+                </div>
+                <div class="physics-item">
+                    <div class="physics-label">Total</div>
+                    <div class="physics-val" id="vTE">0.00</div>
+                </div>
+                <div class="physics-item">
+                    <div class="physics-label">Collisions</div>
+                    <div class="physics-val" id="vCC">0</div>
+                </div>
+            </div>
+            <div class="hint">拖拽球体释放 · Drag a ball to interact</div>
+        </div>
+    </div>
+
+    <script>
+        // ─── Canvas 设置 ───
+        const canvas = document.getElementById('c');
+        const ctx = canvas.getContext('2d');
+        const DPR = window.devicePixelRatio || 1;
+        const W = 520, H = 500;
+        canvas.width = W * DPR;
+        canvas.height = H * DPR;
+        canvas.style.width = W + 'px';
+        canvas.style.height = H + 'px';
+        ctx.scale(DPR, DPR);
+
+        // DOM
+        const pfEl = document.getElementById('pf');
+        const pctEl = document.getElementById('pct');
+        const vKE = document.getElementById('vKE');
+        const vPE = document.getElementById('vPE');
+        const vTE = document.getElementById('vTE');
+        const vCC = document.getElementById('vCC');
+
+        // ─── 物理常量 ───
+        const NUM = 5;
+        const R = 20;                 // 球半径
+        const L = 200;                // 线长
+        const GAP = R * 2 + 1;        // 静止时球间距
+        const G = 2200;               // 重力加速度（像素/秒²）
+        const SUBSTEPS = 12;          // 物理子步
+        const DAMPING = 0.9998;       // 微小阻尼
+        const REST_COEFF = 0.999;     // 碰撞恢复系数
+        const PIVOT_Y = 55;
+        const CX = W / 2;
+
+        // ─── 球体类 ───
+        class Ball {
+            constructor(i) {
+                this.i = i;
+                this.px = CX + (i - (NUM - 1) / 2) * GAP; // 挂点 x
+                this.py = PIVOT_Y;                          // 挂点 y
+                this.theta = 0;       // 角度（弧度，右为正）
+                this.omega = 0;       // 角速度
+                this.dragging = false;
+            }
+            get x() { return this.px + Math.sin(this.theta) * L; }
+            get y() { return this.py + Math.cos(this.theta) * L; }
+        }
+
+        const balls = Array.from({ length: NUM }, (_, i) => new Ball(i));
+        let collisionCount = 0;
+
+        // 初始：拉起最左球
+        balls[0].theta = -Math.PI / 4;
+
+        // ─── 物理 步进 ───
+        function physicsStep(dt) {
+            // 1. 摆的运动 (使用半隐式欧拉)
+            for (const b of balls) {
+                if (b.dragging) continue;
+                const alpha = -(G / L) * Math.sin(b.theta);
+                b.omega += alpha * dt;
+                b.omega *= DAMPING;
+                b.theta += b.omega * dt;
+            }
+
+            // 2. 碰撞检测与响应
+            for (let i = 0; i < NUM - 1; i++) {
+                const a = balls[i], b = balls[i + 1];
+                if (a.dragging || b.dragging) continue;
+
+                // 用角度差判断碰撞（球心距 ≤ 2R）
+                const dx = b.x - a.x;
+                const dy = b.y - a.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist < R * 2 + 0.5) {
+                    // 完全弹性碰撞：交换角速度（等质量）
+                    const va = a.omega;
+                    const vb = b.omega;
+                    a.omega = vb * REST_COEFF;
+                    b.omega = va * REST_COEFF;
+
+                    // 分离：推开一点
+                    const overlap = R * 2 + 0.5 - dist;
+                    if (overlap > 0) {
+                        a.theta -= overlap / L * 0.5;
+                        b.theta += overlap / L * 0.5;
+                    }
+
+                    // 碰撞计数
+                    const impactStrength = Math.min(1, Math.abs(va - vb) * 8);
+                    if (impactStrength > 0.08) {
+                        collisionCount++;
+                    }
+                }
+            }
+        }
+
+        // ─── 绘制：金属支架 ───
+        function drawFrame() {
+            const barL = CX - NUM * GAP / 2 - 40;
+            const barR = CX + NUM * GAP / 2 + 40;
+            const baseY = PIVOT_Y + L + R + 40;
+
+            // 支撑腿
+            ctx.save();
+            ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+            ctx.lineWidth = 2.5;
+            ctx.lineCap = 'round';
+
+            // 左腿
+            ctx.beginPath();
+            ctx.moveTo(barL + 5, PIVOT_Y - 5);
+            ctx.lineTo(barL - 18, baseY);
+            ctx.stroke();
+            // 右腿
+            ctx.beginPath();
+            ctx.moveTo(barR - 5, PIVOT_Y - 5);
+            ctx.lineTo(barR + 18, baseY);
+            ctx.stroke();
+
+            // 横杆 — 渐变金属
+            const barGrad = ctx.createLinearGradient(barL, PIVOT_Y - 6, barL, PIVOT_Y + 6);
+            barGrad.addColorStop(0, 'rgba(200,210,230,0.25)');
+            barGrad.addColorStop(0.4, 'rgba(140,150,175,0.18)');
+            barGrad.addColorStop(1, 'rgba(80,85,100,0.12)');
+            ctx.fillStyle = barGrad;
+            roundRect(barL, PIVOT_Y - 5, barR - barL, 10, 5);
+            ctx.fill();
+
+            // 横杆高光
+            ctx.fillStyle = 'rgba(255,255,255,0.06)';
+            roundRect(barL + 10, PIVOT_Y - 4, barR - barL - 20, 3, 1.5);
+            ctx.fill();
+
+            // 底座
+            const baseGrad = ctx.createLinearGradient(0, baseY - 3, 0, baseY + 8);
+            baseGrad.addColorStop(0, 'rgba(200,210,230,0.15)');
+            baseGrad.addColorStop(1, 'rgba(60,65,80,0.08)');
+            ctx.fillStyle = baseGrad;
+            roundRect(barL - 30, baseY - 3, barR - barL + 60, 8, 4);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        // ─── 绘制：线 ───
+        function drawStrings() {
+            ctx.save();
+            for (const b of balls) {
+                // 双线效果
+                ctx.beginPath();
+                ctx.moveTo(b.px - 3, b.py);
+                ctx.lineTo(b.x - 2, b.y - R);
+                ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(b.px + 3, b.py);
+                ctx.lineTo(b.x + 2, b.y - R);
+                ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        // ─── 绘制：球体（chrome 金属球）───
+        function drawBall(b, time) {
+            const x = b.x, y = b.y;
+
+            // 倒影（模糊镜面）
+            const refY = PIVOT_Y + L + R + 40;
+            const refDist = refY - y;
+            const refBallY = refY + refDist * 0.15;
+            const refAlpha = Math.max(0, 0.12 - refDist * 0.0003);
+            if (refAlpha > 0.01) {
+                const refGrad = ctx.createRadialGradient(x, refBallY, 0, x, refBallY, R * 0.9);
+                refGrad.addColorStop(0, `rgba(160,175,210,${refAlpha})`);
+                refGrad.addColorStop(1, `rgba(160,175,210,0)`);
+                ctx.beginPath();
+                ctx.ellipse(x, refBallY, R * 0.85, R * 0.4, 0, 0, Math.PI * 2);
+                ctx.fillStyle = refGrad;
+                ctx.fill();
+            }
+
+            // 球体阴影
+            ctx.beginPath();
+            ctx.ellipse(x + 2, y + R + 8, R * 0.7, 4, 0, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0,0,0,0.15)';
+            ctx.fill();
+
+            // ── 球体主体 ──
+            // 外层：深色基底
+            ctx.beginPath();
+            ctx.arc(x, y, R, 0, Math.PI * 2);
+            const base = ctx.createRadialGradient(x - R * 0.35, y - R * 0.35, R * 0.05, x, y, R);
+            base.addColorStop(0, '#e0e4ef');
+            base.addColorStop(0.2, '#b8bdd0');
+            base.addColorStop(0.45, '#8890ab');
+            base.addColorStop(0.7, '#5a6280');
+            base.addColorStop(0.9, '#3e455e');
+            base.addColorStop(1, '#2d3348');
+            ctx.fillStyle = base;
+            ctx.fill();
+
+            // 环境反射带 — 模拟周围环境映射
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(x, y, R - 0.5, 0, Math.PI * 2);
+            ctx.clip();
+
+            // 上部天光反射
+            const skyRef = ctx.createLinearGradient(x, y - R, x, y + R * 0.1);
+            skyRef.addColorStop(0, 'rgba(180,200,240,0.18)');
+            skyRef.addColorStop(0.5, 'rgba(180,200,240,0)');
+            skyRef.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = skyRef;
+            ctx.fillRect(x - R, y - R, R * 2, R * 2);
+
+            // 底部地面反射
+            const groundRef = ctx.createLinearGradient(x, y + R * 0.3, x, y + R);
+            groundRef.addColorStop(0, 'rgba(0,0,0,0)');
+            groundRef.addColorStop(0.6, 'rgba(40,35,50,0.15)');
+            groundRef.addColorStop(1, 'rgba(40,35,50,0.25)');
+            ctx.fillStyle = groundRef;
+            ctx.fillRect(x - R, y - R, R * 2, R * 2);
+
+            ctx.restore();
+
+            // 主高光 — 左上大高光
+            ctx.beginPath();
+            ctx.ellipse(x - R * 0.28, y - R * 0.32, R * 0.38, R * 0.28, -0.3, 0, Math.PI * 2);
+            const hl = ctx.createRadialGradient(x - R * 0.28, y - R * 0.32, 0, x - R * 0.28, y - R * 0.32, R * 0.38);
+            hl.addColorStop(0, 'rgba(255,255,255,0.7)');
+            hl.addColorStop(0.5, 'rgba(255,255,255,0.2)');
+            hl.addColorStop(1, 'rgba(255,255,255,0)');
+            ctx.fillStyle = hl;
+            ctx.fill();
+
+            // 小高光点
+            ctx.beginPath();
+            ctx.arc(x - R * 0.18, y - R * 0.4, R * 0.08, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255,255,255,0.85)';
+            ctx.fill();
+
+            // 边缘光 — 右下 rim light
+            ctx.beginPath();
+            ctx.arc(x, y, R, 0, Math.PI * 2);
+            const rim = ctx.createRadialGradient(x + R * 0.6, y + R * 0.5, R * 0.2, x, y, R);
+            rim.addColorStop(0, 'rgba(160,180,220,0.15)');
+            rim.addColorStop(0.5, 'rgba(0,0,0,0)');
+            rim.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = rim;
+            ctx.fill();
+
+            // 碰撞时的高亮光环
+            const speed = Math.abs(b.omega);
+            if (speed > 0.3) {
+                const intensity = Math.min(1, (speed - 0.3) * 2);
+                ctx.beginPath();
+                ctx.arc(x, y, R + 4 + intensity * 4, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(160,185,255,${intensity * 0.12})`;
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.arc(x, y, R + 10 + intensity * 8, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(140,170,255,${intensity * 0.04})`;
+                ctx.fill();
+            }
+        }
+
+        // ─── 绘制：运动模糊拖影 ───
+        function drawMotionTrail(b) {
+            const speed = Math.abs(b.omega);
+            if (speed < 0.15) return;
+
+            const steps = Math.min(8, Math.floor(speed * 12));
+            for (let i = 1; i <= steps; i++) {
+                const t = i / steps;
+                const pastTheta = b.theta - b.omega * 0.02 * i;
+                const px = b.px + Math.sin(pastTheta) * L;
+                const py = b.py + Math.cos(pastTheta) * L;
+                const alpha = (1 - t) * 0.08 * Math.min(1, speed);
+
+                ctx.beginPath();
+                ctx.arc(px, py, R - 1, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(140,160,200,${alpha})`;
+                ctx.fill();
+            }
+        }
+
+        // ─── 工具函数 ───
+        function roundRect(x, y, w, h, r) {
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.lineTo(x + w - r, y);
+            ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+            ctx.lineTo(x + w, y + h - r);
+            ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+            ctx.lineTo(x + r, y + h);
+            ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+            ctx.lineTo(x, y + r);
+            ctx.quadraticCurveTo(x, y, x + r, y);
+            ctx.closePath();
+        }
+
+        // ─── 鼠标交互 ───
+        let dragBall = null;
+        let mouseX = 0, mouseY = 0;
+
+        function getMousePos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = W / rect.width;
+            const scaleY = H / rect.height;
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return {
+                x: (clientX - rect.left) * scaleX,
+                y: (clientY - rect.top) * scaleY,
+            };
+        }
+
+        function onDown(e) {
+            e.preventDefault();
+            const pos = getMousePos(e);
+            for (const b of balls) {
+                const dx = pos.x - b.x, dy = pos.y - b.y;
+                if (dx * dx + dy * dy < (R + 8) * (R + 8)) {
+                    dragBall = b;
+                    b.dragging = true;
+                    b.omega = 0;
+                    break;
+                }
+            }
+        }
+
+        function onMove(e) {
+            if (!dragBall) return;
+            e.preventDefault();
+            const pos = getMousePos(e);
+            mouseX = pos.x;
+            mouseY = pos.y;
+
+            // 计算目标角度
+            const dx = mouseX - dragBall.px;
+            const dy = mouseY - dragBall.py;
+            let angle = Math.atan2(dx, dy);
+            // 限制角度范围
+            angle = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, angle));
+            dragBall.theta = angle;
+        }
+
+        function onUp() {
+            if (dragBall) {
+                dragBall.dragging = false;
+                dragBall = null;
+            }
+        }
+
+        canvas.addEventListener('mousedown', onDown);
+        canvas.addEventListener('mousemove', onMove);
+        canvas.addEventListener('mouseup', onUp);
+        canvas.addEventListener('mouseleave', onUp);
+        canvas.addEventListener('touchstart', onDown, { passive: false });
+        canvas.addEventListener('touchmove', onMove, { passive: false });
+        canvas.addEventListener('touchend', onUp);
+
+        // ─── 能量补充（保持单球永动）───
+        let energyTimer = 0;
+
+        function checkEnergy() {
+            // 当所有球几乎静止时，重新拉起最左球
+            const totalOmega = balls.reduce((sum, b) => sum + Math.abs(b.omega), 0);
+            const totalTheta = balls.reduce((sum, b) => sum + Math.abs(b.theta), 0);
+            if (totalOmega < 0.02 && totalTheta < 0.02) {
+                energyTimer++;
+                if (energyTimer > 30) {
+                    energyTimer = 0;
+                    balls.forEach(b => { b.theta = 0; b.omega = 0; });
+                    balls[0].theta = -Math.PI / 4;
+                }
+            } else {
+                energyTimer = 0;
+            }
+        }
+
+        // ─── 主循环 ───
+        let progress = 0;
+        let lastTime = performance.now();
+
+        function frame(now) {
+            const rawDt = (now - lastTime) / 1000;
+            lastTime = now;
+            const dt = Math.min(rawDt, 0.032); // 防跳帧
+
+            ctx.clearRect(0, 0, W, H);
+
+            // ── 能量衰减后自动补充 ──
+            if (!dragBall) {
+                checkEnergy();
+            }
+
+            // ── 物理更新（子步）──
+            const subDt = dt / SUBSTEPS;
+            for (let s = 0; s < SUBSTEPS; s++) {
+                physicsStep(subDt);
+            }
+
+            // ── 绘制 ──
+            drawFrame();
+            drawStrings();
+
+            // 运动拖影先画（在球体下方）
+            balls.forEach(b => drawMotionTrail(b));
+
+            // 球体（从后往前）
+            balls.forEach(b => drawBall(b, now));
+
+            // ── UI 数据 ──
+            let ke = 0, pe = 0;
+            balls.forEach(b => {
+                ke += 0.5 * L * L * b.omega * b.omega;
+                pe += G * L * (1 - Math.cos(b.theta));
+            });
+            ke /= 1000; pe /= 1000;
+
+            vKE.textContent = ke.toFixed(2);
+            vPE.textContent = pe.toFixed(2);
+            vTE.textContent = (ke + pe).toFixed(2);
+            vCC.textContent = collisionCount;
+
+            progress += 0.12;
+            if (progress > 100) progress = 0;
+            pfEl.style.width = progress + '%';
+            pctEl.textContent = Math.floor(progress) + '%';
+
+            requestAnimationFrame(frame);
+        }
+
+        requestAnimationFrame(frame);
+    </script>
+</body>
+</html>
