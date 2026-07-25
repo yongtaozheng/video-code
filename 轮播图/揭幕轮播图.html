@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>揭幕轮播图</title>
+    <style>
+      :root {
+        --silk: #b93f4e;
+        --wine: #260d13;
+        --cream: #fff2d1;
+        --teal: #6bc7b0;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        min-height: 100%;
+        margin: 0;
+      }
+
+      body {
+        min-height: 100vh;
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        color: var(--cream);
+        font-family: Optima, "PingFang SC", "Microsoft YaHei", sans-serif;
+        background:
+          radial-gradient(
+            circle at 18% 18%,
+            rgba(185, 63, 78, 0.22),
+            transparent 28%
+          ),
+          radial-gradient(
+            circle at 82% 80%,
+            rgba(107, 199, 176, 0.16),
+            transparent 26%
+          ),
+          #160b0e;
+      }
+
+      .stage {
+        position: relative;
+        width: min(1040px, calc(100vw - 32px));
+        aspect-ratio: 16 / 10;
+        overflow: hidden;
+        border-radius: 8px;
+        background: #10080a;
+        box-shadow:
+          0 36px 90px rgba(0, 0, 0, 0.52),
+          inset 0 0 0 1px rgba(255, 242, 209, 0.16);
+      }
+
+      .backdrop {
+        position: absolute;
+        inset: -8%;
+        background-image: var(--image);
+        background-size: cover;
+        background-position: center;
+        filter: blur(30px) brightness(0.52) saturate(1.22);
+        transform: scale(1.09);
+      }
+
+      .frame {
+        position: absolute;
+        inset: 7%;
+        z-index: 2;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        border-radius: 8px;
+        background:
+          linear-gradient(135deg, rgba(255, 242, 209, 0.09), transparent 40%),
+          rgba(18, 8, 10, 0.7);
+        border: 1px solid rgba(255, 242, 209, 0.18);
+        box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.42);
+      }
+
+      img {
+        position: absolute;
+        inset: 0;
+        display: block;
+        width: 100%;
+        height: 100%;
+        padding: clamp(12px, 2vw, 22px);
+        object-fit: contain;
+        filter: contrast(1.04) saturate(1.04);
+        transform: scale(1);
+      }
+
+      .stage.switching img {
+        animation: imageLift 1100ms cubic-bezier(0.2, 0.82, 0.2, 1);
+      }
+
+      @keyframes imageLift {
+        0% {
+          opacity: 0.22;
+          transform: scale(0.96) translateY(18px);
+          filter: blur(6px) brightness(1.22);
+        }
+        58% {
+          opacity: 1;
+          transform: scale(1.012) translateY(0);
+        }
+        100% {
+          transform: scale(1);
+          filter: contrast(1.04) saturate(1.04);
+        }
+      }
+
+      .silk {
+        position: absolute;
+        top: -16%;
+        bottom: -16%;
+        z-index: 5;
+        width: 66%;
+        opacity: 0;
+        pointer-events: none;
+        background:
+          repeating-linear-gradient(
+            92deg,
+            rgba(255, 242, 209, 0.18) 0 10px,
+            transparent 10px 28px
+          ),
+          radial-gradient(
+            circle at 30% 40%,
+            rgba(255, 242, 209, 0.3),
+            transparent 26%
+          ),
+          linear-gradient(118deg, #6a1724, var(--silk) 48%, #3d1018);
+        box-shadow:
+          inset -28px 0 46px rgba(255, 242, 209, 0.12),
+          inset 28px 0 48px rgba(38, 13, 19, 0.54);
+        filter: saturate(1.08);
+      }
+
+      .silk.left {
+        left: -8%;
+        transform-origin: left center;
+      }
+
+      .silk.right {
+        right: -8%;
+        transform-origin: right center;
+      }
+
+      .stage.switching .silk.left {
+        animation: silkLeft 1180ms cubic-bezier(0.2, 0.82, 0.18, 1);
+      }
+
+      .stage.switching .silk.right {
+        animation: silkRight 1180ms cubic-bezier(0.2, 0.82, 0.18, 1);
+      }
+
+      @keyframes silkLeft {
+        0% {
+          opacity: 0;
+          transform: translateX(-92%) rotate(-5deg);
+        }
+        28%,
+        52% {
+          opacity: 0.96;
+          transform: translateX(0) rotate(0deg);
+        }
+        100% {
+          opacity: 0;
+          transform: translateX(-95%) rotate(8deg);
+        }
+      }
+
+      @keyframes silkRight {
+        0% {
+          opacity: 0;
+          transform: translateX(92%) rotate(5deg);
+        }
+        28%,
+        52% {
+          opacity: 0.96;
+          transform: translateX(0) rotate(0deg);
+        }
+        100% {
+          opacity: 0;
+          transform: translateX(95%) rotate(-8deg);
+        }
+      }
+
+      .gold-thread {
+        position: absolute;
+        inset: 8%;
+        z-index: 6;
+        pointer-events: none;
+        opacity: 0.28;
+        border: 1px solid rgba(255, 242, 209, 0.32);
+        border-radius: 8px;
+      }
+
+      .gold-thread::before {
+        content: "";
+        position: absolute;
+        inset: -30%;
+        background: linear-gradient(
+          110deg,
+          transparent 44%,
+          rgba(255, 242, 209, 0.56),
+          transparent 56%
+        );
+        transform: translateX(-70%);
+      }
+
+      .stage.switching .gold-thread::before {
+        animation: threadSweep 1180ms cubic-bezier(0.2, 0.82, 0.18, 1);
+      }
+
+      @keyframes threadSweep {
+        to {
+          transform: translateX(70%);
+        }
+      }
+
+      button {
+        width: 52px;
+        height: 52px;
+        border: 1px solid rgba(255, 242, 209, 0.3);
+        border-radius: 50%;
+        color: var(--cream);
+        cursor: pointer;
+        font: inherit;
+        font-size: 30px;
+        line-height: 1;
+        background: rgba(38, 13, 19, 0.58);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 14px 30px rgba(0, 0, 0, 0.32);
+        transition:
+          transform 180ms ease,
+          background 180ms ease,
+          border-color 180ms ease;
+      }
+
+      button:hover {
+        background: rgba(89, 25, 35, 0.78);
+        border-color: rgba(255, 242, 209, 0.68);
+      }
+
+      .nav {
+        position: absolute;
+        top: 50%;
+        z-index: 9;
+        transform: translateY(-50%);
+      }
+
+      .nav:hover {
+        transform: translateY(-50%) scale(1.05);
+      }
+
+      .prev {
+        left: clamp(14px, 3vw, 30px);
+      }
+
+      .next {
+        right: clamp(14px, 3vw, 30px);
+      }
+
+      .dots {
+        position: absolute;
+        left: 50%;
+        bottom: 22px;
+        z-index: 9;
+        display: flex;
+        gap: 8px;
+        transform: translateX(-50%);
+      }
+
+      .dot {
+        width: 12px;
+        height: 12px;
+        padding: 0;
+        border: 0;
+        background: rgba(255, 242, 209, 0.34);
+        box-shadow: none;
+      }
+
+      .dot.active {
+        width: 38px;
+        border-radius: 999px;
+        background: var(--teal);
+      }
+
+      @media (max-width: 720px) {
+        body {
+          overflow: auto;
+        }
+
+        .stage {
+          width: min(94vw, 620px);
+          aspect-ratio: 4 / 5;
+        }
+
+        .frame {
+          inset: 10% 8%;
+        }
+
+        button {
+          width: 44px;
+          height: 44px;
+          font-size: 26px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="stage" id="carousel" aria-label="揭幕轮播图">
+      <div class="backdrop" id="backdrop"></div>
+      <div class="frame">
+        <img id="image" alt="" />
+      </div>
+      <span class="silk left" aria-hidden="true"></span>
+      <span class="silk right" aria-hidden="true"></span>
+      <span class="gold-thread" aria-hidden="true"></span>
+      <button type="button" class="nav prev" id="prev" aria-label="上一张">
+        ‹
+      </button>
+      <button type="button" class="nav next" id="next" aria-label="下一张">
+        ›
+      </button>
+      <div class="dots" id="dots"></div>
+    </main>
+
+    <script>
+      const slides = [
+        "../images/宫崎骏/龙猫.jpg",
+        "../images/宫崎骏/魔女宅急便.jpg",
+        "../images/宫崎骏/千与千寻.jpg",
+        "../images/宫崎骏/悬崖上的金鱼姬.jpg",
+        "../images/宫崎骏/借东西的小人阿莉埃蒂.jpg",
+      ];
+
+      const carousel = document.getElementById("carousel");
+      const image = document.getElementById("image");
+      const backdrop = document.getElementById("backdrop");
+      const dots = document.getElementById("dots");
+      let index = 0;
+      let timer = 0;
+      let clearMotion = 0;
+
+      slides.forEach((_, dotIndex) => {
+        const dot = document.createElement("button");
+        dot.type = "button";
+        dot.className = "dot";
+        dot.setAttribute("aria-label", `切换到第 ${dotIndex + 1} 张`);
+        dot.addEventListener("click", () => show(dotIndex));
+        dots.appendChild(dot);
+      });
+
+      function render() {
+        image.src = slides[index];
+        backdrop.style.setProperty("--image", `url("${slides[index]}")`);
+        [...dots.children].forEach((dot, dotIndex) => {
+          dot.classList.toggle("active", dotIndex === index);
+        });
+      }
+
+      function show(nextIndex) {
+        index = (nextIndex + slides.length) % slides.length;
+        carousel.classList.remove("switching");
+        void carousel.offsetWidth;
+        render();
+        carousel.classList.add("switching");
+        window.clearTimeout(clearMotion);
+        clearMotion = window.setTimeout(
+          () => carousel.classList.remove("switching"),
+          1220,
+        );
+        restart();
+      }
+
+      function restart() {
+        window.clearInterval(timer);
+        timer = window.setInterval(() => show(index + 1), 4400);
+      }
+
+      document
+        .getElementById("prev")
+        .addEventListener("click", () => show(index - 1));
+      document
+        .getElementById("next")
+        .addEventListener("click", () => show(index + 1));
+      carousel.addEventListener("pointerenter", () =>
+        window.clearInterval(timer),
+      );
+      carousel.addEventListener("pointerleave", restart);
+
+      show(0);
+    </script>
+  </body>
+</html>
