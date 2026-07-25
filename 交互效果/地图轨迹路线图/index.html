@@ -1,0 +1,2930 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>中国地图轨迹路线图</title>
+    <style>
+      :root {
+        --ink: #132322;
+        --deep: #0e2024;
+        --sea: #173940;
+        --map: #dff0df;
+        --map-edge: #6fa083;
+        --paper: #f5efd9;
+        --paper-2: #fbf8eb;
+        --line: #d8cba7;
+        --muted: #726b58;
+        --text: #1c261f;
+        --jade: #08766f;
+        --red: #c64024;
+        --amber: #d89b24;
+        --blue: #2a83a2;
+        --white: #ffffff;
+        --shadow: rgba(7, 22, 24, 0.28);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 100%;
+        min-height: 100%;
+        margin: 0;
+      }
+
+      body {
+        color: var(--text);
+        background:
+          linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+          linear-gradient(0deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+          linear-gradient(135deg, #10282c 0%, #0d191d 100%);
+        background-size:
+          36px 36px,
+          36px 36px,
+          auto;
+        font-family:
+          "Avenir Next", "Gill Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
+        overflow: hidden;
+      }
+
+      button,
+      input {
+        font: inherit;
+      }
+
+      .app {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 376px;
+        height: 100vh;
+      }
+
+      .map-stage {
+        position: relative;
+        min-width: 0;
+        overflow: hidden;
+      }
+
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        cursor: crosshair;
+      }
+
+      .map-stage.playing canvas {
+        cursor: default;
+      }
+
+      .map-stage.zoomed canvas {
+        cursor: grab;
+      }
+
+      .map-stage.panning canvas {
+        cursor: grabbing;
+      }
+
+      .brand-strip {
+        position: absolute;
+        top: 22px;
+        left: 24px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 12px;
+        border: 1px solid rgba(223, 240, 223, 0.2);
+        border-radius: 8px;
+        color: rgba(248, 246, 232, 0.94);
+        background: rgba(12, 29, 31, 0.72);
+        box-shadow: 0 14px 34px rgba(0, 0, 0, 0.22);
+        backdrop-filter: blur(14px);
+        pointer-events: none;
+      }
+
+      .brand-mark {
+        width: 34px;
+        height: 34px;
+        border: 1px solid rgba(232, 192, 92, 0.7);
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        color: var(--amber);
+        font-size: 18px;
+      }
+
+      .brand-strip strong {
+        display: block;
+        margin-bottom: 2px;
+        font-family: "Songti SC", "STSong", serif;
+        font-size: 18px;
+        font-weight: 700;
+      }
+
+      .brand-strip span {
+        display: block;
+        color: rgba(248, 246, 232, 0.68);
+        font-size: 12px;
+      }
+
+      .toast {
+        position: absolute;
+        left: 24px;
+        bottom: 22px;
+        max-width: min(520px, calc(100% - 48px));
+        padding: 10px 14px;
+        border: 1px solid rgba(245, 239, 217, 0.16);
+        border-radius: 8px;
+        color: var(--paper-2);
+        background: rgba(8, 21, 24, 0.78);
+        box-shadow: 0 18px 42px rgba(0, 0, 0, 0.24);
+        opacity: 0;
+        transform: translateY(10px);
+        transition:
+          opacity 180ms ease,
+          transform 180ms ease;
+        pointer-events: none;
+      }
+
+      .toast.show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      .hover-city {
+        position: absolute;
+        z-index: 6;
+        min-width: 112px;
+        padding: 9px 11px;
+        border: 1px solid rgba(198, 64, 36, 0.36);
+        border-radius: 8px;
+        color: #15251f;
+        background: rgba(255, 248, 228, 0.96);
+        box-shadow: 0 16px 34px rgba(0, 0, 0, 0.24);
+        opacity: 0;
+        transform: translate(-9999px, -9999px);
+        transition: opacity 90ms ease;
+        pointer-events: none;
+      }
+
+      .hover-city.show {
+        opacity: 1;
+      }
+
+      .hover-city span {
+        display: block;
+        margin-bottom: 2px;
+        color: rgba(114, 107, 88, 0.86);
+        font-size: 11px;
+        font-weight: 800;
+      }
+
+      .hover-city strong {
+        display: block;
+        color: #15251f;
+        font-size: 15px;
+        line-height: 1.2;
+        white-space: nowrap;
+      }
+
+      .map-zoom-controls {
+        position: absolute;
+        left: 24px;
+        bottom: 22px;
+        z-index: 5;
+        display: grid;
+        grid-template-columns: 38px 38px 38px;
+        gap: 7px;
+        padding: 8px;
+        border: 1px solid rgba(245, 239, 217, 0.16);
+        border-radius: 8px;
+        background: rgba(8, 21, 24, 0.76);
+        box-shadow: 0 18px 42px rgba(0, 0, 0, 0.24);
+        backdrop-filter: blur(14px);
+      }
+
+      .map-zoom-controls button {
+        width: 38px;
+        height: 38px;
+        min-height: 38px;
+        padding: 0;
+        border-color: rgba(245, 239, 217, 0.16);
+        color: var(--paper-2);
+        background: rgba(255, 255, 255, 0.08);
+        font-size: 18px;
+        font-weight: 900;
+      }
+
+      .map-zoom-controls button:hover {
+        border-color: rgba(216, 155, 36, 0.72);
+        background: rgba(216, 155, 36, 0.18);
+      }
+
+      .map-zoom-value {
+        grid-column: 1 / -1;
+        color: rgba(245, 239, 217, 0.76);
+        font-size: 11px;
+        font-weight: 800;
+        text-align: center;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .side-panel {
+        min-width: 0;
+        border-left: 1px solid rgba(255, 255, 255, 0.14);
+        background:
+          linear-gradient(90deg, rgba(198, 64, 36, 0.08), transparent 72px),
+          var(--paper);
+        box-shadow: -18px 0 42px rgba(0, 0, 0, 0.28);
+        overflow: auto;
+      }
+
+      .panel-inner {
+        min-height: 100%;
+        padding: 22px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .title-row {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      h1 {
+        margin: 0;
+        font-family: "Songti SC", "STSong", serif;
+        font-size: 28px;
+        line-height: 1.12;
+        color: #18241d;
+      }
+
+      .subtitle {
+        margin: 8px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.55;
+      }
+
+      .badge {
+        flex: none;
+        padding: 7px 9px;
+        border-radius: 999px;
+        border: 1px solid rgba(8, 118, 111, 0.28);
+        color: var(--jade);
+        background: rgba(8, 118, 111, 0.08);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .tool-block {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.45);
+        overflow: hidden;
+      }
+
+      .tool-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 11px 12px;
+        border-bottom: 1px solid rgba(216, 203, 167, 0.75);
+        color: #354136;
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      .tool-body {
+        padding: 12px;
+      }
+
+      .button-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .button-row {
+        display: flex;
+        gap: 8px;
+      }
+
+      button,
+      .file-button {
+        min-height: 38px;
+        border: 1px solid rgba(33, 47, 39, 0.18);
+        border-radius: 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        padding: 0 12px;
+        color: #203027;
+        background: rgba(255, 255, 255, 0.62);
+        cursor: pointer;
+        transition:
+          transform 140ms ease,
+          box-shadow 140ms ease,
+          border-color 140ms ease,
+          background 140ms ease;
+      }
+
+      button:hover,
+      .file-button:hover {
+        border-color: rgba(8, 118, 111, 0.5);
+        background: rgba(255, 255, 255, 0.82);
+        box-shadow: 0 8px 18px rgba(35, 55, 47, 0.1);
+        transform: translateY(-1px);
+      }
+
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.48;
+        transform: none;
+        box-shadow: none;
+      }
+
+      .primary {
+        border-color: rgba(8, 118, 111, 0.72);
+        color: #fffaf0;
+        background: linear-gradient(180deg, #0b897f, #08716b);
+      }
+
+      .primary:hover {
+        background: linear-gradient(180deg, #0b958a, #086a65);
+      }
+
+      .danger {
+        color: #fffaf0;
+        border-color: rgba(198, 64, 36, 0.72);
+        background: linear-gradient(180deg, #d84b2a, #bd381d);
+      }
+
+      .quiet {
+        min-width: 38px;
+        padding: 0 10px;
+      }
+
+      .file-button {
+        width: 100%;
+        font-size: 13px;
+      }
+
+      input[type="file"] {
+        display: none;
+      }
+
+      .control-grid {
+        display: grid;
+        gap: 12px;
+      }
+
+      .field {
+        display: grid;
+        gap: 7px;
+      }
+
+      .field label {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        color: #3e493f;
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .field output {
+        color: var(--red);
+        font-variant-numeric: tabular-nums;
+      }
+
+      input[type="range"] {
+        width: 100%;
+        accent-color: var(--jade);
+      }
+
+      .status-line {
+        min-height: 20px;
+        margin-top: 10px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
+      .point-list {
+        display: grid;
+        gap: 8px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        max-height: min(43vh, 420px);
+        overflow: auto;
+      }
+
+      .manual-add {
+        position: relative;
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.9fr) minmax(0, 0.9fr) auto;
+        gap: 7px;
+        margin-bottom: 10px;
+        padding: 9px;
+        border: 1px solid rgba(87, 75, 45, 0.16);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.58);
+      }
+
+      .manual-name-field {
+        position: relative;
+        min-width: 0;
+      }
+
+      .manual-add input {
+        width: 100%;
+        min-width: 0;
+        min-height: 34px;
+        border: 1px solid rgba(33, 47, 39, 0.16);
+        border-radius: 8px;
+        padding: 0 9px;
+        color: #25342b;
+        background: rgba(255, 255, 255, 0.82);
+        outline: none;
+        font-size: 12px;
+      }
+
+      .manual-add input:focus {
+        border-color: rgba(8, 118, 111, 0.66);
+        box-shadow: 0 0 0 3px rgba(8, 118, 111, 0.1);
+      }
+
+      .manual-add > button {
+        min-width: 50px;
+        min-height: 34px;
+        padding: 0 10px;
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .attraction-suggestions {
+        position: absolute;
+        top: calc(100% + 7px);
+        left: 0;
+        z-index: 40;
+        display: none;
+        width: min(292px, calc(100vw - 40px));
+        max-height: 238px;
+        overflow: auto;
+        padding: 5px;
+        border: 1px solid rgba(33, 47, 39, 0.14);
+        border-radius: 8px;
+        background: rgba(255, 253, 244, 0.98);
+        box-shadow: 0 18px 42px rgba(25, 40, 35, 0.18);
+      }
+
+      .attraction-suggestions.show {
+        display: grid;
+        gap: 4px;
+      }
+
+      .attraction-suggestion {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 6px;
+        align-items: center;
+        width: 100%;
+        min-height: 38px;
+        border: 0;
+        border-radius: 7px;
+        padding: 6px 7px;
+        color: #213027;
+        background: transparent;
+        text-align: left;
+        cursor: pointer;
+      }
+
+      .attraction-suggestion:hover,
+      .attraction-suggestion:focus-visible {
+        background: rgba(216, 155, 36, 0.14);
+        outline: none;
+      }
+
+      .suggestion-name {
+        overflow: hidden;
+        font-size: 12px;
+        font-weight: 900;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .suggestion-meta {
+        color: var(--muted);
+        font-size: 11px;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .point-card {
+        display: grid;
+        grid-template-columns: 32px minmax(0, 1fr) 34px;
+        align-items: center;
+        gap: 9px;
+        min-height: 62px;
+        border: 1px solid rgba(87, 75, 45, 0.16);
+        border-radius: 8px;
+        padding: 8px;
+        background: rgba(255, 255, 255, 0.72);
+        box-shadow: 0 8px 18px rgba(88, 75, 45, 0.06);
+      }
+
+      .point-card.dragging {
+        opacity: 0.42;
+      }
+
+      .point-card.drop-before {
+        border-top-color: var(--red);
+        box-shadow: inset 0 3px 0 var(--red);
+      }
+
+      .point-card.drop-after {
+        border-bottom-color: var(--red);
+        box-shadow: inset 0 -3px 0 var(--red);
+      }
+
+      .drag-handle {
+        width: 32px;
+        height: 42px;
+        border-radius: 8px;
+        display: grid;
+        place-items: center;
+        color: rgba(28, 38, 31, 0.62);
+        background:
+          radial-gradient(circle, currentColor 1.4px, transparent 1.6px) 7px 9px / 8px
+            8px;
+        cursor: grab;
+      }
+
+      .point-card:active .drag-handle {
+        cursor: grabbing;
+      }
+
+      .point-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+      }
+
+      .point-index {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        color: #fff;
+        background: var(--red);
+        font-size: 12px;
+        font-weight: 800;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .point-name {
+        min-width: 0;
+        color: #1c261f;
+        font-size: 14px;
+        font-weight: 800;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .point-meta {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 4px 7px;
+        margin-top: 5px;
+        color: var(--muted);
+        font-size: 12px;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .city-pill {
+        display: inline-flex;
+        align-items: center;
+        min-height: 20px;
+        padding: 0 7px;
+        border: 1px solid rgba(8, 118, 111, 0.26);
+        border-radius: 999px;
+        color: var(--jade);
+        background: rgba(8, 118, 111, 0.08);
+        font-weight: 800;
+      }
+
+      .place-kind {
+        display: inline-flex;
+        align-items: center;
+        min-height: 20px;
+        padding: 0 7px;
+        border: 1px solid rgba(216, 155, 36, 0.36);
+        border-radius: 999px;
+        color: #8a4f12;
+        background: rgba(216, 155, 36, 0.12);
+        font-weight: 900;
+      }
+
+      .place-kind.city {
+        border-color: rgba(8, 118, 111, 0.22);
+        color: var(--jade);
+        background: rgba(8, 118, 111, 0.08);
+      }
+
+      .place-kind.custom {
+        border-color: rgba(198, 64, 36, 0.26);
+        color: var(--red);
+        background: rgba(198, 64, 36, 0.08);
+      }
+
+      .distance-text {
+        color: rgba(114, 107, 88, 0.82);
+      }
+
+      .city-select {
+        grid-column: 1 / -1;
+        width: 100%;
+        min-height: 32px;
+        border: 1px solid rgba(33, 47, 39, 0.16);
+        border-radius: 8px;
+        padding: 0 8px;
+        color: #25342b;
+        background: rgba(255, 255, 255, 0.78);
+        outline: none;
+        cursor: pointer;
+      }
+
+      .city-select:focus {
+        border-color: rgba(8, 118, 111, 0.66);
+        box-shadow: 0 0 0 3px rgba(8, 118, 111, 0.1);
+      }
+
+      .icon-button {
+        width: 34px;
+        height: 34px;
+        min-height: 34px;
+        padding: 0;
+        color: #6e2d20;
+      }
+
+      .empty-list {
+        border: 1px dashed rgba(87, 75, 45, 0.28);
+        border-radius: 8px;
+        padding: 18px 12px;
+        color: var(--muted);
+        background: rgba(255, 255, 255, 0.44);
+        text-align: center;
+        font-size: 13px;
+        line-height: 1.7;
+      }
+
+      .legend {
+        display: grid;
+        gap: 9px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.55;
+      }
+
+      .legend-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .swatch {
+        width: 28px;
+        height: 3px;
+        border-radius: 999px;
+        background: var(--red);
+      }
+
+      .swatch.map {
+        height: 12px;
+        border: 1px solid var(--map-edge);
+        background: var(--map);
+      }
+
+      .swatch.arrow {
+        width: 16px;
+        height: 16px;
+        clip-path: polygon(0 20%, 100% 50%, 0 80%, 28% 50%);
+        background: var(--amber);
+      }
+
+      .swatch.attraction {
+        position: relative;
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(92, 55, 16, 0.34);
+        border-radius: 50%;
+        background: #d99a24;
+        box-shadow: inset 0 0 0 2px rgba(255, 248, 228, 0.82);
+      }
+
+      .swatch.attraction::after {
+        content: "";
+        position: absolute;
+        inset: 4px;
+        clip-path: polygon(50% 0, 62% 36%, 100% 36%, 69% 58%, 82% 96%, 50% 72%, 18% 96%, 31% 58%, 0 36%, 38% 36%);
+        background: #fff7db;
+      }
+
+      @media (max-width: 920px) {
+        body {
+          overflow: auto;
+        }
+
+        .app {
+          grid-template-columns: 1fr;
+          grid-template-rows: minmax(420px, 58vh) auto;
+          height: auto;
+          min-height: 100vh;
+        }
+
+        .side-panel {
+          border-left: 0;
+          border-top: 1px solid rgba(255, 255, 255, 0.14);
+        }
+
+        .panel-inner {
+          min-height: 0;
+        }
+
+        .manual-add {
+          grid-template-columns: 1fr 1fr;
+        }
+
+        .brand-strip {
+          top: 12px;
+          left: 12px;
+        }
+
+        .point-list {
+          max-height: none;
+        }
+      }
+
+      @media (max-width: 560px) {
+        .panel-inner {
+          padding: 16px;
+        }
+
+        .button-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .title-row {
+          display: block;
+        }
+
+        .badge {
+          display: inline-flex;
+          margin-top: 10px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <main class="map-stage" id="mapStage">
+        <canvas id="mapCanvas" aria-label="中国地图轨迹编辑画布"></canvas>
+        <div class="brand-strip" aria-hidden="true">
+          <div class="brand-mark">⌖</div>
+          <div>
+            <strong>Route Atlas</strong>
+            <span>点击地图打点，播放镜头跟随轨迹</span>
+          </div>
+        </div>
+        <div class="hover-city" id="hoverCity" aria-hidden="true">
+          <span>当前城市</span>
+          <strong id="hoverCityName">--</strong>
+        </div>
+        <div class="map-zoom-controls" aria-label="地图缩放控件">
+          <button id="mapZoomOutBtn" type="button" title="缩小地图">−</button>
+          <button id="mapZoomResetBtn" type="button" title="回到全图">⌂</button>
+          <button id="mapZoomInBtn" type="button" title="放大地图">+</button>
+          <span class="map-zoom-value" id="mapZoomValue">100%</span>
+        </div>
+        <div class="toast" id="toast"></div>
+      </main>
+
+      <aside class="side-panel">
+        <div class="panel-inner">
+          <div class="title-row">
+            <div>
+              <h1>中国地图轨迹路线图</h1>
+              <p class="subtitle">在地图上依次打点，系统会识别最近城市，右侧可拖动调整路线顺序。</p>
+            </div>
+            <span class="badge" id="pointCount">0 点</span>
+          </div>
+
+          <section class="tool-block">
+            <div class="tool-head">
+              <span>播放与导出</span>
+              <span id="recordState">待编辑</span>
+            </div>
+            <div class="tool-body">
+              <div class="button-grid">
+                <button class="primary" id="playBtn" title="播放路线动画">
+                  <span>▶</span>
+                  <span>播放路线</span>
+                </button>
+                <button id="stopBtn" title="停止并回到全图">
+                  <span>■</span>
+                  <span>停止</span>
+                </button>
+                <button class="danger" id="exportBtn" title="录制并导出 WebM 动画">
+                  <span>⇣</span>
+                  <span>一键导出</span>
+                </button>
+                <button id="demoBtn" title="载入一条示例路线">
+                  <span>⌁</span>
+                  <span>示例路线</span>
+                </button>
+              </div>
+              <div class="status-line" id="statusLine">点击中国地图区域添加第一个点。</div>
+            </div>
+          </section>
+
+          <section class="tool-block">
+            <div class="tool-head">
+              <span>移动箭头</span>
+              <span>40 × 40</span>
+            </div>
+            <div class="tool-body">
+              <label class="file-button" for="imageInput" title="上传移动箭头贴图">
+                <span>⬆</span>
+                <span id="imageLabel">上传贴图替换箭头</span>
+              </label>
+              <input id="imageInput" type="file" accept="image/*" />
+            </div>
+          </section>
+
+          <section class="tool-block">
+            <div class="tool-head">
+              <span>动画参数</span>
+              <button class="quiet" id="resetViewBtn" title="回到全图">↺</button>
+            </div>
+            <div class="tool-body control-grid">
+              <div class="field">
+                <label for="durationRange">
+                  <span>行程时长</span>
+                  <output id="durationValue">10s</output>
+                </label>
+                <input id="durationRange" type="range" min="5" max="24" value="10" step="1" />
+              </div>
+              <div class="field">
+                <label for="zoomRange">
+                  <span>跟随镜头放大</span>
+                  <output id="zoomValue">1.8x</output>
+                </label>
+                <input id="zoomRange" type="range" min="1.2" max="2.4" value="1.8" step="0.1" />
+              </div>
+            </div>
+          </section>
+
+          <section class="tool-block">
+            <div class="tool-head">
+              <span>打点列表</span>
+              <button class="quiet" id="clearBtn" title="清空全部点位">清空</button>
+            </div>
+            <div class="tool-body">
+              <form class="manual-add" id="manualAddForm">
+                <div class="manual-name-field">
+                  <input
+                    id="manualNameInput"
+                    type="text"
+                    placeholder="名称"
+                    autocomplete="off"
+                    aria-autocomplete="list"
+                    aria-expanded="false"
+                    aria-controls="attractionSuggestions"
+                  />
+                  <div class="attraction-suggestions" id="attractionSuggestions" role="listbox"></div>
+                </div>
+                <input id="manualLonInput" type="number" placeholder="经度" min="73" max="135" step="0.000001" />
+                <input id="manualLatInput" type="number" placeholder="纬度" min="17" max="54" step="0.000001" />
+                <button type="submit">添加</button>
+              </form>
+              <ul class="point-list" id="pointList"></ul>
+              <div class="empty-list" id="emptyList">地图上还没有点位。点击底图即可添加并识别城市，添加后可拖动排序。</div>
+            </div>
+          </section>
+
+          <section class="tool-block">
+            <div class="tool-head">图例</div>
+            <div class="tool-body legend">
+              <div class="legend-row">
+                <span class="swatch map"></span>
+                <span>内置简化中国矢量底图</span>
+              </div>
+              <div class="legend-row">
+                <span class="swatch"></span>
+                <span>轨迹线会按列表顺序穿过所有点</span>
+              </div>
+              <div class="legend-row">
+                <span class="swatch arrow"></span>
+                <span>箭头沿轨迹运动，导出为 WebM 视频</span>
+              </div>
+              <div class="legend-row">
+                <span class="swatch attraction"></span>
+                <span>常见景点以金色星标标注</span>
+              </div>
+            </div>
+          </section>
+        </div>
+      </aside>
+    </div>
+
+    <script src="./map-data.js"></script>
+    <script>
+      const canvas = document.getElementById("mapCanvas");
+      const ctx = canvas.getContext("2d");
+      const mapStage = document.getElementById("mapStage");
+      const pointList = document.getElementById("pointList");
+      const emptyList = document.getElementById("emptyList");
+      const manualAddForm = document.getElementById("manualAddForm");
+      const manualNameInput = document.getElementById("manualNameInput");
+      const manualLonInput = document.getElementById("manualLonInput");
+      const manualLatInput = document.getElementById("manualLatInput");
+      const attractionSuggestions = document.getElementById("attractionSuggestions");
+      const pointCount = document.getElementById("pointCount");
+      const statusLine = document.getElementById("statusLine");
+      const recordState = document.getElementById("recordState");
+      const toast = document.getElementById("toast");
+      const hoverCity = document.getElementById("hoverCity");
+      const hoverCityName = document.getElementById("hoverCityName");
+      const mapZoomInBtn = document.getElementById("mapZoomInBtn");
+      const mapZoomOutBtn = document.getElementById("mapZoomOutBtn");
+      const mapZoomResetBtn = document.getElementById("mapZoomResetBtn");
+      const mapZoomValue = document.getElementById("mapZoomValue");
+      const playBtn = document.getElementById("playBtn");
+      const stopBtn = document.getElementById("stopBtn");
+      const exportBtn = document.getElementById("exportBtn");
+      const demoBtn = document.getElementById("demoBtn");
+      const clearBtn = document.getElementById("clearBtn");
+      const resetViewBtn = document.getElementById("resetViewBtn");
+      const imageInput = document.getElementById("imageInput");
+      const imageLabel = document.getElementById("imageLabel");
+      const durationRange = document.getElementById("durationRange");
+      const durationValue = document.getElementById("durationValue");
+      const zoomRange = document.getElementById("zoomRange");
+      const zoomValue = document.getElementById("zoomValue");
+
+      const WORLD = { width: 1000, height: 680 };
+      const GEO = {
+        minLon: 73,
+        maxLon: 135,
+        minLat: 17,
+        maxLat: 54,
+      };
+      const MAP_BOX = { x: 58, y: 58, width: 884, height: 560 };
+
+      const mapRouteData = window.mapRouteData;
+      if (!mapRouteData) {
+        throw new Error("地图数据文件 map-data.js 未加载");
+      }
+      const {
+        mainland,
+        hainan,
+        taiwan,
+        provinceLines,
+        attractionMarks,
+        cityLookup,
+        demoRoute,
+      } = mapRouteData;
+
+      let points = [];
+      let routeSamples = [];
+      let routeLength = 0;
+      let currentView = { scale: 1, offsetX: 0, offsetY: 0 };
+      let defaultView = { scale: 1, offsetX: 0, offsetY: 0 };
+      let mapCamera = { zoom: 1, panX: 0, panY: 0 };
+      let panState = {
+        active: false,
+        moved: false,
+        startX: 0,
+        startY: 0,
+        panX: 0,
+        panY: 0,
+      };
+      let suppressNextClick = false;
+      let toastTimer = 0;
+      let draggedId = null;
+      let dropPosition = "after";
+      let arrowImage = null;
+      let arrowImageLoaded = false;
+      let recorder = null;
+      let exportChunks = [];
+      let cityBoundaryPath = null;
+      let cityBoundaryCells = new Map();
+      let manualSelectedAttraction = null;
+      let hoverState = {
+        active: false,
+        name: "",
+        canvasX: 0,
+        canvasY: 0,
+      };
+
+      const animation = {
+        playing: false,
+        recording: false,
+        startTime: 0,
+        progress: 0,
+        rafId: 0,
+        resolve: null,
+      };
+
+      function project(lon, lat) {
+        return {
+          x: MAP_BOX.x + ((lon - GEO.minLon) / (GEO.maxLon - GEO.minLon)) * MAP_BOX.width,
+          y: MAP_BOX.y + ((GEO.maxLat - lat) / (GEO.maxLat - GEO.minLat)) * MAP_BOX.height,
+          lon,
+          lat,
+        };
+      }
+
+      function unproject(x, y) {
+        return {
+          lon: GEO.minLon + ((x - MAP_BOX.x) / MAP_BOX.width) * (GEO.maxLon - GEO.minLon),
+          lat: GEO.maxLat - ((y - MAP_BOX.y) / MAP_BOX.height) * (GEO.maxLat - GEO.minLat),
+        };
+      }
+
+      function pointsFromGeo(list) {
+        return list.map(([lon, lat]) => project(lon, lat));
+      }
+
+      function makePath(list) {
+        const path = new Path2D();
+        list.forEach(([lon, lat], index) => {
+          const p = project(lon, lat);
+          if (index === 0) {
+            path.moveTo(p.x, p.y);
+          } else {
+            path.lineTo(p.x, p.y);
+          }
+        });
+        path.closePath();
+        return path;
+      }
+
+      function pointInPolygon(point, polygon) {
+        let inside = false;
+        for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+          const pi = project(polygon[i][0], polygon[i][1]);
+          const pj = project(polygon[j][0], polygon[j][1]);
+          const intersects =
+            pi.y > point.y !== pj.y > point.y &&
+            point.x < ((pj.x - pi.x) * (point.y - pi.y)) / (pj.y - pi.y) + pi.x;
+          if (intersects) inside = !inside;
+        }
+        return inside;
+      }
+
+      function distanceToSegment(point, start, end) {
+        const dx = end.x - start.x;
+        const dy = end.y - start.y;
+        const lengthSquared = dx * dx + dy * dy;
+        if (!lengthSquared) return Math.hypot(point.x - start.x, point.y - start.y);
+        const t = Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared));
+        return Math.hypot(point.x - (start.x + dx * t), point.y - (start.y + dy * t));
+      }
+
+      function distanceToPolygonEdge(point, polygon) {
+        let minDistance = Infinity;
+        for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+          const start = project(polygon[j][0], polygon[j][1]);
+          const end = project(polygon[i][0], polygon[i][1]);
+          minDistance = Math.min(minDistance, distanceToSegment(point, start, end));
+        }
+        return minDistance;
+      }
+
+      function isInsideChina(point) {
+        if (pointInPolygon(point, mainland)) return true;
+        if (pointInPolygon(point, hainan)) return true;
+        if (pointInPolygon(point, taiwan)) return true;
+        return false;
+      }
+
+      function isOnChinaMap(point) {
+        if (isInsideChina(point)) return true;
+        const edgeTolerance = 9;
+        return [mainland, hainan, taiwan].some((polygon) => distanceToPolygonEdge(point, polygon) <= edgeTolerance);
+      }
+
+      function formatLonLat(lon, lat) {
+        const lonText = `${Math.abs(lon).toFixed(2)}°${lon >= 0 ? "E" : "W"}`;
+        const latText = `${Math.abs(lat).toFixed(2)}°${lat >= 0 ? "N" : "S"}`;
+        return `${lonText} / ${latText}`;
+      }
+
+      function distanceKm(lonA, latA, lonB, latB) {
+        const earthRadius = 6371;
+        const toRad = (value) => (value * Math.PI) / 180;
+        const dLat = toRad(latB - latA);
+        const dLon = toRad(lonB - lonA);
+        const a =
+          Math.sin(dLat / 2) ** 2 +
+          Math.cos(toRad(latA)) * Math.cos(toRad(latB)) * Math.sin(dLon / 2) ** 2;
+        return earthRadius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      }
+
+      function rankCities(lon, lat, worldPoint) {
+        const referencePoint = worldPoint || project(lon, lat);
+        return cityLookup
+          .map((city) => {
+            const cityPoint = project(city.lon, city.lat);
+            const mapDistance = Math.hypot(cityPoint.x - referencePoint.x, cityPoint.y - referencePoint.y);
+            const realDistanceKm = distanceKm(lon, lat, city.lon, city.lat);
+            return {
+              name: city.name,
+              lon: city.lon,
+              lat: city.lat,
+              mapDistance,
+              distanceKm: realDistanceKm,
+              score: mapDistance + realDistanceKm / 8,
+            };
+          })
+          .sort((a, b) => a.score - b.score);
+      }
+
+      function rankAttractions(lon, lat, worldPoint) {
+        const referencePoint = worldPoint || project(lon, lat);
+        return attractionMarks
+          .map((spot) => {
+            const spotPoint = project(spot.lon, spot.lat);
+            const mapDistance = Math.hypot(spotPoint.x - referencePoint.x, spotPoint.y - referencePoint.y);
+            const realDistanceKm = distanceKm(lon, lat, spot.lon, spot.lat);
+            return {
+              ...spot,
+              mapDistance,
+              distanceKm: realDistanceKm,
+              score: mapDistance + realDistanceKm / 8,
+            };
+          })
+          .sort((a, b) => a.score - b.score);
+      }
+
+      function recognizeCity(lon, lat, worldPoint) {
+        const ranked = rankCities(lon, lat, worldPoint);
+        const best = ranked[0];
+        return {
+          name: best ? best.name : `站点 ${String(points.length + 1).padStart(2, "0")}`,
+          distanceKm: best ? best.distanceKm : Infinity,
+          candidates: ranked.slice(0, 10),
+        };
+      }
+
+      function findCityByName(name) {
+        return cityLookup.find((city) => city.name === name);
+      }
+
+      function findAttractionByName(name) {
+        return attractionMarks.find((spot) => spot.name === name || (spot.aliases || []).includes(name));
+      }
+
+      function normalizeSearchText(value) {
+        return String(value || "")
+          .trim()
+          .toLowerCase()
+          .replace(/\s+/g, "");
+      }
+
+      function isSubsequence(needle, haystack) {
+        let index = 0;
+        for (const char of haystack) {
+          if (char === needle[index]) index++;
+          if (index >= needle.length) return true;
+        }
+        return false;
+      }
+
+      function attractionSearchScore(spot, query) {
+        const name = normalizeSearchText(spot.name);
+        const province = normalizeSearchText(spot.province || "");
+        const aliases = (spot.aliases || []).map(normalizeSearchText).filter(Boolean);
+        const terms = [name, `${province}${name}`, ...aliases, ...aliases.map((alias) => `${province}${alias}`)];
+        if (!query) return Infinity;
+        return terms.reduce((bestScore, term, index) => {
+          const aliasPenalty = index >= 2 ? 0.35 : 0;
+          let score = Infinity;
+          if (term === query) score = aliasPenalty;
+          else if (term.startsWith(query)) score = 1 + aliasPenalty;
+          else if (term.includes(query)) score = 2 + aliasPenalty + term.indexOf(query) / 100;
+          else if (isSubsequence(query, term)) score = 5 + aliasPenalty + term.length / 100;
+          return Math.min(bestScore, score);
+        }, Infinity);
+      }
+
+      function fuzzyFindAttractions(value, limit = 8) {
+        const query = normalizeSearchText(value);
+        if (!query) return [];
+        return attractionMarks
+          .map((spot) => ({ spot, score: attractionSearchScore(spot, query) }))
+          .filter((item) => Number.isFinite(item.score))
+          .sort((a, b) => a.score - b.score || a.spot.name.length - b.spot.name.length)
+          .slice(0, limit)
+          .map((item) => item.spot);
+      }
+
+      function coordinateInputValue(value) {
+        return Number(value).toFixed(6).replace(/\.?0+$/, "");
+      }
+
+      function clearManualAttractionSelection() {
+        manualSelectedAttraction = null;
+      }
+
+      function hideAttractionSuggestions() {
+        attractionSuggestions.classList.remove("show");
+        attractionSuggestions.innerHTML = "";
+        manualNameInput.setAttribute("aria-expanded", "false");
+      }
+
+      function renderAttractionSuggestions() {
+        const matches = fuzzyFindAttractions(manualNameInput.value, 8);
+        if (!matches.length) {
+          hideAttractionSuggestions();
+          return;
+        }
+
+        attractionSuggestions.innerHTML = matches
+          .map((spot) => {
+            const lonLat = formatLonLat(spot.lon, spot.lat);
+            return `
+              <button class="attraction-suggestion" type="button" role="option" data-attraction-name="${escapeHtml(spot.name)}">
+                <span class="suggestion-name">${escapeHtml(spot.name)}</span>
+                <span class="suggestion-meta">${escapeHtml(spot.province || "")} · ${lonLat}</span>
+              </button>
+            `;
+          })
+          .join("");
+        attractionSuggestions.classList.add("show");
+        manualNameInput.setAttribute("aria-expanded", "true");
+      }
+
+      function chooseManualAttraction(name) {
+        const spot = findAttractionByName(name);
+        if (!spot) return;
+        manualSelectedAttraction = spot;
+        manualNameInput.value = spot.name;
+        manualLonInput.value = coordinateInputValue(spot.lon);
+        manualLatInput.value = coordinateInputValue(spot.lat);
+        hideAttractionSuggestions();
+        setStatus(`已选择景点 ${spot.name}，经纬度已自动填入。`);
+      }
+
+      function isCurrentManualAttractionSelection() {
+        if (!manualSelectedAttraction) return false;
+        const lon = Number(manualLonInput.value);
+        const lat = Number(manualLatInput.value);
+        return (
+          manualNameInput.value.trim() === manualSelectedAttraction.name &&
+          Math.abs(lon - manualSelectedAttraction.lon) < 0.000001 &&
+          Math.abs(lat - manualSelectedAttraction.lat) < 0.000001
+        );
+      }
+
+      function cityDistanceText(distance) {
+        if (!Number.isFinite(distance)) return "城市识别仅供参考";
+        const rounded = Math.max(1, Math.round(distance));
+        return `距中心约 ${rounded}km`;
+      }
+
+      function attractionDistanceText(distance) {
+        if (!Number.isFinite(distance)) return "距景点未知";
+        if (distance < 1) return "已定位景点";
+        const rounded = Math.max(1, Math.round(distance));
+        return `距景点约 ${rounded}km`;
+      }
+
+      function placeOptionValue(kind, name) {
+        return `${kind}::${name}`;
+      }
+
+      function parsePlaceOptionValue(value) {
+        const separatorIndex = value.indexOf("::");
+        if (separatorIndex < 0) return { kind: "city", name: value };
+        return {
+          kind: value.slice(0, separatorIndex),
+          name: value.slice(separatorIndex + 2),
+        };
+      }
+
+      function optionHtml(kind, name, label, selectedValue) {
+        const value = placeOptionValue(kind, name);
+        const selected = value === selectedValue ? " selected" : "";
+        return `<option value="${escapeHtml(value)}"${selected}>${escapeHtml(label)}</option>`;
+      }
+
+      function candidateOptionsHtml(point) {
+        const selectedValue = placeOptionValue(point.placeKind || "city", point.name);
+        const customOptions = point.manualName
+          ? [optionHtml("custom", point.manualName, `手动 · ${point.manualName}`, selectedValue)]
+          : [];
+        const nearbyAttractionNames = new Set();
+        const nearbyAttractions = (point.attractionCandidates || []).slice(0, 12).map((spot, index) => {
+          nearbyAttractionNames.add(spot.name);
+          const label = `附近景点 ${index + 1} · ${spot.name} · ${spot.province} · ${attractionDistanceText(spot.distanceKm)}`;
+          return optionHtml("attraction", spot.name, label, selectedValue);
+        });
+
+        const allAttractions = attractionMarks
+          .filter((spot) => !nearbyAttractionNames.has(spot.name))
+          .map((spot) => optionHtml("attraction", spot.name, `${spot.province} · ${spot.name}`, selectedValue));
+
+        const nearbyCityNames = new Set();
+        const nearbyCities = (point.cityCandidates || []).slice(0, 10).map((city, index) => {
+          nearbyCityNames.add(city.name);
+          const label = `附近城市 ${index + 1} · ${city.name} · ${cityDistanceText(city.distanceKm)}`;
+          return optionHtml("city", city.name, label, selectedValue);
+        });
+
+        const allCities = cityLookup
+          .filter((city) => !nearbyCityNames.has(city.name))
+          .map((city) => optionHtml("city", city.name, city.name, selectedValue));
+
+        return [
+          customOptions.length ? `<optgroup label="手动输入">${customOptions.join("")}</optgroup>` : "",
+          `<optgroup label="附近景点">${nearbyAttractions.join("")}</optgroup>`,
+          `<optgroup label="全部景点">${allAttractions.join("")}</optgroup>`,
+          `<optgroup label="附近城市">${nearbyCities.join("")}</optgroup>`,
+          `<optgroup label="完整城市库">${allCities.join("")}</optgroup>`,
+        ].join("");
+      }
+
+      function placeKindText(point) {
+        if (point.placeKind === "attraction") return "景点";
+        if (point.placeKind === "custom") return "手动";
+        return "城市";
+      }
+
+      function pointDistanceText(point) {
+        if (point.placeKind === "attraction") return attractionDistanceText(point.attractionDistanceKm);
+        if (point.placeKind === "custom") return "手动经纬度";
+        return cityDistanceText(point.cityDistanceKm);
+      }
+
+      function resizeCanvas() {
+        const rect = canvas.getBoundingClientRect();
+        const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+        const width = Math.max(320, Math.floor(rect.width * dpr));
+        const height = Math.max(320, Math.floor(rect.height * dpr));
+        if (canvas.width !== width || canvas.height !== height) {
+          canvas.width = width;
+          canvas.height = height;
+        }
+        computeDefaultView();
+        clampMapCamera();
+        updateMapZoomUI();
+        requestRender();
+      }
+
+      function computeDefaultView() {
+        const padding = 54;
+        const scale = Math.min(
+          (canvas.width - padding * 2) / WORLD.width,
+          (canvas.height - padding * 2) / WORLD.height,
+        );
+        defaultView = {
+          scale,
+          offsetX: (canvas.width - WORLD.width * scale) / 2,
+          offsetY: (canvas.height - WORLD.height * scale) / 2,
+        };
+      }
+
+      function clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+      }
+
+      function clampMapCamera() {
+        mapCamera.zoom = clamp(mapCamera.zoom, 1, 4.2);
+        if (mapCamera.zoom <= 1.0001) {
+          mapCamera.zoom = 1;
+          mapCamera.panX = 0;
+          mapCamera.panY = 0;
+          return;
+        }
+
+        const scale = defaultView.scale * mapCamera.zoom;
+        const margin = 86;
+        const mapWidth = WORLD.width * scale;
+        const mapHeight = WORLD.height * scale;
+        const offsetX = defaultView.offsetX + mapCamera.panX;
+        const offsetY = defaultView.offsetY + mapCamera.panY;
+        const minOffsetX = canvas.width - mapWidth - margin;
+        const maxOffsetX = margin;
+        const minOffsetY = canvas.height - mapHeight - margin;
+        const maxOffsetY = margin;
+
+        mapCamera.panX = clamp(offsetX, minOffsetX, maxOffsetX) - defaultView.offsetX;
+        mapCamera.panY = clamp(offsetY, minOffsetY, maxOffsetY) - defaultView.offsetY;
+      }
+
+      function getManualView() {
+        clampMapCamera();
+        return {
+          scale: defaultView.scale * mapCamera.zoom,
+          offsetX: defaultView.offsetX + mapCamera.panX,
+          offsetY: defaultView.offsetY + mapCamera.panY,
+        };
+      }
+
+      function updateMapZoomUI() {
+        mapZoomValue.textContent = `${Math.round(mapCamera.zoom * 100)}%`;
+        mapStage.classList.toggle("zoomed", mapCamera.zoom > 1.0001 && !animation.playing && !animation.recording);
+        mapZoomOutBtn.disabled = mapCamera.zoom <= 1.0001 || animation.playing || animation.recording;
+        mapZoomInBtn.disabled = mapCamera.zoom >= 4.19 || animation.playing || animation.recording;
+        mapZoomResetBtn.disabled =
+          (mapCamera.zoom <= 1.0001 && Math.abs(mapCamera.panX) < 1 && Math.abs(mapCamera.panY) < 1) ||
+          animation.playing ||
+          animation.recording;
+      }
+
+      function resetMapCamera() {
+        mapCamera.zoom = 1;
+        mapCamera.panX = 0;
+        mapCamera.panY = 0;
+        hideHoverCity();
+        updateMapZoomUI();
+        render();
+      }
+
+      function getView() {
+        if (!animation.playing || routeSamples.length === 0) return getManualView();
+        const focus = getRoutePoint(routeLength * animation.progress);
+        const targetZoom = Number(zoomRange.value);
+        const easeIn = Math.min(1, animation.progress * 7);
+        const easeOut = Math.min(1, (1 - animation.progress) * 7);
+        const zoomBlend = easeIn * easeOut;
+        const zoom = 1 + (targetZoom - 1) * Math.max(0.56, zoomBlend);
+        const scale = defaultView.scale * zoom;
+        return {
+          scale,
+          offsetX: canvas.width / 2 - focus.x * scale,
+          offsetY: canvas.height / 2 - focus.y * scale,
+        };
+      }
+
+      function worldToScreen(point) {
+        return {
+          x: point.x * currentView.scale + currentView.offsetX,
+          y: point.y * currentView.scale + currentView.offsetY,
+        };
+      }
+
+      function screenToWorld(x, y) {
+        return {
+          x: (x - currentView.offsetX) / currentView.scale,
+          y: (y - currentView.offsetY) / currentView.scale,
+        };
+      }
+
+      function canvasEventToWorld(event) {
+        const rect = canvas.getBoundingClientRect();
+        const dprX = canvas.width / rect.width;
+        const dprY = canvas.height / rect.height;
+        const canvasX = (event.clientX - rect.left) * dprX;
+        const canvasY = (event.clientY - rect.top) * dprY;
+        return {
+          worldPoint: screenToWorld(canvasX, canvasY),
+          canvasX,
+          canvasY,
+          stageX: event.clientX - mapStage.getBoundingClientRect().left,
+          stageY: event.clientY - mapStage.getBoundingClientRect().top,
+        };
+      }
+
+      function screenToWorldWithView(x, y, view) {
+        return {
+          x: (x - view.offsetX) / view.scale,
+          y: (y - view.offsetY) / view.scale,
+        };
+      }
+
+      function zoomMapAt(canvasX, canvasY, nextZoom) {
+        if (animation.playing || animation.recording) return;
+        const beforeView = getManualView();
+        const anchor = screenToWorldWithView(canvasX, canvasY, beforeView);
+        mapCamera.zoom = clamp(nextZoom, 1, 4.2);
+        const nextScale = defaultView.scale * mapCamera.zoom;
+        mapCamera.panX = canvasX - anchor.x * nextScale - defaultView.offsetX;
+        mapCamera.panY = canvasY - anchor.y * nextScale - defaultView.offsetY;
+        clampMapCamera();
+        hideHoverCity();
+        updateMapZoomUI();
+        render();
+      }
+
+      function zoomMapBy(step) {
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        zoomMapAt(centerX, centerY, mapCamera.zoom * step);
+      }
+
+      function handleMapWheel(event) {
+        if (animation.playing || animation.recording) return;
+        event.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        const canvasX = (event.clientX - rect.left) * (canvas.width / rect.width);
+        const canvasY = (event.clientY - rect.top) * (canvas.height / rect.height);
+        const factor = event.deltaY < 0 ? 1.14 : 1 / 1.14;
+        zoomMapAt(canvasX, canvasY, mapCamera.zoom * factor);
+      }
+
+      function startMapPan(event) {
+        if (animation.playing || animation.recording || mapCamera.zoom <= 1.0001) return;
+        panState = {
+          active: true,
+          moved: false,
+          startX: event.clientX,
+          startY: event.clientY,
+          panX: mapCamera.panX,
+          panY: mapCamera.panY,
+        };
+        mapStage.classList.add("panning");
+        canvas.setPointerCapture?.(event.pointerId);
+      }
+
+      function moveMapPan(event) {
+        if (!panState.active) return;
+        const dx = event.clientX - panState.startX;
+        const dy = event.clientY - panState.startY;
+        if (Math.hypot(dx, dy) > 3) panState.moved = true;
+        if (!panState.moved) return;
+        const rect = canvas.getBoundingClientRect();
+        mapCamera.panX = panState.panX + dx * (canvas.width / rect.width);
+        mapCamera.panY = panState.panY + dy * (canvas.height / rect.height);
+        clampMapCamera();
+        hideHoverCity();
+        updateMapZoomUI();
+        render();
+      }
+
+      function endMapPan(event) {
+        if (!panState.active) return;
+        suppressNextClick = panState.moved;
+        panState.active = false;
+        mapStage.classList.remove("panning");
+        canvas.releasePointerCapture?.(event.pointerId);
+      }
+
+      function hideHoverCity() {
+        const wasActive = hoverState.active;
+        hoverState.active = false;
+        hoverCity.classList.remove("show");
+        hoverCity.setAttribute("aria-hidden", "true");
+        if (wasActive && !animation.playing) render();
+      }
+
+      function showHoverCity(event) {
+        if (animation.playing || animation.recording || panState.active) {
+          hideHoverCity();
+          return;
+        }
+
+        const { worldPoint, canvasX, canvasY, stageX, stageY } = canvasEventToWorld(event);
+        if (!isOnChinaMap(worldPoint)) {
+          hideHoverCity();
+          return;
+        }
+
+        const geo = unproject(worldPoint.x, worldPoint.y);
+        const city = recognizeCity(geo.lon, geo.lat, worldPoint);
+        const stageRect = mapStage.getBoundingClientRect();
+        const offset = 14;
+        hoverCityName.textContent = city.name;
+        hoverCity.classList.add("show");
+        hoverCity.setAttribute("aria-hidden", "false");
+
+        const tooltipWidth = hoverCity.offsetWidth || 112;
+        const tooltipHeight = hoverCity.offsetHeight || 48;
+        const left = Math.min(Math.max(10, stageX + offset), stageRect.width - tooltipWidth - 10);
+        const top = Math.min(Math.max(10, stageY + offset), stageRect.height - tooltipHeight - 10);
+        hoverCity.style.transform = `translate(${left}px, ${top}px)`;
+
+        hoverState = {
+          active: true,
+          name: city.name,
+          canvasX,
+          canvasY,
+        };
+        render();
+      }
+
+      function requestRender() {
+        if (!animation.playing) render();
+      }
+
+      function drawPolyline(list, close = false) {
+        list.forEach(([lon, lat], index) => {
+          const p = project(lon, lat);
+          if (index === 0) ctx.moveTo(p.x, p.y);
+          else ctx.lineTo(p.x, p.y);
+        });
+        if (close) ctx.closePath();
+      }
+
+      function buildPolygonPath(polygon) {
+        const path = new Path2D();
+        polygon.forEach(([lon, lat], index) => {
+          const p = project(lon, lat);
+          if (index === 0) path.moveTo(p.x, p.y);
+          else path.lineTo(p.x, p.y);
+        });
+        path.closePath();
+        return path;
+      }
+
+      function drawSeaBackground() {
+        const seaGradient = ctx.createLinearGradient(0, 0, WORLD.width, WORLD.height);
+        seaGradient.addColorStop(0, "#0a2527");
+        seaGradient.addColorStop(0.48, "#12383a");
+        seaGradient.addColorStop(1, "#07191d");
+        ctx.fillStyle = seaGradient;
+        ctx.fillRect(-80, -80, WORLD.width + 160, WORLD.height + 160);
+
+        const glow = ctx.createRadialGradient(WORLD.width * 0.56, WORLD.height * 0.42, 80, WORLD.width * 0.56, WORLD.height * 0.42, 540);
+        glow.addColorStop(0, "rgba(232, 202, 122, 0.14)");
+        glow.addColorStop(0.46, "rgba(32, 118, 111, 0.10)");
+        glow.addColorStop(1, "rgba(0, 0, 0, 0)");
+        ctx.fillStyle = glow;
+        ctx.fillRect(-80, -80, WORLD.width + 160, WORLD.height + 160);
+
+        ctx.save();
+        ctx.strokeStyle = "rgba(232, 202, 122, 0.075)";
+        ctx.lineWidth = 1;
+        for (let lon = 75; lon <= 135; lon += 5) {
+          const a = project(lon, GEO.minLat);
+          const b = project(lon, GEO.maxLat);
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.stroke();
+        }
+        for (let lat = 20; lat <= 50; lat += 5) {
+          const a = project(GEO.minLon, lat);
+          const b = project(GEO.maxLon, lat);
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.stroke();
+        }
+
+        ctx.strokeStyle = "rgba(245, 239, 217, 0.035)";
+        ctx.lineWidth = 0.75;
+        for (let lon = 75; lon <= 135; lon += 2.5) {
+          const a = project(lon, GEO.minLat);
+          const b = project(lon, GEO.maxLat);
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.stroke();
+        }
+        for (let lat = 20; lat <= 50; lat += 2.5) {
+          const a = project(GEO.minLon, lat);
+          const b = project(GEO.maxLon, lat);
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function drawLandShape(polygon, fillStyle, strokeWidth = 2.6) {
+        const path = buildPolygonPath(polygon);
+        ctx.save();
+        ctx.shadowColor = "rgba(0, 0, 0, 0.28)";
+        ctx.shadowBlur = 22;
+        ctx.shadowOffsetY = 12;
+        ctx.fillStyle = fillStyle;
+        ctx.fill(path);
+
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetY = 0;
+        ctx.lineJoin = "round";
+        ctx.lineCap = "round";
+        ctx.strokeStyle = "rgba(236, 247, 222, 0.95)";
+        ctx.lineWidth = strokeWidth + 3.8;
+        ctx.stroke(path);
+        ctx.strokeStyle = "#5f9676";
+        ctx.lineWidth = strokeWidth;
+        ctx.stroke(path);
+        ctx.strokeStyle = "rgba(14, 73, 65, 0.32)";
+        ctx.lineWidth = 0.9;
+        ctx.stroke(path);
+        ctx.restore();
+        return path;
+      }
+
+      function combinePaths(paths) {
+        const combined = new Path2D();
+        paths.forEach((path) => combined.addPath(path));
+        return combined;
+      }
+
+      function drawLandTexture(paths) {
+        ctx.save();
+        ctx.clip(combinePaths(paths));
+
+        ctx.strokeStyle = "rgba(93, 137, 102, 0.11)";
+        ctx.lineWidth = 1;
+        for (let i = -160; i < WORLD.width + 220; i += 34) {
+          ctx.beginPath();
+          ctx.moveTo(i, WORLD.height + 40);
+          ctx.bezierCurveTo(i + 80, WORLD.height * 0.58, i - 30, WORLD.height * 0.34, i + 120, -30);
+          ctx.stroke();
+        }
+
+        ctx.strokeStyle = "rgba(255, 248, 228, 0.14)";
+        ctx.lineWidth = 1.2;
+        [
+          [
+            [77, 35.4],
+            [85, 37.2],
+            [94, 36.4],
+            [103, 34.7],
+            [112, 33.6],
+            [121, 34.8],
+          ],
+          [
+            [82, 28.6],
+            [91, 30.1],
+            [100, 29.8],
+            [109, 28.3],
+            [118, 28.7],
+          ],
+          [
+            [101, 23.2],
+            [109, 24.1],
+            [116, 25.6],
+          ],
+        ].forEach((line) => {
+          ctx.beginPath();
+          line.forEach(([lon, lat], index) => {
+            const p = project(lon, lat);
+            if (index === 0) ctx.moveTo(p.x, p.y);
+            else ctx.lineTo(p.x, p.y);
+          });
+          ctx.stroke();
+        });
+        ctx.restore();
+      }
+
+      function clipPolygonToHalfPlane(polygon, a, b, c) {
+        const clipped = [];
+        const epsilon = 0.000001;
+        for (let i = 0; i < polygon.length; i++) {
+          const current = polygon[i];
+          const previous = polygon[(i + polygon.length - 1) % polygon.length];
+          const currentValue = a * current.x + b * current.y - c;
+          const previousValue = a * previous.x + b * previous.y - c;
+          const currentInside = currentValue <= epsilon;
+          const previousInside = previousValue <= epsilon;
+
+          if (currentInside !== previousInside) {
+            const dx = current.x - previous.x;
+            const dy = current.y - previous.y;
+            const denominator = a * dx + b * dy;
+            if (Math.abs(denominator) > epsilon) {
+              const t = (c - a * previous.x - b * previous.y) / denominator;
+              clipped.push({
+                x: previous.x + dx * t,
+                y: previous.y + dy * t,
+              });
+            }
+          }
+
+          if (currentInside) clipped.push(current);
+        }
+        return clipped;
+      }
+
+      function buildCityBoundaryPath() {
+        const padding = 28;
+        const bounds = {
+          x: MAP_BOX.x - padding,
+          y: MAP_BOX.y - padding,
+          width: MAP_BOX.width + padding * 2,
+          height: MAP_BOX.height + padding * 2,
+        };
+        const seeds = cityLookup.map((city) => {
+          const p = project(city.lon, city.lat);
+          return { ...city, x: p.x, y: p.y };
+        });
+        const path = new Path2D();
+        cityBoundaryCells = new Map();
+
+        seeds.forEach((seed) => {
+          let cell = [
+            { x: bounds.x, y: bounds.y },
+            { x: bounds.x + bounds.width, y: bounds.y },
+            { x: bounds.x + bounds.width, y: bounds.y + bounds.height },
+            { x: bounds.x, y: bounds.y + bounds.height },
+          ];
+
+          for (const other of seeds) {
+            if (other === seed) continue;
+            const a = 2 * (other.x - seed.x);
+            const b = 2 * (other.y - seed.y);
+            const c = other.x * other.x + other.y * other.y - seed.x * seed.x - seed.y * seed.y;
+            cell = clipPolygonToHalfPlane(cell, a, b, c);
+            if (cell.length === 0) break;
+          }
+
+          if (cell.length > 1) {
+            const cellPath = new Path2D();
+            cellPath.moveTo(cell[0].x, cell[0].y);
+            path.moveTo(cell[0].x, cell[0].y);
+            for (let i = 1; i < cell.length; i++) {
+              cellPath.lineTo(cell[i].x, cell[i].y);
+              path.lineTo(cell[i].x, cell[i].y);
+            }
+            cellPath.closePath();
+            path.closePath();
+            cityBoundaryCells.set(seed.name, cellPath);
+          }
+        });
+
+        return path;
+      }
+
+      function drawCityBoundaryLayer(paths) {
+        if (!cityBoundaryPath) cityBoundaryPath = buildCityBoundaryPath();
+        ctx.save();
+        ctx.clip(combinePaths(paths));
+        ctx.lineJoin = "round";
+        ctx.lineCap = "round";
+        ctx.strokeStyle = "rgba(255, 248, 228, 0.3)";
+        ctx.lineWidth = 1.7;
+        ctx.stroke(cityBoundaryPath);
+        ctx.strokeStyle = "rgba(38, 85, 67, 0.48)";
+        ctx.lineWidth = 0.8;
+        ctx.stroke(cityBoundaryPath);
+        ctx.restore();
+      }
+
+      function drawHoveredCityHighlight(paths) {
+        if (!hoverState.active || animation.playing || animation.recording) return;
+        if (!cityBoundaryPath) cityBoundaryPath = buildCityBoundaryPath();
+        const cellPath = cityBoundaryCells.get(hoverState.name);
+        if (!cellPath) return;
+
+        ctx.save();
+        ctx.clip(combinePaths(paths));
+        ctx.shadowColor = "rgba(216, 155, 36, 0.35)";
+        ctx.shadowBlur = 14;
+        ctx.fillStyle = "rgba(216, 155, 36, 0.24)";
+        ctx.fill(cellPath);
+
+        ctx.shadowBlur = 0;
+        ctx.lineJoin = "round";
+        ctx.lineCap = "round";
+        ctx.strokeStyle = "rgba(198, 64, 36, 0.72)";
+        ctx.lineWidth = 2.1;
+        ctx.stroke(cellPath);
+        ctx.strokeStyle = "rgba(255, 248, 228, 0.72)";
+        ctx.lineWidth = 0.9;
+        ctx.stroke(cellPath);
+        ctx.restore();
+
+        const city = findCityByName(hoverState.name);
+        if (city) {
+          const p = project(city.lon, city.lat);
+          ctx.save();
+          ctx.shadowColor = "rgba(216, 155, 36, 0.55)";
+          ctx.shadowBlur = 12;
+          ctx.strokeStyle = "rgba(216, 155, 36, 0.95)";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 8.5, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.fillStyle = "#c64024";
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 3.2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+
+      function roundedRectPath(x, y, width, height, radius) {
+        const r = Math.min(radius, width / 2, height / 2);
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + width - r, y);
+        ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+        ctx.lineTo(x + width, y + height - r);
+        ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+        ctx.lineTo(x + r, y + height);
+        ctx.quadraticCurveTo(x, y + height, x, y + height - r);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+      }
+
+      function drawPointLabel(text, x, y) {
+        ctx.save();
+        ctx.font = "800 13px Avenir Next, PingFang SC, sans-serif";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+
+        const paddingX = 10;
+        const width = Math.ceil(ctx.measureText(text).width) + paddingX * 2;
+        const height = 26;
+        let labelX = x + 17;
+        let labelY = y - height - 7;
+
+        if (labelX + width > WORLD.width - 16) labelX = x - width - 17;
+        if (labelY < 16) labelY = y + 17;
+
+        ctx.shadowColor = "rgba(8, 21, 24, 0.28)";
+        ctx.shadowBlur = 10;
+        ctx.shadowOffsetY = 4;
+        roundedRectPath(labelX, labelY, width, height, 8);
+        ctx.fillStyle = "rgba(255, 248, 228, 0.95)";
+        ctx.fill();
+
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetY = 0;
+        ctx.strokeStyle = "rgba(198, 64, 36, 0.4)";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        ctx.fillStyle = "#15251f";
+        ctx.fillText(text, labelX + paddingX, labelY + height / 2 + 0.5);
+        ctx.restore();
+      }
+
+      function drawAttractionMarker(x, y, important) {
+        const radius = important ? 4.6 : 2.35;
+        ctx.save();
+        ctx.shadowColor = "rgba(84, 55, 16, 0.24)";
+        ctx.shadowBlur = important ? 8 : 3.5;
+        ctx.shadowOffsetY = 1.5;
+        ctx.fillStyle = important ? "#d99522" : "rgba(217, 154, 36, 0.78)";
+        ctx.strokeStyle = "rgba(255, 248, 228, 0.9)";
+        ctx.lineWidth = important ? 1.5 : 1.2;
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetY = 0;
+        ctx.fillStyle = "rgba(255, 248, 228, 0.95)";
+        ctx.beginPath();
+        for (let i = 0; i < 10; i++) {
+          const angle = -Math.PI / 2 + (i * Math.PI) / 5;
+          const starRadius = i % 2 === 0 ? radius * 0.52 : radius * 0.24;
+          const sx = x + Math.cos(angle) * starRadius;
+          const sy = y + Math.sin(angle) * starRadius;
+          if (i === 0) ctx.moveTo(sx, sy);
+          else ctx.lineTo(sx, sy);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawMap() {
+        ctx.save();
+        ctx.lineJoin = "round";
+        ctx.lineCap = "round";
+
+        drawSeaBackground();
+
+        const landGradient = ctx.createLinearGradient(MAP_BOX.x, MAP_BOX.y, MAP_BOX.x + MAP_BOX.width, MAP_BOX.y + MAP_BOX.height);
+        landGradient.addColorStop(0, "#edf6df");
+        landGradient.addColorStop(0.45, "#dbeccf");
+        landGradient.addColorStop(1, "#c7dfbd");
+
+        const mainlandPath = drawLandShape(mainland, landGradient, 2.7);
+        const islandGradient = ctx.createLinearGradient(MAP_BOX.x, MAP_BOX.y + MAP_BOX.height * 0.5, MAP_BOX.x + MAP_BOX.width, MAP_BOX.y + MAP_BOX.height);
+        islandGradient.addColorStop(0, "#e8f4dc");
+        islandGradient.addColorStop(1, "#c8dfbd");
+        const islandPaths = [hainan, taiwan].map((island) => drawLandShape(island, islandGradient, 2));
+        drawLandTexture([mainlandPath, ...islandPaths]);
+        drawCityBoundaryLayer([mainlandPath, ...islandPaths]);
+        drawHoveredCityHighlight([mainlandPath, ...islandPaths]);
+
+        ctx.strokeStyle = "rgba(42, 82, 64, 0.48)";
+        ctx.lineWidth = 1.2;
+        ctx.setLineDash([6, 6]);
+        provinceLines.forEach((line) => {
+          ctx.beginPath();
+          line.forEach(([lon, lat], index) => {
+            const p = project(lon, lat);
+            if (index === 0) ctx.moveTo(p.x, p.y);
+            else ctx.lineTo(p.x, p.y);
+          });
+          ctx.stroke();
+        });
+        ctx.setLineDash([]);
+
+        attractionMarks.forEach((mark, index) => {
+          const p = project(mark.lon, mark.lat);
+          const important = mark.tier === "core";
+          const showLabel = important || mapCamera.zoom >= 3 || (mapCamera.zoom >= 2.1 && index % 7 === 0);
+          drawAttractionMarker(p.x, p.y, important);
+
+          if (showLabel) {
+            const labelX = p.x + (mark.dx ?? 8);
+            const labelY = p.y + (mark.dy ?? -12);
+            ctx.save();
+            ctx.font = `${important ? "800" : "700"} 11.5px Avenir Next, PingFang SC, sans-serif`;
+            ctx.textBaseline = "middle";
+            ctx.lineWidth = important ? 4 : 3.4;
+            ctx.strokeStyle = important ? "rgba(255, 248, 228, 0.9)" : "rgba(255, 248, 228, 0.76)";
+            ctx.strokeText(mark.name, labelX, labelY);
+            ctx.fillStyle = important ? "rgba(94, 57, 14, 0.96)" : "rgba(94, 57, 14, 0.82)";
+            ctx.fillText(mark.name, labelX, labelY);
+            ctx.restore();
+          }
+        });
+
+        ctx.fillStyle = "rgba(245, 239, 217, 0.42)";
+        [
+          [112.0, 16.5],
+          [114.8, 13.8],
+          [117.3, 11.5],
+          [110.4, 12.7],
+          [120.3, 18.7],
+        ].forEach(([lon, lat]) => {
+          const p = project(lon, lat);
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 2.2, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        ctx.restore();
+      }
+
+      function buildRoute() {
+        routeSamples = [];
+        routeLength = 0;
+        if (points.length < 2) return;
+
+        points.forEach((point, index) => {
+          if (index === points.length - 1) return;
+          const next = points[index + 1];
+          const dx = next.x - point.x;
+          const dy = next.y - point.y;
+          const segmentLength = Math.hypot(dx, dy);
+          const normal = segmentLength ? { x: -dy / segmentLength, y: dx / segmentLength } : { x: 0, y: 0 };
+          const bend = Math.min(72, segmentLength * 0.22) * (index % 2 === 0 ? 1 : -1);
+          const control = {
+            x: (point.x + next.x) / 2 + normal.x * bend,
+            y: (point.y + next.y) / 2 + normal.y * bend,
+          };
+          const steps = Math.max(28, Math.ceil(segmentLength / 6));
+
+          for (let i = 0; i <= steps; i++) {
+            if (index > 0 && i === 0) continue;
+            const t = i / steps;
+            const mt = 1 - t;
+            const sample = {
+              x: mt * mt * point.x + 2 * mt * t * control.x + t * t * next.x,
+              y: mt * mt * point.y + 2 * mt * t * control.y + t * t * next.y,
+              angle: 0,
+              distance: 0,
+            };
+            const previous = routeSamples[routeSamples.length - 1];
+            if (previous) {
+              const dist = Math.hypot(sample.x - previous.x, sample.y - previous.y);
+              routeLength += dist;
+              sample.distance = routeLength;
+              sample.angle = Math.atan2(sample.y - previous.y, sample.x - previous.x);
+            }
+            routeSamples.push(sample);
+          }
+        });
+
+        for (let i = 0; i < routeSamples.length - 1; i++) {
+          const current = routeSamples[i];
+          const next = routeSamples[i + 1];
+          current.angle = Math.atan2(next.y - current.y, next.x - current.x);
+        }
+      }
+
+      function drawRoute() {
+        if (routeSamples.length < 2) return;
+
+        ctx.save();
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+
+        ctx.strokeStyle = "rgba(8, 40, 42, 0.24)";
+        ctx.lineWidth = 10;
+        ctx.setLineDash([1, 14]);
+        ctx.beginPath();
+        routeSamples.forEach((sample, index) => {
+          if (index === 0) ctx.moveTo(sample.x, sample.y);
+          else ctx.lineTo(sample.x, sample.y);
+        });
+        ctx.stroke();
+
+        ctx.setLineDash([]);
+        ctx.shadowColor = "rgba(8, 21, 24, 0.18)";
+        ctx.shadowBlur = 8;
+        ctx.shadowOffsetY = 3;
+        ctx.strokeStyle = "rgba(255, 248, 228, 0.9)";
+        ctx.lineWidth = 6.4;
+        ctx.beginPath();
+        routeSamples.forEach((sample, index) => {
+          if (index === 0) ctx.moveTo(sample.x, sample.y);
+          else ctx.lineTo(sample.x, sample.y);
+        });
+        ctx.stroke();
+
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetY = 0;
+        ctx.strokeStyle = "#c64024";
+        ctx.lineWidth = 3.2;
+        ctx.beginPath();
+        routeSamples.forEach((sample, index) => {
+          if (index === 0) ctx.moveTo(sample.x, sample.y);
+          else ctx.lineTo(sample.x, sample.y);
+        });
+        ctx.stroke();
+
+        if (animation.playing) {
+          drawActiveRoute(routeLength * animation.progress);
+        }
+
+        ctx.restore();
+      }
+
+      function drawActiveRoute(distance) {
+        if (!routeSamples.length) return;
+        ctx.save();
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.shadowColor = "rgba(216, 155, 36, 0.5)";
+        ctx.shadowBlur = 18;
+        ctx.strokeStyle = "rgba(216, 155, 36, 0.96)";
+        ctx.lineWidth = 7.5;
+        ctx.beginPath();
+        routeSamples.forEach((sample, index) => {
+          if (sample.distance > distance) return;
+          if (index === 0) ctx.moveTo(sample.x, sample.y);
+          else ctx.lineTo(sample.x, sample.y);
+        });
+        const current = getRoutePoint(distance);
+        ctx.lineTo(current.x, current.y);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawPoints() {
+        points.forEach((point, index) => {
+          const isStart = index === 0;
+          const isEnd = index === points.length - 1 && points.length > 1;
+          ctx.save();
+          ctx.shadowColor = "rgba(11, 31, 33, 0.26)";
+          ctx.shadowBlur = 10;
+          ctx.fillStyle = isStart ? "#08766f" : isEnd ? "#2a83a2" : "#c64024";
+          ctx.strokeStyle = "#fff8e4";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(point.x, point.y, 11, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.shadowBlur = 0;
+          ctx.fillStyle = "#fff8e4";
+          ctx.font = "800 12px Avenir Next, PingFang SC, sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(String(index + 1), point.x, point.y + 0.5);
+
+          drawPointLabel(point.name, point.x, point.y);
+          ctx.restore();
+        });
+      }
+
+      function drawArrow() {
+        if (!animation.playing || routeSamples.length < 2) return;
+        const current = getRoutePoint(routeLength * animation.progress);
+        const screen = worldToScreen(current);
+        ctx.save();
+        ctx.translate(screen.x, screen.y);
+        ctx.rotate(current.angle);
+        ctx.shadowColor = "rgba(0, 0, 0, 0.28)";
+        ctx.shadowBlur = 14;
+        ctx.shadowOffsetY = 5;
+
+        if (arrowImage && arrowImageLoaded) {
+          ctx.drawImage(arrowImage, -20, -20, 40, 40);
+        } else {
+          ctx.fillStyle = "#d89b24";
+          ctx.strokeStyle = "#fff8e4";
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.moveTo(20, 0);
+          ctx.lineTo(-15, -15);
+          ctx.lineTo(-7, 0);
+          ctx.lineTo(-15, 15);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = "#c64024";
+          ctx.beginPath();
+          ctx.arc(-2, 0, 4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      function drawFrame() {
+        ctx.save();
+        ctx.strokeStyle = "rgba(245, 239, 217, 0.22)";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
+        ctx.restore();
+      }
+
+      function drawHoverCityOnCanvas() {
+        if (!hoverState.active || animation.playing || animation.recording) return;
+
+        const rect = canvas.getBoundingClientRect();
+        const dpr = canvas.width / rect.width || 1;
+        const offset = 16 * dpr;
+        const paddingX = 12 * dpr;
+        const paddingY = 8 * dpr;
+        const label = hoverState.name;
+
+        ctx.save();
+        ctx.font = `800 ${15 * dpr}px Avenir Next, PingFang SC, sans-serif`;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+
+        const labelWidth = Math.ceil(ctx.measureText(label).width);
+        const width = Math.max(116 * dpr, labelWidth + paddingX * 2);
+        const height = 42 * dpr;
+        let x = hoverState.canvasX + offset;
+        let y = hoverState.canvasY + offset;
+
+        if (x + width > canvas.width - 12 * dpr) x = hoverState.canvasX - width - offset;
+        if (y + height > canvas.height - 12 * dpr) y = hoverState.canvasY - height - offset;
+        x = Math.max(12 * dpr, x);
+        y = Math.max(12 * dpr, y);
+
+        ctx.shadowColor = "rgba(0, 0, 0, 0.28)";
+        ctx.shadowBlur = 16 * dpr;
+        ctx.shadowOffsetY = 5 * dpr;
+        roundedRectPath(x, y, width, height, 8 * dpr);
+        ctx.fillStyle = "rgba(255, 248, 228, 0.97)";
+        ctx.fill();
+
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetY = 0;
+        ctx.lineWidth = 1.5 * dpr;
+        ctx.strokeStyle = "rgba(198, 64, 36, 0.48)";
+        ctx.stroke();
+
+        ctx.font = `800 ${11 * dpr}px Avenir Next, PingFang SC, sans-serif`;
+        ctx.fillStyle = "rgba(114, 107, 88, 0.86)";
+        ctx.fillText("当前城市", x + paddingX, y + paddingY + 4 * dpr);
+
+        ctx.font = `800 ${15 * dpr}px Avenir Next, PingFang SC, sans-serif`;
+        ctx.fillStyle = "#15251f";
+        ctx.fillText(label, x + paddingX, y + height - paddingY - 5 * dpr);
+        ctx.restore();
+      }
+
+      function render() {
+        currentView = getView();
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.save();
+        ctx.setTransform(currentView.scale, 0, 0, currentView.scale, currentView.offsetX, currentView.offsetY);
+        drawMap();
+        drawRoute();
+        drawPoints();
+        ctx.restore();
+        drawArrow();
+        drawFrame();
+        drawHoverCityOnCanvas();
+      }
+
+      function getRoutePoint(distance) {
+        if (!routeSamples.length) return points[0] || { x: WORLD.width / 2, y: WORLD.height / 2, angle: 0 };
+        const clamped = Math.max(0, Math.min(routeLength, distance));
+        for (let i = 1; i < routeSamples.length; i++) {
+          const previous = routeSamples[i - 1];
+          const current = routeSamples[i];
+          if (current.distance >= clamped) {
+            const span = current.distance - previous.distance || 1;
+            const t = (clamped - previous.distance) / span;
+            return {
+              x: previous.x + (current.x - previous.x) * t,
+              y: previous.y + (current.y - previous.y) * t,
+              angle: Math.atan2(current.y - previous.y, current.x - previous.x),
+            };
+          }
+        }
+        return routeSamples[routeSamples.length - 1];
+      }
+
+      function createPointId() {
+        return window.crypto?.randomUUID ? window.crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+      }
+
+      function addPoint(worldPoint) {
+        if (!isInsideChina(worldPoint)) {
+          showToast("请在中国地图轮廓内打点。");
+          return;
+        }
+        const geo = unproject(worldPoint.x, worldPoint.y);
+        let pointWorld = worldPoint;
+        let pointGeo = geo;
+        let city = recognizeCity(pointGeo.lon, pointGeo.lat, pointWorld);
+        let attractionCandidates = rankAttractions(pointGeo.lon, pointGeo.lat, pointWorld).slice(0, 12);
+        const nearestAttraction = attractionCandidates[0];
+        const useAttraction =
+          nearestAttraction && (nearestAttraction.distanceKm <= 35 || nearestAttraction.mapDistance <= 8);
+
+        if (useAttraction) {
+          pointGeo = { lon: nearestAttraction.lon, lat: nearestAttraction.lat };
+          pointWorld = project(nearestAttraction.lon, nearestAttraction.lat);
+          city = recognizeCity(pointGeo.lon, pointGeo.lat, pointWorld);
+          attractionCandidates = rankAttractions(pointGeo.lon, pointGeo.lat, pointWorld).slice(0, 12);
+        }
+
+        const selectedAttraction = useAttraction ? attractionCandidates[0] : null;
+        const placeKind = selectedAttraction ? "attraction" : "city";
+        const point = {
+          id: createPointId(),
+          x: pointWorld.x,
+          y: pointWorld.y,
+          lon: pointGeo.lon,
+          lat: pointGeo.lat,
+          name: selectedAttraction ? selectedAttraction.name : city.name,
+          placeKind,
+          city: city.name,
+          cityDistanceKm: city.distanceKm,
+          cityCandidates: city.candidates,
+          attraction: selectedAttraction ? selectedAttraction.name : "",
+          attractionDistanceKm: selectedAttraction ? selectedAttraction.distanceKm : nearestAttraction?.distanceKm,
+          attractionCandidates,
+        };
+        points.push(point);
+        buildRoute();
+        renderList();
+        requestRender();
+        const placeText = placeKind === "attraction" ? `已添加景点 ${point.name}` : `已添加 ${point.name}`;
+        setStatus(`${placeText}，所在城市 ${point.city}。右侧可改选附近景点或城市。`);
+      }
+
+      function addManualPoint(event) {
+        event.preventDefault();
+        if (animation.playing || animation.recording) {
+          showToast("播放或导出过程中暂不支持添加点位。");
+          return;
+        }
+
+        const name = manualNameInput.value.trim();
+        const lon = Number(manualLonInput.value);
+        const lat = Number(manualLatInput.value);
+        if (!name) {
+          showToast("请输入地点名称。");
+          manualNameInput.focus();
+          return;
+        }
+        if (!Number.isFinite(lon) || !Number.isFinite(lat)) {
+          showToast("请输入有效的经纬度。");
+          return;
+        }
+        if (lon < GEO.minLon || lon > GEO.maxLon || lat < GEO.minLat || lat > GEO.maxLat) {
+          showToast("经纬度超出当前中国地图范围。");
+          return;
+        }
+
+        const worldPoint = project(lon, lat);
+        if (!isOnChinaMap(worldPoint)) {
+          showToast("该经纬度不在中国地图轮廓内。");
+          return;
+        }
+
+        const city = recognizeCity(lon, lat, worldPoint);
+        const attractionCandidates = rankAttractions(lon, lat, worldPoint).slice(0, 12);
+        const nearestAttraction = attractionCandidates[0];
+        const selectedSpot = isCurrentManualAttractionSelection() ? manualSelectedAttraction : null;
+        const point = {
+          id: createPointId(),
+          x: worldPoint.x,
+          y: worldPoint.y,
+          lon,
+          lat,
+          name: selectedSpot ? selectedSpot.name : name,
+          placeKind: selectedSpot ? "attraction" : "custom",
+          city: city.name,
+          cityDistanceKm: city.distanceKm,
+          cityCandidates: city.candidates,
+          attraction: selectedSpot ? selectedSpot.name : "",
+          attractionDistanceKm: selectedSpot ? 0 : nearestAttraction?.distanceKm,
+          attractionCandidates,
+          ...(selectedSpot
+            ? {}
+            : {
+                manualName: name,
+                manualLon: lon,
+                manualLat: lat,
+                manualX: worldPoint.x,
+                manualY: worldPoint.y,
+              }),
+        };
+        points.push(point);
+        buildRoute();
+        renderList();
+        requestRender();
+        manualAddForm.reset();
+        clearManualAttractionSelection();
+        hideAttractionSuggestions();
+        setStatus(
+          selectedSpot
+            ? `已添加景点 ${selectedSpot.name}，所在城市 ${city.name}。`
+            : `已手动添加 ${name}，所在城市 ${city.name}。`,
+        );
+      }
+
+      function renderList() {
+        pointCount.textContent = `${points.length} 点`;
+        emptyList.style.display = points.length ? "none" : "block";
+        pointList.innerHTML = "";
+
+        points.forEach((point, index) => {
+          const item = document.createElement("li");
+          item.className = "point-card";
+          item.draggable = true;
+          item.dataset.id = point.id;
+          item.innerHTML = `
+            <span class="drag-handle" title="拖动调整顺序"></span>
+            <div>
+              <div class="point-title">
+                <span class="point-index">${index + 1}</span>
+                <span class="point-name">${escapeHtml(point.name)}</span>
+              </div>
+              <div class="point-meta">
+                <span class="place-kind ${
+                  point.placeKind === "attraction" ? "attraction" : point.placeKind === "custom" ? "custom" : "city"
+                }">${placeKindText(point)}</span>
+                <span class="city-pill">所在 ${escapeHtml(point.city || point.name)}</span>
+                <span>${formatLonLat(point.lon, point.lat)}</span>
+                <span class="distance-text">${pointDistanceText(point)}</span>
+                <select class="city-select" data-place-for="${point.id}" draggable="false" title="选择点位名称（景点/城市）">
+                  ${candidateOptionsHtml(point)}
+                </select>
+              </div>
+            </div>
+            <button class="icon-button" type="button" title="删除该点" data-remove="${point.id}">×</button>
+          `;
+          item.addEventListener("dragstart", handleDragStart);
+          item.addEventListener("dragover", handleDragOver);
+          item.addEventListener("dragleave", clearDropStyles);
+          item.addEventListener("drop", handleDrop);
+          item.addEventListener("dragend", handleDragEnd);
+          pointList.appendChild(item);
+        });
+
+        updateButtons();
+      }
+
+      function escapeHtml(value) {
+        return value.replace(/[&<>"']/g, (char) => {
+          const map = {
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            '"': "&quot;",
+            "'": "&#039;",
+          };
+          return map[char];
+        });
+      }
+
+      function handleDragStart(event) {
+        draggedId = event.currentTarget.dataset.id;
+        event.currentTarget.classList.add("dragging");
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", draggedId);
+      }
+
+      function handleDragOver(event) {
+        event.preventDefault();
+        const target = event.currentTarget;
+        if (target.dataset.id === draggedId) return;
+        clearDropStyles();
+        const rect = target.getBoundingClientRect();
+        dropPosition = event.clientY < rect.top + rect.height / 2 ? "before" : "after";
+        target.classList.add(dropPosition === "before" ? "drop-before" : "drop-after");
+      }
+
+      function handleDrop(event) {
+        event.preventDefault();
+        const targetId = event.currentTarget.dataset.id;
+        if (!draggedId || draggedId === targetId) return;
+        const from = points.findIndex((point) => point.id === draggedId);
+        const to = points.findIndex((point) => point.id === targetId);
+        if (from < 0 || to < 0) return;
+        const [moved] = points.splice(from, 1);
+        const adjustedTo = points.findIndex((point) => point.id === targetId);
+        points.splice(dropPosition === "before" ? adjustedTo : adjustedTo + 1, 0, moved);
+        buildRoute();
+        renderList();
+        requestRender();
+        setStatus("点位顺序已更新，路线会按新顺序穿行。");
+      }
+
+      function handleDragEnd() {
+        draggedId = null;
+        clearDropStyles();
+      }
+
+      function clearDropStyles() {
+        document.querySelectorAll(".point-card").forEach((item) => {
+          item.classList.remove("dragging", "drop-before", "drop-after");
+        });
+      }
+
+      function removePoint(id) {
+        points = points.filter((point) => point.id !== id);
+        buildRoute();
+        renderList();
+        requestRender();
+        setStatus(points.length ? "点位已删除。" : "点位已清空，点击地图重新添加。");
+      }
+
+      function updatePointPlace(id, optionValue) {
+        const point = points.find((item) => item.id === id);
+        if (!point) return;
+        const { kind, name } = parsePlaceOptionValue(optionValue);
+
+        if (kind === "attraction") {
+          const spot = findAttractionByName(name);
+          if (!spot) return;
+          const spotWorld = project(spot.lon, spot.lat);
+          const city = recognizeCity(spot.lon, spot.lat, spotWorld);
+          const attractionCandidates = rankAttractions(spot.lon, spot.lat, spotWorld).slice(0, 12);
+
+          point.x = spotWorld.x;
+          point.y = spotWorld.y;
+          point.lon = spot.lon;
+          point.lat = spot.lat;
+          point.name = spot.name;
+          point.placeKind = "attraction";
+          point.attraction = spot.name;
+          point.attractionDistanceKm = 0;
+          point.attractionCandidates = attractionCandidates;
+          point.city = city.name;
+          point.cityDistanceKm = city.distanceKm;
+          point.cityCandidates = city.candidates;
+
+          buildRoute();
+          renderList();
+          requestRender();
+          setStatus(`已选择景点 ${spot.name}，点位已定位到该景点。`);
+          return;
+        }
+
+        if (kind === "custom") {
+          if (!point.manualName || !Number.isFinite(point.manualLon) || !Number.isFinite(point.manualLat)) return;
+
+          const manualWorld = project(point.manualLon, point.manualLat);
+          const city = recognizeCity(point.manualLon, point.manualLat, manualWorld);
+          const attractionCandidates = rankAttractions(point.manualLon, point.manualLat, manualWorld).slice(0, 12);
+
+          point.x = manualWorld.x;
+          point.y = manualWorld.y;
+          point.lon = point.manualLon;
+          point.lat = point.manualLat;
+          point.name = point.manualName;
+          point.placeKind = "custom";
+          point.city = city.name;
+          point.cityDistanceKm = city.distanceKm;
+          point.cityCandidates = city.candidates;
+          point.attraction = "";
+          point.attractionDistanceKm = attractionCandidates[0]?.distanceKm;
+          point.attractionCandidates = attractionCandidates;
+
+          buildRoute();
+          renderList();
+          requestRender();
+          setStatus(`已切回手动地点 ${point.manualName}。`);
+          return;
+        }
+
+        const city = findCityByName(name);
+        if (!city) return;
+
+        const distance = distanceKm(point.lon, point.lat, city.lon, city.lat);
+        const ranked = rankCities(point.lon, point.lat, point);
+        const candidates = ranked.slice(0, 10);
+        if (!candidates.some((candidate) => candidate.name === city.name)) {
+          candidates.unshift({
+            name: city.name,
+            lon: city.lon,
+            lat: city.lat,
+            mapDistance: 0,
+            distanceKm: distance,
+            score: -1,
+          });
+        }
+
+        point.name = city.name;
+        point.placeKind = "city";
+        point.city = city.name;
+        point.cityDistanceKm = distance;
+        point.cityCandidates = candidates;
+        point.attraction = "";
+        renderList();
+        requestRender();
+        setStatus(`已将该点名称切换为城市 ${city.name}，${cityDistanceText(distance)}。`);
+      }
+
+      function updateButtons() {
+        const enough = points.length >= 2;
+        playBtn.disabled = !enough || animation.recording;
+        exportBtn.disabled = !enough || animation.recording;
+        clearBtn.disabled = !points.length || animation.recording;
+        stopBtn.disabled = !animation.playing || animation.recording;
+        updateMapZoomUI();
+      }
+
+      function setStatus(message) {
+        statusLine.textContent = message;
+      }
+
+      function showToast(message) {
+        toast.textContent = message;
+        toast.classList.add("show");
+        window.clearTimeout(toastTimer);
+        toastTimer = window.setTimeout(() => toast.classList.remove("show"), 2200);
+      }
+
+      function playRoute(options = {}) {
+        if (points.length < 2) {
+          showToast("至少需要 2 个点才能播放路线。");
+          return Promise.resolve();
+        }
+
+        hideHoverCity();
+        stopAnimation(false);
+        buildRoute();
+        mapStage.classList.add("playing");
+        animation.playing = true;
+        animation.recording = Boolean(options.recording);
+        animation.progress = 0;
+        animation.startTime = performance.now();
+        recordState.textContent = animation.recording ? "录制中" : "播放中";
+        setStatus(animation.recording ? "正在录制动画，请稍等。" : "镜头已放大并跟随箭头移动。");
+        updateButtons();
+
+        return new Promise((resolve) => {
+          animation.resolve = resolve;
+          animation.rafId = requestAnimationFrame(tick);
+        });
+      }
+
+      function tick(now) {
+        const duration = Number(durationRange.value) * 1000;
+        animation.progress = Math.min(1, (now - animation.startTime) / duration);
+        render();
+
+        if (animation.progress < 1) {
+          animation.rafId = requestAnimationFrame(tick);
+          return;
+        }
+
+        const resolve = animation.resolve;
+        animation.playing = false;
+        mapStage.classList.remove("playing");
+        recordState.textContent = animation.recording ? "录制完成" : "播放完成";
+        setStatus(animation.recording ? "动画录制完成，正在生成文件。" : "路线播放完成。");
+        updateButtons();
+        if (resolve) resolve();
+      }
+
+      function stopAnimation(resetView = true) {
+        cancelAnimationFrame(animation.rafId);
+        animation.playing = false;
+        animation.progress = 0;
+        animation.resolve = null;
+        mapStage.classList.remove("playing");
+        if (!animation.recording) {
+          recordState.textContent = points.length ? "待播放" : "待编辑";
+        }
+        updateButtons();
+        if (resetView) render();
+      }
+
+      async function exportAnimation() {
+        if (points.length < 2) {
+          showToast("至少需要 2 个点才能导出动画。");
+          return;
+        }
+        if (!canvas.captureStream || typeof MediaRecorder === "undefined") {
+          showToast("当前浏览器不支持 Canvas 录制，请换用 Chrome 或 Edge。");
+          return;
+        }
+
+        const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
+          ? "video/webm;codecs=vp9"
+          : "video/webm";
+        exportChunks = [];
+        const stream = canvas.captureStream(60);
+        recorder = new MediaRecorder(stream, { mimeType });
+        recorder.ondataavailable = (event) => {
+          if (event.data && event.data.size) exportChunks.push(event.data);
+        };
+        recorder.onstop = () => {
+          const blob = new Blob(exportChunks, { type: "video/webm" });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = `china-route-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.webm`;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          URL.revokeObjectURL(url);
+          animation.recording = false;
+          recordState.textContent = "已导出";
+          setStatus("WebM 动画已导出。");
+          updateButtons();
+        };
+
+        recorder.start();
+        render();
+        await playRoute({ recording: true });
+        await new Promise((resolve) => window.setTimeout(resolve, 260));
+        recorder.stop();
+      }
+
+      function loadDemoRoute() {
+        stopAnimation();
+        points = demoRoute.map(([name, lon, lat], index) => {
+          const p = project(lon, lat);
+          const city = recognizeCity(lon, lat, p);
+          const spot = findAttractionByName(name);
+          const attractionCandidates = rankAttractions(lon, lat, p).slice(0, 12);
+          return {
+            id: `demo-${index}-${Date.now()}`,
+            x: p.x,
+            y: p.y,
+            lon,
+            lat,
+            name: spot ? spot.name : city.name || name,
+            placeKind: spot ? "attraction" : "city",
+            city: city.name || name,
+            cityDistanceKm: city.distanceKm,
+            cityCandidates: city.candidates,
+            attraction: spot ? spot.name : "",
+            attractionDistanceKm: spot ? 0 : attractionCandidates[0]?.distanceKm,
+            attractionCandidates,
+          };
+        });
+        buildRoute();
+        renderList();
+        requestRender();
+        setStatus("已载入示例路线，可以直接播放、拖动排序或继续打点。");
+      }
+
+      function clearPoints() {
+        stopAnimation();
+        points = [];
+        routeSamples = [];
+        routeLength = 0;
+        renderList();
+        requestRender();
+        setStatus("点位已清空，点击地图添加新的路线。");
+      }
+
+      canvas.addEventListener("click", (event) => {
+        if (suppressNextClick) {
+          suppressNextClick = false;
+          return;
+        }
+        if (animation.playing || animation.recording) {
+          showToast("播放或导出过程中暂不支持打点。");
+          return;
+        }
+        const { worldPoint } = canvasEventToWorld(event);
+        addPoint(worldPoint);
+      });
+
+      canvas.addEventListener("wheel", handleMapWheel, { passive: false });
+      canvas.addEventListener("pointerdown", startMapPan);
+      canvas.addEventListener("pointermove", moveMapPan);
+      canvas.addEventListener("pointerup", endMapPan);
+      canvas.addEventListener("pointercancel", endMapPan);
+      canvas.addEventListener("pointermove", showHoverCity);
+      canvas.addEventListener("pointerleave", hideHoverCity);
+      canvas.addEventListener("mousemove", showHoverCity);
+      canvas.addEventListener("mouseleave", hideHoverCity);
+      manualAddForm.addEventListener("submit", addManualPoint);
+      manualNameInput.addEventListener("input", () => {
+        if (manualSelectedAttraction?.name !== manualNameInput.value.trim()) clearManualAttractionSelection();
+        renderAttractionSuggestions();
+      });
+      manualNameInput.addEventListener("focus", renderAttractionSuggestions);
+      manualNameInput.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") hideAttractionSuggestions();
+      });
+      manualLonInput.addEventListener("input", clearManualAttractionSelection);
+      manualLatInput.addEventListener("input", clearManualAttractionSelection);
+      attractionSuggestions.addEventListener("mousedown", (event) => {
+        event.preventDefault();
+      });
+      attractionSuggestions.addEventListener("click", (event) => {
+        const option = event.target.closest("[data-attraction-name]");
+        if (option) chooseManualAttraction(option.dataset.attractionName);
+      });
+      document.addEventListener("click", (event) => {
+        if (!manualAddForm.contains(event.target)) hideAttractionSuggestions();
+      });
+
+      pointList.addEventListener("click", (event) => {
+        const removeId = event.target.dataset.remove;
+        if (removeId) removePoint(removeId);
+      });
+
+      pointList.addEventListener("change", (event) => {
+        const placePointId = event.target.dataset.placeFor;
+        if (placePointId) updatePointPlace(placePointId, event.target.value);
+      });
+
+      pointList.addEventListener("mousedown", (event) => {
+        if (event.target.classList.contains("city-select")) {
+          event.stopPropagation();
+        }
+      });
+
+      playBtn.addEventListener("click", () => playRoute());
+      stopBtn.addEventListener("click", () => {
+        animation.recording = false;
+        stopAnimation();
+        setStatus("播放已停止，镜头回到全图。");
+      });
+      exportBtn.addEventListener("click", exportAnimation);
+      demoBtn.addEventListener("click", loadDemoRoute);
+      clearBtn.addEventListener("click", clearPoints);
+      resetViewBtn.addEventListener("click", () => {
+        stopAnimation();
+        resetMapCamera();
+        setStatus("视图已回到全图。");
+      });
+      mapZoomInBtn.addEventListener("click", () => zoomMapBy(1.22));
+      mapZoomOutBtn.addEventListener("click", () => zoomMapBy(1 / 1.22));
+      mapZoomResetBtn.addEventListener("click", resetMapCamera);
+
+      imageInput.addEventListener("change", (event) => {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          const img = new Image();
+          img.onload = () => {
+            arrowImage = img;
+            arrowImageLoaded = true;
+            imageLabel.textContent = file.name;
+            setStatus("移动箭头贴图已更新，播放时会以 40 × 40 显示。");
+            requestRender();
+          };
+          img.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+      });
+
+      durationRange.addEventListener("input", () => {
+        durationValue.textContent = `${durationRange.value}s`;
+      });
+
+      zoomRange.addEventListener("input", () => {
+        zoomValue.textContent = `${Number(zoomRange.value).toFixed(1)}x`;
+        requestRender();
+      });
+
+      window.addEventListener("resize", resizeCanvas);
+
+      computeDefaultView();
+      resizeCanvas();
+      renderList();
+      render();
+    </script>
+  </body>
+</html>
