@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>果冻弹跳Loading</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #0c0e18;
+            overflow: hidden;
+            font-family: 'Segoe UI', 'PingFang SC', sans-serif;
+        }
+
+        .wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 40px;
+        }
+
+        .canvas-box {
+            position: relative;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        /* 底部信息 */
+        .bottom-info {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .loading-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .loading-text {
+            color: rgba(255, 255, 255, 0.45);
+            font-size: 12px;
+            letter-spacing: 6px;
+            text-transform: uppercase;
+        }
+
+        .progress-track {
+            width: 140px;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 1px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            border-radius: 1px;
+            background: linear-gradient(90deg, rgba(184, 169, 232, 0.3), rgba(184, 169, 232, 0.7));
+            transition: width 0.3s ease;
+        }
+
+        .percent {
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 11px;
+            font-variant-numeric: tabular-nums;
+            min-width: 30px;
+            text-align: right;
+        }
+
+        .hint {
+            color: rgba(255, 255, 255, 0.12);
+            font-size: 10px;
+            letter-spacing: 1px;
+        }
+
+        @media (max-width: 600px) {
+            canvas { width: 360px; height: 330px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <div class="canvas-box">
+            <canvas id="c"></canvas>
+        </div>
+        <div class="bottom-info">
+            <div class="loading-row">
+                <span class="loading-text">Loading</span>
+                <div class="progress-track"><div class="progress-fill" id="pf"></div></div>
+                <span class="percent" id="pct">0%</span>
+            </div>
+            <div class="hint">果冻弹跳 · Jelly Bounce</div>
+        </div>
+    </div>
+
+    <script>
+        // ─── Canvas 初始化 ───
+        const canvas = document.getElementById('c');
+        const ctx = canvas.getContext('2d');
+        const DPR = window.devicePixelRatio || 1;
+        const W = 550, H = 500;
+        canvas.width = W * DPR;
+        canvas.height = H * DPR;
+        canvas.style.width = W + 'px';
+        canvas.style.height = H + 'px';
+        ctx.scale(DPR, DPR);
+
+        // DOM 元素
+        const pfEl = document.getElementById('pf');
+        const pctEl = document.getElementById('pct');
+
+        // ─── 颜色配置 ───
+        const COLORS = [
+            { body: '#B8A9E8', light: '#D4C8F5', dark: '#8B7CC8' },  // 薰衣草紫
+            { body: '#8DD8C8', light: '#B5EADF', dark: '#5CB8A5' },  // 薄荷绿
+            { body: '#F5B8A0', light: '#FCDACF', dark: '#E8937A' },  // 蜜桃橙
+            { body: '#8BC4E8', light: '#B5DBF3', dark: '#5FA8D4' },  // 天空蓝
+            { body: '#E8A0B8', light: '#F5C8D8', dark: '#D47A95' },  // 玫瑰粉
+        ];
+
+        // ─── 常量 ───
+        const NUM_BLOBS = 5;
+        const BASE_RADIUS = 25;
+        const GROUND_Y = 360;           // 地面 Y 坐标
+        const REST_Y = GROUND_Y - BASE_RADIUS; // 静止时球心 Y
+        const BLOB_SPACING = 90;        // 球间距
+        const STAGGER_DELAY = 0.15;     // 波浪延迟（秒）
+        const BOUNCE_HEIGHT = 160;      // 弹跳高度
+        const SPRING = 0.018;           // 弹簧系数
+        const DAMPING = 0.92;           // 阻尼
+        const NUM_CTRL_POINTS = 10;     // 轮廓控制点数
+        const WOBBLE_BASE_AMP = 2.0;    // 基础果冻颤动振幅
+        const CYCLE_DURATION = 1.8;     // 单次弹跳周期（秒）
+
+        // ─── 弹跳粒子类 ───
+        class BounceParticle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                // 向两侧随机喷射
+                const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 0.8;
+                const speed = 60 + Math.random() * 100;
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+                this.radius = 2 + Math.random() * 3;
+                this.life = 1.0;
+                this.decay = 1.8 + Math.random() * 1.2;
+                this.gravity = 300;
+            }
+
+            update(dt) {
+                this.x += this.vx * dt;
+                this.y += this.vy * dt;
+                this.vy += this.gravity * dt;
+                this.life -= this.decay * dt;
+                this.radius *= 0.995;
+            }
+
+            draw(ctx) {
+                if (this.life <= 0) return;
+                ctx.save();
+                ctx.globalAlpha = this.life * 0.7;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, Math.max(0.5, this.radius), 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                ctx.restore();
+            }
+
+            get alive() {
+                return this.life > 0;
+            }
+        }
+
+        // ─── 果冻球类 ───
+        class JellyBlob {
+            constructor(index) {
+                this.index = index;
+                this.color = COLORS[index];
+                // 水平居中排列
+                const startX = W / 2 - (NUM_BLOBS - 1) * BLOB_SPACING / 2;
+                this.baseX = startX + index * BLOB_SPACING;
+                this.baseY = REST_Y;
+
+                // 物理状态
+                this.x = this.baseX;
+                this.y = this.baseY;
+                this.vy = 0;
+
+                // 变形状态（缩放）
+                this.squishX = 1.0;
+                this.squishY = 1.0;
+                this.targetSquishX = 1.0;
+                this.targetSquishY = 1.0;
+
+                // 弹跳时间控制
+                this.phase = -index * STAGGER_DELAY; // 错开相位
+                this.bouncing = false;
+                this.onGround = true;
+                this.justLanded = false;
+
+                // 果冻颤动控制点
+                this.controlPoints = [];
+                this.controlVelocities = [];
+                for (let i = 0; i < NUM_CTRL_POINTS; i++) {
+                    this.controlPoints.push(0);
+                    this.controlVelocities.push(0);
+                }
+                this.wobbleEnergy = 0; // 颤动能量（着陆时增加）
+
+                // 表情状态：0=微笑 1=惊讶(O嘴) 2=挤压
+                this.expression = 0;
+
+                // 粒子
+                this.particles = [];
+            }
+
+            // 弹跳状态机驱动
+            updateBounce(dt, progress) {
+                this.phase += dt;
+
+                // 进度影响弹跳高度
+                const heightMul = 0.6 + 0.4 * (progress / 100);
+                const bounceH = BOUNCE_HEIGHT * heightMul;
+
+                // 循环弹跳的相位
+                const cycleT = ((this.phase % CYCLE_DURATION) + CYCLE_DURATION) % CYCLE_DURATION;
+                const normT = cycleT / CYCLE_DURATION;
+
+                // 弹跳曲线：使用分段函数模拟自然弹跳
+                // 0.0-0.1: 蓄力下蹲
+                // 0.1-0.5: 上升
+                // 0.5-0.9: 下降
+                // 0.9-1.0: 着陆压缩
+                const prevOnGround = this.onGround;
+                let targetY, sqX, sqY;
+
+                if (normT < 0.1) {
+                    // 蓄力阶段：向下压缩
+                    const t = normT / 0.1;
+                    const ease = t * t;
+                    targetY = this.baseY + 8 * ease;
+                    sqX = 1 + 0.25 * ease;
+                    sqY = 1 - 0.25 * ease;
+                    this.onGround = true;
+                    this.expression = 2; // 挤压表情
+                } else if (normT < 0.5) {
+                    // 上升阶段
+                    const t = (normT - 0.1) / 0.4;
+                    // 使用正弦曲线实现平滑上升
+                    const ease = Math.sin(t * Math.PI / 2);
+                    targetY = this.baseY - bounceH * ease;
+                    // 上升时纵向拉伸
+                    const stretch = 0.2 * (1 - t) * ease;
+                    sqX = 1 - stretch;
+                    sqY = 1 + stretch;
+                    this.onGround = false;
+                    this.expression = t > 0.5 ? 1 : 0; // 高处惊讶
+                } else if (normT < 0.9) {
+                    // 下降阶段
+                    const t = (normT - 0.5) / 0.4;
+                    const ease = 1 - Math.cos(t * Math.PI / 2);
+                    targetY = this.baseY - bounceH * (1 - ease);
+                    // 下降时也有轻微拉伸
+                    const stretch = 0.15 * t;
+                    sqX = 1 - stretch;
+                    sqY = 1 + stretch;
+                    this.onGround = false;
+                    this.expression = t > 0.6 ? 2 : 1;
+                } else {
+                    // 着陆压缩
+                    const t = (normT - 0.9) / 0.1;
+                    // 回弹缓动
+                    const ease = 1 - Math.pow(1 - t, 3);
+                    targetY = this.baseY + 10 * (1 - ease);
+                    sqX = 1 + 0.3 * (1 - ease);
+                    sqY = 1 - 0.3 * (1 - ease);
+                    this.onGround = true;
+                    this.expression = 2;
+                }
+
+                // 检测刚着陆
+                if (this.onGround && !prevOnGround) {
+                    this.justLanded = true;
+                    this.wobbleEnergy = 1.0; // 触发颤动
+                    this.spawnParticles();
+                }
+
+                // 弹簧物理平滑过渡
+                this.vy += (targetY - this.y) * 0.3;
+                this.vy *= 0.7;
+                this.y += this.vy;
+
+                // 变形平滑插值
+                this.targetSquishX = sqX;
+                this.targetSquishY = sqY;
+                this.squishX += (this.targetSquishX - this.squishX) * 0.2;
+                this.squishY += (this.targetSquishY - this.squishY) * 0.2;
+            }
+
+            // 生成弹跳粒子
+            spawnParticles() {
+                const count = 3 + Math.floor(Math.random() * 3);
+                for (let i = 0; i < count; i++) {
+                    this.particles.push(
+                        new BounceParticle(this.x, GROUND_Y, this.color.body)
+                    );
+                }
+            }
+
+            // 更新果冻颤动
+            updateWobble(dt, time) {
+                // 颤动能量衰减
+                this.wobbleEnergy *= 0.96;
+
+                for (let i = 0; i < NUM_CTRL_POINTS; i++) {
+                    // 基础正弦颤动
+                    const baseWobble = Math.sin(time * 4 + i * 1.7 + this.index * 2) * WOBBLE_BASE_AMP;
+                    // 冲击颤动（着陆后放大）
+                    const impactWobble = Math.sin(time * 12 + i * 2.5) * 6 * this.wobbleEnergy;
+                    const target = baseWobble + impactWobble;
+
+                    // 弹簧驱动控制点
+                    const spring = 0.08;
+                    const damp = 0.85;
+                    this.controlVelocities[i] += (target - this.controlPoints[i]) * spring;
+                    this.controlVelocities[i] *= damp;
+                    this.controlPoints[i] += this.controlVelocities[i];
+                }
+            }
+
+            // 更新粒子
+            updateParticles(dt) {
+                for (const p of this.particles) {
+                    p.update(dt);
+                }
+                this.particles = this.particles.filter(p => p.alive);
+            }
+
+            // 总更新
+            update(dt, time, progress) {
+                this.updateBounce(dt, progress);
+                this.updateWobble(dt, time);
+                this.updateParticles(dt);
+                this.justLanded = false;
+            }
+
+            // ─── 绘制阴影 ───
+            drawShadow(ctx) {
+                const distFromGround = GROUND_Y - this.y;
+                const maxDist = BOUNCE_HEIGHT + 50;
+                const ratio = Math.max(0, Math.min(1, distFromGround / maxDist));
+
+                // 阴影大小随高度缩小
+                const shadowW = BASE_RADIUS * (1.2 - ratio * 0.6) * this.squishX;
+                const shadowH = 6 * (1 - ratio * 0.5);
+                const shadowAlpha = 0.35 * (1 - ratio * 0.7);
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.ellipse(this.x, GROUND_Y + 5, shadowW, shadowH, 0, 0, Math.PI * 2);
+                const grad = ctx.createRadialGradient(
+                    this.x, GROUND_Y + 5, 0,
+                    this.x, GROUND_Y + 5, shadowW
+                );
+                grad.addColorStop(0, `rgba(0,0,0,${shadowAlpha})`);
+                grad.addColorStop(0.6, `rgba(0,0,0,${shadowAlpha * 0.4})`);
+                grad.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = grad;
+                ctx.fill();
+                ctx.restore();
+            }
+
+            // ─── 绘制倒影 ───
+            drawReflection(ctx) {
+                const distFromGround = GROUND_Y - this.y;
+                const reflY = GROUND_Y + 15 + distFromGround * 0.1;
+                const alpha = Math.max(0, 0.12 - distFromGround * 0.0005);
+                if (alpha < 0.01) return;
+
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                ctx.translate(this.x, reflY);
+                ctx.scale(this.squishX * 0.9, -this.squishY * 0.4);
+
+                // 简单的倒影形状
+                const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, BASE_RADIUS);
+                grad.addColorStop(0, this.color.body);
+                grad.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.beginPath();
+                ctx.arc(0, 0, BASE_RADIUS, 0, Math.PI * 2);
+                ctx.fillStyle = grad;
+                ctx.fill();
+
+                ctx.restore();
+            }
+
+            // ─── 绘制果冻身体 ───
+            drawBody(ctx, time) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.scale(this.squishX, this.squishY);
+
+                const r = BASE_RADIUS;
+
+                // 用控制点构建果冻轮廓
+                const points = [];
+                for (let i = 0; i < NUM_CTRL_POINTS; i++) {
+                    const angle = (i / NUM_CTRL_POINTS) * Math.PI * 2;
+                    const wobble = this.controlPoints[i];
+                    const pr = r + wobble;
+                    points.push({
+                        x: Math.cos(angle) * pr,
+                        y: Math.sin(angle) * pr
+                    });
+                }
+
+                // ── 主体填充（径向渐变）──
+                const bodyGrad = ctx.createRadialGradient(
+                    -r * 0.3, -r * 0.3, r * 0.1,
+                    0, 0, r * 1.2
+                );
+                bodyGrad.addColorStop(0, this.color.light);
+                bodyGrad.addColorStop(0.5, this.color.body);
+                bodyGrad.addColorStop(1, this.color.dark);
+
+                ctx.beginPath();
+                // 用二次贝塞尔曲线连接控制点，形成平滑的果冻轮廓
+                for (let i = 0; i < NUM_CTRL_POINTS; i++) {
+                    const curr = points[i];
+                    const next = points[(i + 1) % NUM_CTRL_POINTS];
+                    const midX = (curr.x + next.x) / 2;
+                    const midY = (curr.y + next.y) / 2;
+                    if (i === 0) {
+                        const prev = points[NUM_CTRL_POINTS - 1];
+                        const firstMidX = (prev.x + curr.x) / 2;
+                        const firstMidY = (prev.y + curr.y) / 2;
+                        ctx.moveTo(firstMidX, firstMidY);
+                    }
+                    ctx.quadraticCurveTo(curr.x, curr.y, midX, midY);
+                }
+                ctx.closePath();
+                ctx.fillStyle = bodyGrad;
+                ctx.fill();
+
+                // ── 外边缘柔光 ──
+                ctx.strokeStyle = `rgba(255,255,255,0.15)`;
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                // ── 高光（白色椭圆，左上方）──
+                ctx.save();
+                ctx.beginPath();
+                ctx.ellipse(-r * 0.2, -r * 0.35, r * 0.45, r * 0.22, -0.3, 0, Math.PI * 2);
+                const hlGrad = ctx.createRadialGradient(
+                    -r * 0.2, -r * 0.35, 0,
+                    -r * 0.2, -r * 0.35, r * 0.45
+                );
+                hlGrad.addColorStop(0, 'rgba(255,255,255,0.65)');
+                hlGrad.addColorStop(0.5, 'rgba(255,255,255,0.2)');
+                hlGrad.addColorStop(1, 'rgba(255,255,255,0)');
+                ctx.fillStyle = hlGrad;
+                ctx.fill();
+                ctx.restore();
+
+                // ── 小高光点 ──
+                ctx.beginPath();
+                ctx.arc(-r * 0.1, -r * 0.5, r * 0.08, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255,255,255,0.8)';
+                ctx.fill();
+
+                ctx.restore();
+            }
+
+            // ─── 绘制表情 ───
+            drawFace(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.scale(this.squishX, this.squishY);
+
+                const r = BASE_RADIUS;
+                const eyeY = -r * 0.05;
+                const eyeSpacing = r * 0.32;
+                const mouthY = r * 0.3;
+
+                // 眼睛随变形一起缩放已通过外层 scale 实现
+                if (this.expression === 2) {
+                    // ── 挤压表情：扁眼 + 波浪嘴 ──
+                    // 左眼（扁椭圆）
+                    ctx.beginPath();
+                    ctx.ellipse(-eyeSpacing, eyeY, 3.5, 2, 0, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                    ctx.fill();
+                    // 右眼
+                    ctx.beginPath();
+                    ctx.ellipse(eyeSpacing, eyeY, 3.5, 2, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    // 波浪嘴
+                    ctx.beginPath();
+                    ctx.moveTo(-r * 0.2, mouthY);
+                    ctx.quadraticCurveTo(-r * 0.1, mouthY + 3, 0, mouthY);
+                    ctx.quadraticCurveTo(r * 0.1, mouthY - 3, r * 0.2, mouthY);
+                    ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+                    ctx.lineWidth = 1.5;
+                    ctx.lineCap = 'round';
+                    ctx.stroke();
+                } else if (this.expression === 1) {
+                    // ── 惊讶表情：大眼 + O 嘴 ──
+                    // 左眼
+                    ctx.beginPath();
+                    ctx.ellipse(-eyeSpacing, eyeY - 1, 3, 4, 0, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                    ctx.fill();
+                    // 眼睛高光
+                    ctx.beginPath();
+                    ctx.arc(-eyeSpacing + 1, eyeY - 2, 1.2, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+                    ctx.fill();
+                    // 右眼
+                    ctx.beginPath();
+                    ctx.ellipse(eyeSpacing, eyeY - 1, 3, 4, 0, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(eyeSpacing + 1, eyeY - 2, 1.2, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+                    ctx.fill();
+                    // O 嘴
+                    ctx.beginPath();
+                    ctx.ellipse(0, mouthY + 2, 3.5, 4.5, 0, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+                    ctx.fill();
+                } else {
+                    // ── 微笑表情：圆眼 + 弧形嘴 ──
+                    // 左眼
+                    ctx.beginPath();
+                    ctx.arc(-eyeSpacing, eyeY, 3, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                    ctx.fill();
+                    // 眼睛高光
+                    ctx.beginPath();
+                    ctx.arc(-eyeSpacing + 1, eyeY - 1.5, 1.2, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+                    ctx.fill();
+                    // 右眼
+                    ctx.beginPath();
+                    ctx.arc(eyeSpacing, eyeY, 3, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(eyeSpacing + 1, eyeY - 1.5, 1.2, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+                    ctx.fill();
+                    // 微笑
+                    ctx.beginPath();
+                    ctx.arc(0, mouthY - 1, r * 0.22, 0.1 * Math.PI, 0.9 * Math.PI, false);
+                    ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+                    ctx.lineWidth = 1.5;
+                    ctx.lineCap = 'round';
+                    ctx.stroke();
+                }
+
+                ctx.restore();
+            }
+
+            // ─── 绘制粒子 ───
+            drawParticles(ctx) {
+                for (const p of this.particles) {
+                    p.draw(ctx);
+                }
+            }
+
+            // ─── 完整绘制 ───
+            draw(ctx, time) {
+                this.drawShadow(ctx);
+                this.drawReflection(ctx);
+                this.drawParticles(ctx);
+                this.drawBody(ctx, time);
+                this.drawFace(ctx);
+            }
+        }
+
+        // ─── 初始化果冻球 ───
+        const blobs = [];
+        for (let i = 0; i < NUM_BLOBS; i++) {
+            blobs.push(new JellyBlob(i));
+        }
+
+        // ─── 绘制地面 ───
+        function drawGround() {
+            // 地面线
+            const lineGrad = ctx.createLinearGradient(W * 0.1, 0, W * 0.9, 0);
+            lineGrad.addColorStop(0, 'rgba(255,255,255,0)');
+            lineGrad.addColorStop(0.3, 'rgba(255,255,255,0.08)');
+            lineGrad.addColorStop(0.5, 'rgba(255,255,255,0.12)');
+            lineGrad.addColorStop(0.7, 'rgba(255,255,255,0.08)');
+            lineGrad.addColorStop(1, 'rgba(255,255,255,0)');
+
+            ctx.beginPath();
+            ctx.moveTo(W * 0.08, GROUND_Y);
+            ctx.lineTo(W * 0.92, GROUND_Y);
+            ctx.strokeStyle = lineGrad;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // 地面柔光
+            const glowGrad = ctx.createLinearGradient(0, GROUND_Y, 0, GROUND_Y + 40);
+            glowGrad.addColorStop(0, 'rgba(180, 170, 220, 0.04)');
+            glowGrad.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = glowGrad;
+            ctx.fillRect(W * 0.05, GROUND_Y, W * 0.9, 40);
+        }
+
+        // ─── 绘制背景装饰 ───
+        function drawBackground(time) {
+            // 微弱的径向光晕
+            const bgGrad = ctx.createRadialGradient(W / 2, H * 0.4, 0, W / 2, H * 0.4, W * 0.6);
+            bgGrad.addColorStop(0, 'rgba(80, 70, 120, 0.06)');
+            bgGrad.addColorStop(0.5, 'rgba(40, 35, 60, 0.03)');
+            bgGrad.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, W, H);
+        }
+
+        // ─── 100% 完成动画状态 ───
+        let celebrationPhase = -1;  // -1 表示非庆祝状态
+        let celebrationTimer = 0;
+
+        // ─── 主循环 ───
+        let progress = 0;
+        let lastTime = performance.now();
+
+        function frame(now) {
+            const rawDt = (now - lastTime) / 1000;
+            lastTime = now;
+            const dt = Math.min(rawDt, 0.033); // 限制最大 dt 防跳帧
+            const time = now / 1000;
+
+            // ── 清空画布 ──
+            ctx.clearRect(0, 0, W, H);
+
+            // ── 背景 ──
+            drawBackground(time);
+
+            // ── 进度更新 ──
+            if (celebrationPhase < 0) {
+                progress += dt * 8; // 约12秒走完一个周期
+                if (progress >= 100) {
+                    progress = 100;
+                    celebrationPhase = 0;
+                    celebrationTimer = 0;
+                }
+            } else {
+                // 庆祝动画：所有球同步大跳
+                celebrationTimer += dt;
+                if (celebrationTimer > 2.0) {
+                    // 重置
+                    celebrationPhase = -1;
+                    progress = 0;
+                    for (const blob of blobs) {
+                        blob.phase = -blob.index * STAGGER_DELAY;
+                    }
+                }
+            }
+
+            // ── 更新果冻球 ──
+            for (const blob of blobs) {
+                if (celebrationPhase >= 0) {
+                    // 庆祝模式：同步大跳
+                    const t = celebrationTimer;
+                    if (t < 0.15) {
+                        // 蓄力
+                        const e = t / 0.15;
+                        blob.y = blob.baseY + 12 * e * e;
+                        blob.squishX = 1 + 0.35 * e * e;
+                        blob.squishY = 1 - 0.35 * e * e;
+                        blob.expression = 2;
+                    } else if (t < 0.9) {
+                        // 大跳
+                        const e = (t - 0.15) / 0.75;
+                        const jumpH = BOUNCE_HEIGHT * 1.4;
+                        blob.y = blob.baseY - jumpH * Math.sin(e * Math.PI);
+                        blob.squishX = 1 - 0.2 * Math.sin(e * Math.PI);
+                        blob.squishY = 1 + 0.2 * Math.sin(e * Math.PI);
+                        blob.expression = 1;
+                    } else if (t < 1.1) {
+                        // 着陆
+                        const e = (t - 0.9) / 0.2;
+                        blob.y = blob.baseY + 8 * (1 - e);
+                        blob.squishX = 1 + 0.3 * (1 - e);
+                        blob.squishY = 1 - 0.3 * (1 - e);
+                        blob.expression = 2;
+                        if (e < 0.1 && blob.wobbleEnergy < 0.5) {
+                            blob.wobbleEnergy = 1.0;
+                            blob.spawnParticles();
+                        }
+                    } else {
+                        blob.y = blob.baseY;
+                        blob.squishX = 1;
+                        blob.squishY = 1;
+                        blob.expression = 0;
+                    }
+                    blob.updateWobble(dt, time);
+                    blob.updateParticles(dt);
+                } else {
+                    blob.update(dt, time, progress);
+                }
+            }
+
+            // ── 绘制地面 ──
+            drawGround();
+
+            // ── 绘制果冻球（从后到前）──
+            for (const blob of blobs) {
+                blob.draw(ctx, time);
+            }
+
+            // ── 更新进度条 UI ──
+            pfEl.style.width = progress + '%';
+            pctEl.textContent = Math.floor(progress) + '%';
+
+            requestAnimationFrame(frame);
+        }
+
+        requestAnimationFrame(frame);
+    </script>
+</body>
+</html>
