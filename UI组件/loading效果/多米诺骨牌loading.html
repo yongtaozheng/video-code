@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>多米诺骨牌 Loading</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0c14;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    font-family: 'Segoe UI', 'PingFang SC', sans-serif;
+    overflow: hidden;
+  }
+
+  .container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+  }
+
+  canvas {
+    border-radius: 16px;
+    background: transparent;
+  }
+
+  /* 加载文字区域 */
+  .loading-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    width: 500px;
+  }
+
+  .loading-text {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 10px;
+    color: #c0c6d8;
+    text-transform: uppercase;
+  }
+
+  /* 进度条轨道 */
+  .progress-track {
+    width: 100%;
+    height: 6px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .progress-fill {
+    height: 100%;
+    width: 0%;
+    border-radius: 3px;
+    background: linear-gradient(90deg, #3b5bdb, #7c3aed, #e64980);
+    transition: width 0.15s ease;
+    box-shadow: 0 0 12px rgba(124, 58, 237, 0.4);
+  }
+
+  .percent-text {
+    font-size: 14px;
+    color: rgba(255,255,255,0.45);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* 信息行 */
+  .info-row {
+    display: flex;
+    gap: 36px;
+    justify-content: center;
+  }
+
+  .info-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .info-label {
+    font-size: 10px;
+    color: rgba(255,255,255,0.25);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+  }
+
+  .info-value {
+    font-size: 14px;
+    color: rgba(255,255,255,0.6);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .hint {
+    font-size: 12px;
+    color: rgba(255,255,255,0.18);
+    letter-spacing: 3px;
+    margin-top: 4px;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <canvas id="canvas" width="650" height="420"></canvas>
+  <div class="loading-section">
+    <span class="loading-text">LOADING</span>
+    <div class="progress-track">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+    <span class="percent-text" id="percentText">0%</span>
+    <div class="info-row">
+      <div class="info-item">
+        <span class="info-label">Chain</span>
+        <span class="info-value" id="infoChain">0</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">Speed</span>
+        <span class="info-value" id="infoSpeed">0.0</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">Tiles</span>
+        <span class="info-value" id="infoTiles">14</span>
+      </div>
+    </div>
+    <span class="hint">多米诺骨牌 · Domino Chain</span>
+  </div>
+</div>
+
+<script>
+// ==================== 初始化 Canvas ====================
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const dpr = window.devicePixelRatio || 1;
+const W = 650, H = 420;
+canvas.width = W * dpr;
+canvas.height = H * dpr;
+canvas.style.width = W + 'px';
+canvas.style.height = H + 'px';
+ctx.scale(dpr, dpr);
+
+// ==================== DOM 引用 ====================
+const progressFill = document.getElementById('progressFill');
+const percentText = document.getElementById('percentText');
+const infoChain = document.getElementById('infoChain');
+const infoSpeed = document.getElementById('infoSpeed');
+const infoTiles = document.getElementById('infoTiles');
+
+// ==================== 常量配置 ====================
+const TILE_COUNT = 14;          // 骨牌数量
+const TILE_W = 12;              // 骨牌宽度
+const TILE_H = 60;              // 骨牌高度
+const TILE_GAP = 32;            // 骨牌间距（中心到中心）
+const GROUND_Y = 310;           // 地面 Y 坐标
+const GRAVITY = 9.8 * 280;     // 重力加速度（像素单位）
+const DEPTH_W = 6;              // 3D 侧面宽度
+const DEPTH_H = 4;              // 3D 顶面高度
+
+// ==================== 骨牌颜色 ====================
+// 从蓝色到粉色的渐变色板
+function getTileColor(index, total) {
+  const hue = 240 + (index / (total - 1)) * 90;
+  return { h: hue, s: 70, l: 55 };
+}
+
+function hslStr(h, s, l) {
+  return `hsl(${h}, ${s}%, ${l}%)`;
+}
+
+// ==================== 骨牌数据结构 ====================
+class Tile {
+  constructor(index, x) {
+    this.index = index;
+    this.x = x;                 // 底部中心 X
+    this.baseColor = getTileColor(index, TILE_COUNT);
+    this.theta = 0;             // 旋转角度，0=竖直，正值=顺时针倒下
+    this.omega = 0;             // 角速度
+    this.fallen = false;        // 是否已经完全倒下
+    this.triggered = false;     // 是否已被触发
+    this.pips = this._generatePips(); // 骨牌点数
+    this.prevThetas = [];       // 用于运动模糊
+    this.restTheta = Math.PI / 2 - 0.05; // 最终停留角度（会被堆叠覆盖）
+  }
+
+  // 生成 1-3 个骨牌点
+  _generatePips() {
+    const count = 1 + Math.floor(Math.random() * 3);
+    const positions = [];
+    if (count === 1) {
+      positions.push({ rx: 0.5, ry: 0.5 });
+    } else if (count === 2) {
+      positions.push({ rx: 0.35, ry: 0.33 });
+      positions.push({ rx: 0.65, ry: 0.67 });
+    } else {
+      positions.push({ rx: 0.35, ry: 0.25 });
+      positions.push({ rx: 0.5, ry: 0.5 });
+      positions.push({ rx: 0.65, ry: 0.75 });
+    }
+    return positions;
+  }
+
+  // 计算接触角度（当骨牌顶部碰到下一个骨牌时的角度）
+  get contactAngle() {
+    return Math.asin(TILE_GAP / TILE_H);
+  }
+
+  // 获取最大倒下角度（由堆叠计算动态决定）
+  get maxTheta() {
+    return this.restTheta;
+  }
+
+  // 枢轴点（底部右侧角）
+  get pivotX() {
+    return this.x + TILE_W / 2;
+  }
+
+  get pivotY() {
+    return GROUND_Y;
+  }
+}
+
+// ==================== 粒子系统 ====================
+class Particle {
+  constructor(x, y, vx, vy, color, life, size) {
+    this.x = x;
+    this.y = y;
+    this.vx = vx;
+    this.vy = vy;
+    this.color = color;
+    this.life = life;
+    this.maxLife = life;
+    this.size = size || 3;
+    this.type = 'normal'; // normal, sparkle, dust
+  }
+
+  update(dt) {
+    this.x += this.vx * dt;
+    this.y += this.vy * dt;
+    this.vy += 200 * dt; // 粒子受重力影响
+    this.life -= dt;
+  }
+
+  get alpha() {
+    return Math.max(0, this.life / this.maxLife);
+  }
+
+  get alive() {
+    return this.life > 0;
+  }
+}
+
+// ==================== 全局状态 ====================
+let tiles = [];
+let particles = [];
+let phase = 'idle';  // idle, push, cascade, pause_down, reset, pause_up
+let phaseTimer = 0;
+let cascadeCount = 0;
+let lastToppleSpeed = 0;
+let progress = 0;
+let progressDir = 1;
+let cycleCount = 0;
+let pushIndicator = { x: 0, y: 0, alpha: 0, active: false };
+
+// ==================== 初始化骨牌 ====================
+function initTiles() {
+  tiles = [];
+  const totalWidth = (TILE_COUNT - 1) * TILE_GAP + TILE_W;
+  const startX = (W - totalWidth) / 2;
+  for (let i = 0; i < TILE_COUNT; i++) {
+    tiles.push(new Tile(i, startX + i * TILE_GAP));
+  }
+  cascadeCount = 0;
+  lastToppleSpeed = 0;
+}
+
+// ==================== 推动指示器 ====================
+function initPush() {
+  const firstTile = tiles[0];
+  pushIndicator = {
+    startX: firstTile.x - 70,       // 起始位置
+    x: firstTile.x - 70,
+    y: GROUND_Y - TILE_H / 2,
+    targetX: firstTile.x - TILE_W / 2 - 2, // 目标位置
+    alpha: 1,
+    active: true,
+    progress: 0
+  };
+}
+
+// ==================== 创建碰撞粒子 ====================
+function spawnContactParticles(x, y, color) {
+  for (let i = 0; i < 8; i++) {
+    const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 0.8;
+    const speed = 60 + Math.random() * 120;
+    const p = new Particle(
+      x, y,
+      Math.cos(angle) * speed,
+      Math.sin(angle) * speed,
+      color,
+      0.4 + Math.random() * 0.3,
+      2 + Math.random() * 2
+    );
+    particles.push(p);
+  }
+  // 闪光粒子
+  const sp = new Particle(x, y, 0, 0, '#fff', 0.2, 8);
+  sp.type = 'sparkle';
+  particles.push(sp);
+}
+
+// ==================== 创建落地灰尘粒子 ====================
+function spawnDustParticles(x, y) {
+  for (let i = 0; i < 6; i++) {
+    const vx = (Math.random() - 0.5) * 80;
+    const vy = -20 - Math.random() * 40;
+    const p = new Particle(
+      x + (Math.random() - 0.5) * 20, y,
+      vx, vy,
+      'rgba(200,200,220,0.5)',
+      0.5 + Math.random() * 0.3,
+      1.5 + Math.random() * 1.5
+    );
+    p.type = 'dust';
+    particles.push(p);
+  }
+}
+
+// ==================== 创建魔法重置粒子 ====================
+function spawnSparkleParticles(x, y, color) {
+  for (let i = 0; i < 5; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 30 + Math.random() * 60;
+    const p = new Particle(
+      x + (Math.random() - 0.5) * 10,
+      y + (Math.random() - 0.5) * 30,
+      Math.cos(angle) * speed,
+      Math.sin(angle) * speed - 40,
+      color,
+      0.6 + Math.random() * 0.4,
+      1.5 + Math.random() * 2
+    );
+    p.type = 'sparkle';
+    particles.push(p);
+  }
+}
+
+// ==================== 计算堆叠停靠角度 ====================
+// 模拟真实多米诺骨牌效果：倒下的牌依次靠在前一块上
+// 形成角度平缓递减的扇形叠堆
+// 第一块倒到接近水平，最后一块大约 55°，整体是温柔的弧度
+function computeRestAngles() {
+  const maxAngle = Math.PI / 2 - 0.05;  // 第一块牌 ≈ 87°
+  const minAngle = Math.PI / 3.2;        // 最后一块牌 ≈ 56°
+  const range = maxAngle - minAngle;
+  let fallenCount = 0;
+
+  for (let i = 0; i < tiles.length; i++) {
+    const tile = tiles[i];
+
+    if (i === 0) {
+      tile.restTheta = maxAngle;
+    } else {
+      if (fallenCount > 0) {
+        // 用缓动曲线：前几块角度减小快，后面逐渐平缓
+        const t = Math.min(1, fallenCount / (TILE_COUNT - 1));
+        const ease = Math.pow(t, 0.65);
+        tile.restTheta = maxAngle - range * ease;
+      } else {
+        tile.restTheta = maxAngle;
+      }
+    }
+
+    if (tile.fallen) {
+      fallenCount++;
+    }
+  }
+}
+
+// ==================== 物理更新（级联倒下） ====================
+function updateCascade(dt) {
+  let allFallen = true;
+
+  for (let i = 0; i < tiles.length; i++) {
+    const tile = tiles[i];
+
+    if (!tile.triggered) {
+      allFallen = false;
+      continue;
+    }
+
+    if (tile.fallen) continue;
+
+    // 保存之前的角度用于运动模糊
+    tile.prevThetas.push(tile.theta);
+    if (tile.prevThetas.length > 3) tile.prevThetas.shift();
+
+    // 简化的旋转物理
+    // 力矩 = m * g * (H/2) * sin(theta)
+    // 转动惯量 I = (1/3) * m * H^2
+    // 角加速度 = (3 * g * sin(theta)) / (2 * H)
+    const alpha = (3 * GRAVITY * Math.sin(tile.theta + 0.01)) / (2 * TILE_H);
+
+    // 每个后续骨牌有额外加速（动量累积效果）
+    const momentumBoost = 1 + tile.index * 0.08;
+    tile.omega += alpha * momentumBoost * dt;
+    tile.theta += tile.omega * dt;
+
+    // 检查是否碰到下一个骨牌
+    if (i < tiles.length - 1) {
+      const nextTile = tiles[i + 1];
+      if (!nextTile.triggered && tile.theta >= tile.contactAngle) {
+        nextTile.triggered = true;
+        // 传递角速度（带有动量增益）
+        nextTile.omega = tile.omega * 0.6;
+        cascadeCount++;
+        lastToppleSpeed = tile.omega;
+
+        // 碰撞点粒子效果
+        const contactX = tile.pivotX + Math.sin(tile.theta) * TILE_H;
+        const contactY = tile.pivotY - Math.cos(tile.theta) * TILE_H;
+        const col = hslStr(tile.baseColor.h, tile.baseColor.s, tile.baseColor.l);
+        spawnContactParticles(contactX, contactY, col);
+      }
+    }
+
+    // 骨牌倒下到最大角度（靠在前一块上形成叠堆）
+    if (tile.theta >= tile.maxTheta) {
+      tile.theta = tile.maxTheta;
+      tile.omega = 0;
+      if (!tile.fallen) {
+        tile.fallen = true;
+        // 重新计算后续骨牌的停靠角度
+        computeRestAngles();
+        // 碰撞灰尘
+        const tipX = tile.pivotX + Math.sin(tile.theta) * TILE_H;
+        const tipY = GROUND_Y - Math.cos(tile.theta) * TILE_H;
+        spawnDustParticles(tipX, tipY);
+      }
+    }
+
+    if (!tile.fallen) allFallen = false;
+  }
+
+  // 检查所有骨牌是否都倒下了
+  if (allFallen && tiles[tiles.length - 1].fallen) {
+    phase = 'pause_down';
+    phaseTimer = 1.0; // 暂停1秒
+  }
+}
+
+// ==================== 重置动画状态 ====================
+let resetIndex = TILE_COUNT - 1;  // 从最后一个开始复位
+let resetTimers = [];
+
+function startReset() {
+  phase = 'reset';
+  resetTimers = [];
+  for (let i = TILE_COUNT - 1; i >= 0; i--) {
+    // 最后一个骨牌先起来，交错时序
+    const delay = (TILE_COUNT - 1 - i) * 0.12;
+    resetTimers.push({
+      index: i,
+      delay: delay,
+      elapsed: 0,
+      started: false,
+      done: false
+    });
+  }
+}
+
+// ==================== 弹簧物理复位 ====================
+function updateReset(dt) {
+  let allDone = true;
+
+  for (const rt of resetTimers) {
+    rt.elapsed += dt;
+    if (rt.elapsed < rt.delay) {
+      allDone = false;
+      continue;
+    }
+
+    if (rt.done) continue;
+
+    const tile = tiles[rt.index];
+
+    if (!rt.started) {
+      rt.started = true;
+      tile.omega = 0;
+      rt.springTime = 0;
+      rt.startAngle = tile.theta; // 记录当前实际倒下角度
+      // 重置粒子
+      const col = hslStr(tile.baseColor.h, tile.baseColor.s, tile.baseColor.l);
+      spawnSparkleParticles(tile.x + TILE_W / 2, GROUND_Y - TILE_H / 2, col);
+    }
+
+    // 弹簧阻尼运动回到 theta=0
+    rt.springTime += dt;
+    const t = rt.springTime;
+    const damping = 5.0;
+    const freq = 12.0;
+    // 从当前倒下角度弹回到 0，带过冲
+    const startAngle = rt.startAngle;
+    const springVal = startAngle * Math.exp(-damping * t) * Math.cos(freq * t);
+    tile.theta = Math.max(0, springVal);
+
+    if (t > 0.8 || tile.theta <= 0.001) {
+      tile.theta = 0;
+      tile.omega = 0;
+      tile.fallen = false;
+      tile.triggered = false;
+      tile.prevThetas = [];
+      rt.done = true;
+    } else {
+      allDone = false;
+    }
+  }
+
+  if (allDone) {
+    phase = 'pause_up';
+    phaseTimer = 0.6;
+    // 确保所有骨牌完全复位
+    for (const tile of tiles) {
+      tile.theta = 0;
+      tile.omega = 0;
+      tile.fallen = false;
+      tile.triggered = false;
+      tile.prevThetas = [];
+      tile.restTheta = Math.PI / 2 - 0.05;
+    }
+  }
+}
+
+// ==================== 绘制单个骨牌 ====================
+function drawTile(tile, reflectionMode = false) {
+  const { h, s, l } = tile.baseColor;
+  const theta = tile.theta;
+  const pivotX = tile.pivotX;
+  const pivotY = tile.pivotY;
+
+  ctx.save();
+
+  if (reflectionMode) {
+    // 倒影模式：垂直翻转
+    ctx.translate(0, GROUND_Y * 2);
+    ctx.scale(1, -1);
+    ctx.globalAlpha = 0.08;
+  }
+
+  // 运动模糊（绘制之前几帧的残影）
+  if (!reflectionMode && tile.prevThetas.length > 0 && Math.abs(tile.omega) > 0.5) {
+    for (let g = 0; g < tile.prevThetas.length; g++) {
+      const ghostAlpha = 0.06 * (g + 1) / tile.prevThetas.length;
+      ctx.save();
+      ctx.globalAlpha = ghostAlpha;
+      drawTileBody(pivotX, pivotY, tile.prevThetas[g], h, s, l, tile.pips, true);
+      ctx.restore();
+    }
+  }
+
+  // 阴影
+  if (!reflectionMode) {
+    drawTileShadow(tile);
+  }
+
+  // 绘制骨牌主体
+  drawTileBody(pivotX, pivotY, theta, h, s, l, tile.pips, false);
+
+  ctx.restore();
+}
+
+// ==================== 绘制骨牌主体 ====================
+function drawTileBody(pivotX, pivotY, theta, h, s, l, pips, isGhost) {
+  ctx.save();
+  ctx.translate(pivotX, pivotY);
+  ctx.rotate(theta);
+
+  // 骨牌正面（从枢轴点向上绘制）
+  const faceX = -TILE_W;
+  const faceY = -TILE_H;
+  const faceW = TILE_W;
+  const faceH = TILE_H;
+
+  // 右侧面（3D 深度效果）
+  if (!isGhost) {
+    ctx.fillStyle = hslStr(h, s, l - 15);
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(DEPTH_W, -DEPTH_H);
+    ctx.lineTo(DEPTH_W, -TILE_H - DEPTH_H);
+    ctx.lineTo(0, -TILE_H);
+    ctx.closePath();
+    ctx.fill();
+
+    // 顶面
+    ctx.fillStyle = hslStr(h, s, l + 10);
+    ctx.beginPath();
+    ctx.moveTo(-TILE_W, -TILE_H);
+    ctx.lineTo(-TILE_W + DEPTH_W, -TILE_H - DEPTH_H);
+    ctx.lineTo(DEPTH_W, -TILE_H - DEPTH_H);
+    ctx.lineTo(0, -TILE_H);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // 正面
+  const grad = ctx.createLinearGradient(faceX, faceY, faceX, faceY + faceH);
+  grad.addColorStop(0, hslStr(h, s, l + 8));
+  grad.addColorStop(1, hslStr(h, s, l - 3));
+  ctx.fillStyle = grad;
+
+  // 圆角矩形
+  const r = 3;
+  ctx.beginPath();
+  ctx.moveTo(faceX + r, faceY);
+  ctx.lineTo(faceX + faceW - r, faceY);
+  ctx.quadraticCurveTo(faceX + faceW, faceY, faceX + faceW, faceY + r);
+  ctx.lineTo(faceX + faceW, faceY + faceH - r);
+  ctx.quadraticCurveTo(faceX + faceW, faceY + faceH, faceX + faceW - r, faceY + faceH);
+  ctx.lineTo(faceX + r, faceY + faceH);
+  ctx.quadraticCurveTo(faceX, faceY + faceH, faceX, faceY + faceH - r);
+  ctx.lineTo(faceX, faceY + r);
+  ctx.quadraticCurveTo(faceX, faceY, faceX + r, faceY);
+  ctx.closePath();
+  ctx.fill();
+
+  // 顶部高光边缘
+  if (!isGhost) {
+    ctx.strokeStyle = `hsla(${h}, ${s}%, ${l + 25}%, 0.5)`;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(faceX + r, faceY + 0.5);
+    ctx.lineTo(faceX + faceW - r, faceY + 0.5);
+    ctx.stroke();
+
+    // 内发光
+    const innerGlow = ctx.createLinearGradient(faceX, faceY, faceX, faceY + 15);
+    innerGlow.addColorStop(0, `hsla(${h}, ${s}%, ${l + 30}%, 0.2)`);
+    innerGlow.addColorStop(1, `hsla(${h}, ${s}%, ${l}%, 0)`);
+    ctx.fillStyle = innerGlow;
+    ctx.beginPath();
+    ctx.moveTo(faceX + r, faceY);
+    ctx.lineTo(faceX + faceW - r, faceY);
+    ctx.quadraticCurveTo(faceX + faceW, faceY, faceX + faceW, faceY + r);
+    ctx.lineTo(faceX + faceW, faceY + 15);
+    ctx.lineTo(faceX, faceY + 15);
+    ctx.lineTo(faceX, faceY + r);
+    ctx.quadraticCurveTo(faceX, faceY, faceX + r, faceY);
+    ctx.closePath();
+    ctx.fill();
+
+    // 骨牌点（白色圆点）
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    for (const pip of pips) {
+      const px = faceX + pip.rx * faceW;
+      const py = faceY + pip.ry * faceH;
+      ctx.beginPath();
+      ctx.arc(px, py, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 中间分割线（骨牌特有）
+    ctx.strokeStyle = `hsla(${h}, ${s}%, ${l + 20}%, 0.3)`;
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(faceX + 2, faceY + faceH / 2);
+    ctx.lineTo(faceX + faceW - 2, faceY + faceH / 2);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+// ==================== 绘制骨牌阴影 ====================
+function drawTileShadow(tile) {
+  const theta = tile.theta;
+  const pivotX = tile.pivotX;
+  // 阴影随旋转角度变化
+  const shadowWidth = TILE_H * Math.sin(theta) + TILE_W * Math.cos(theta);
+  const shadowAlpha = 0.2 * (1 - theta / (Math.PI / 2)) + 0.05;
+
+  ctx.save();
+  ctx.fillStyle = `rgba(0, 0, 0, ${shadowAlpha})`;
+  ctx.beginPath();
+  ctx.ellipse(
+    pivotX + shadowWidth * 0.3 - TILE_W / 2,
+    GROUND_Y + 2,
+    Math.max(5, shadowWidth * 0.6),
+    3,
+    0, 0, Math.PI * 2
+  );
+  ctx.fill();
+  ctx.restore();
+}
+
+// ==================== 绘制地面 ====================
+function drawGround() {
+  const totalWidth = (TILE_COUNT - 1) * TILE_GAP + TILE_W + 80;
+  const startX = (W - totalWidth) / 2;
+
+  // 地面线
+  const grad = ctx.createLinearGradient(startX, GROUND_Y, startX + totalWidth, GROUND_Y);
+  grad.addColorStop(0, 'rgba(255,255,255,0)');
+  grad.addColorStop(0.2, 'rgba(255,255,255,0.12)');
+  grad.addColorStop(0.5, 'rgba(255,255,255,0.18)');
+  grad.addColorStop(0.8, 'rgba(255,255,255,0.12)');
+  grad.addColorStop(1, 'rgba(255,255,255,0)');
+
+  ctx.strokeStyle = grad;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(startX, GROUND_Y);
+  ctx.lineTo(startX + totalWidth, GROUND_Y);
+  ctx.stroke();
+
+  // 地面下方微弱的渐变
+  const groundGrad = ctx.createLinearGradient(0, GROUND_Y, 0, GROUND_Y + 30);
+  groundGrad.addColorStop(0, 'rgba(255,255,255,0.03)');
+  groundGrad.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = groundGrad;
+  ctx.fillRect(startX, GROUND_Y, totalWidth, 30);
+}
+
+// ==================== 绘制推动指示器 ====================
+function drawPushIndicator() {
+  if (!pushIndicator.active) return;
+
+  const { x, y, alpha } = pushIndicator;
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+
+  // 发光圆点
+  const glow = ctx.createRadialGradient(x, y, 0, x, y, 18);
+  glow.addColorStop(0, 'rgba(255,255,255,0.9)');
+  glow.addColorStop(0.3, 'rgba(124,58,237,0.6)');
+  glow.addColorStop(1, 'rgba(124,58,237,0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(x, y, 18, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 箭头
+  ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(x + 6, y);
+  ctx.lineTo(x + 16, y);
+  ctx.moveTo(x + 12, y - 4);
+  ctx.lineTo(x + 16, y);
+  ctx.lineTo(x + 12, y + 4);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+// ==================== 绘制粒子 ====================
+function drawParticles() {
+  for (const p of particles) {
+    ctx.save();
+    ctx.globalAlpha = p.alpha;
+
+    if (p.type === 'sparkle') {
+      // 闪光粒子
+      const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
+      glow.addColorStop(0, 'rgba(255,255,255,0.9)');
+      glow.addColorStop(0.5, p.color);
+      glow.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * (1 + (1 - p.alpha)), 0, Math.PI * 2);
+      ctx.fill();
+
+      // 十字星芒
+      ctx.strokeStyle = `rgba(255,255,255,${p.alpha * 0.6})`;
+      ctx.lineWidth = 0.5;
+      const sz = p.size * 1.5;
+      ctx.beginPath();
+      ctx.moveTo(p.x - sz, p.y);
+      ctx.lineTo(p.x + sz, p.y);
+      ctx.moveTo(p.x, p.y - sz);
+      ctx.lineTo(p.x, p.y + sz);
+      ctx.stroke();
+    } else if (p.type === 'dust') {
+      // 灰尘粒子
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * p.alpha, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      // 普通粒子
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * (0.5 + p.alpha * 0.5), 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+}
+
+// ==================== 绘制背景 ====================
+function drawBackground() {
+  // 径向渐变背景（中心略亮）
+  const bg = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, W * 0.6);
+  bg.addColorStop(0, '#10131e');
+  bg.addColorStop(1, '#0a0c14');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+}
+
+// ==================== 进度条与信息更新 ====================
+function updateProgress(dt) {
+  progress += progressDir * dt * 18;
+  if (progress >= 100) {
+    progress = 100;
+    progressDir = -1;
+  } else if (progress <= 0) {
+    progress = 0;
+    progressDir = 1;
+  }
+
+  progressFill.style.width = progress + '%';
+  percentText.textContent = Math.floor(progress) + '%';
+  infoChain.textContent = cascadeCount;
+  infoSpeed.textContent = lastToppleSpeed.toFixed(1);
+  infoTiles.textContent = TILE_COUNT;
+}
+
+// ==================== 主循环 ====================
+let lastTime = 0;
+
+function animate(now) {
+  requestAnimationFrame(animate);
+
+  if (!lastTime) lastTime = now;
+  let dt = (now - lastTime) / 1000;
+  lastTime = now;
+
+  // 限制 dt 防止跳帧
+  if (dt > 0.05) dt = 0.05;
+
+  // 清空画布
+  ctx.clearRect(0, 0, W, H);
+
+  // 背景
+  drawBackground();
+
+  // 地面
+  drawGround();
+
+  // 状态机更新
+  switch (phase) {
+    case 'idle':
+      // 初始化并开始推动动画
+      initTiles();
+      initPush();
+      phase = 'push';
+      phaseTimer = 0;
+      break;
+
+    case 'push':
+      // 推动指示器动画
+      phaseTimer += dt;
+      const pushDuration = 0.7;
+      const pp = Math.min(1, phaseTimer / pushDuration);
+      // easeInQuad: 加速冲向骨牌
+      const easeP = pp * pp;
+
+      pushIndicator.x = pushIndicator.startX + (pushIndicator.targetX - pushIndicator.startX) * easeP;
+      pushIndicator.alpha = pp < 0.8 ? 1 : 1 - (pp - 0.8) / 0.2;
+
+      if (pp >= 1) {
+        // 触发第一个骨牌
+        tiles[0].triggered = true;
+        tiles[0].omega = 2.5; // 初始角速度
+        pushIndicator.active = false;
+        phase = 'cascade';
+        cascadeCount = 1;
+        // 推动粒子
+        spawnContactParticles(tiles[0].x, GROUND_Y - TILE_H / 2, '#7c3aed');
+      }
+      break;
+
+    case 'cascade':
+      updateCascade(dt);
+      break;
+
+    case 'pause_down':
+      phaseTimer -= dt;
+      if (phaseTimer <= 0) {
+        startReset();
+      }
+      break;
+
+    case 'reset':
+      updateReset(dt);
+      break;
+
+    case 'pause_up':
+      phaseTimer -= dt;
+      if (phaseTimer <= 0) {
+        phase = 'idle';
+        cycleCount++;
+      }
+      break;
+  }
+
+  // 更新粒子
+  for (const p of particles) {
+    p.update(dt);
+  }
+  particles = particles.filter(p => p.alive);
+
+  // 绘制倒影（低透明度翻转骨牌）
+  for (const tile of tiles) {
+    drawTile(tile, true);
+  }
+
+  // 绘制骨牌
+  for (const tile of tiles) {
+    drawTile(tile, false);
+  }
+
+  // 绘制推动指示器
+  drawPushIndicator();
+
+  // 绘制粒子
+  drawParticles();
+
+  // 更新进度
+  updateProgress(dt);
+}
+
+// ==================== 启动动画 ====================
+requestAnimationFrame(animate);
+</script>
+</body>
+</html>
