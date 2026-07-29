@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>魔方还原Loading</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #0a0a14;
+            overflow: hidden;
+            font-family: 'Segoe UI', 'PingFang SC', sans-serif;
+        }
+
+        .container {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 30px;
+        }
+
+        canvas {
+            border-radius: 10px;
+        }
+
+        /* 底部信息面板 */
+        .info-panel {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 14px;
+            width: 560px;
+        }
+
+        /* LOADING文字 */
+        .loading-title {
+            font-size: 16px;
+            letter-spacing: 10px;
+            color: rgba(200, 220, 255, 0.7);
+            text-transform: uppercase;
+            text-shadow: 0 0 15px rgba(120, 160, 255, 0.3);
+        }
+
+        /* 进度条容器 */
+        .progress-wrap {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .progress-track {
+            flex: 1;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 3px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            border-radius: 3px;
+            /* 六色渐变，匹配魔方六面 */
+            background: linear-gradient(90deg,
+                #cc2222 0%, #cc2222 16.6%,
+                #ee8822 16.6%, #ee8822 33.3%,
+                #eeeeee 33.3%, #eeeeee 50%,
+                #eedd22 50%, #eedd22 66.6%,
+                #22aa44 66.6%, #22aa44 83.3%,
+                #2255cc 83.3%, #2255cc 100%
+            );
+            background-size: 200% 100%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-percent {
+            font-size: 13px;
+            color: rgba(200, 220, 255, 0.6);
+            min-width: 40px;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* 状态信息行 */
+        .status-row {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            width: 100%;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: rgba(200, 220, 255, 0.35);
+        }
+
+        .status-item .label {
+            color: rgba(200, 220, 255, 0.25);
+        }
+
+        .status-item .value {
+            color: rgba(200, 220, 255, 0.55);
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* 底部提示 */
+        .hint {
+            font-size: 12px;
+            color: rgba(200, 220, 255, 0.2);
+            letter-spacing: 3px;
+            margin-top: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <canvas id="canvas" width="560" height="520"></canvas>
+        <div class="info-panel">
+            <div class="loading-title">LOADING</div>
+            <div class="progress-wrap">
+                <div class="progress-track">
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+                <div class="progress-percent" id="progressPercent">0%</div>
+            </div>
+            <div class="status-row">
+                <div class="status-item">
+                    <span class="label">Moves</span>
+                    <span class="value" id="moveCount">0</span>
+                </div>
+                <div class="status-item">
+                    <span class="label">Phase</span>
+                    <span class="value" id="phaseText">Solved</span>
+                </div>
+                <div class="status-item">
+                    <span class="label">Time</span>
+                    <span class="value" id="timeText">0.0s</span>
+                </div>
+            </div>
+            <div class="hint">魔方还原 · Rubik's Cube</div>
+        </div>
+    </div>
+
+    <script>
+    // ============================================================
+    // 魔方还原Loading动画 - 纯Canvas 3D渲染
+    // ============================================================
+    (function() {
+        'use strict';
+
+        var canvas = document.getElementById('canvas');
+        var ctx = canvas.getContext('2d');
+        var dpr = window.devicePixelRatio || 1;
+
+        // 高分屏适配
+        var W = 560, H = 520;
+        canvas.width = W * dpr;
+        canvas.height = H * dpr;
+        canvas.style.width = W + 'px';
+        canvas.style.height = H + 'px';
+        ctx.scale(dpr, dpr);
+
+        // 画布中心（魔方绘制中心）
+        var cx = W / 2;
+        var cy = H / 2 - 20;
+
+        // DOM引用
+        var progressBar = document.getElementById('progressBar');
+        var progressPercent = document.getElementById('progressPercent');
+        var moveCountEl = document.getElementById('moveCount');
+        var phaseTextEl = document.getElementById('phaseText');
+        var timeTextEl = document.getElementById('timeText');
+
+        // ============================================================
+        // 魔方颜色定义（标准配色）
+        // px=右(蓝), nx=左(绿), py=上(白), ny=下(黄), pz=前(红), nz=后(橙)
+        // ============================================================
+        var COLORS = {
+            px: '#2255cc',  // 右面-蓝
+            nx: '#22aa44',  // 左面-绿
+            py: '#eeeeee',  // 上面-白
+            ny: '#eedd22',  // 下面-黄
+            pz: '#cc2222',  // 前面-红
+            nz: '#ee8822'   // 后面-橙
+        };
+        var INNER = '#111111'; // 内部面颜色
+        var ALL_COLORS = ['#cc2222', '#ee8822', '#eeeeee', '#eedd22', '#22aa44', '#2255cc'];
+
+        // ============================================================
+        // 3D数学工具函数
+        // ============================================================
+
+        // 绕X轴旋转点 (y-z平面)
+        function rotX(px, py, pz, angle) {
+            var c = Math.cos(angle), s = Math.sin(angle);
+            return { x: px, y: py * c - pz * s, z: py * s + pz * c };
+        }
+
+        // 绕Y轴旋转点 (x-z平面)
+        function rotY(px, py, pz, angle) {
+            var c = Math.cos(angle), s = Math.sin(angle);
+            return { x: px * c + pz * s, y: py, z: -px * s + pz * c };
+        }
+
+        // 绕Z轴旋转点 (x-y平面)
+        function rotZ(px, py, pz, angle) {
+            var c = Math.cos(angle), s = Math.sin(angle);
+            return { x: px * c - py * s, y: px * s + py * c, z: pz };
+        }
+
+        // 根据面类型选择旋转轴
+        function rotateByFace(px, py, pz, face, angle) {
+            switch (face) {
+                case 'R': case 'L': return rotX(px, py, pz, angle);
+                case 'U': case 'D': return rotY(px, py, pz, angle);
+                case 'F': case 'B': return rotZ(px, py, pz, angle);
+            }
+            return { x: px, y: py, z: pz };
+        }
+
+        // 获取面旋转的角度符号
+        // 定义：dir=1为从面外部看的顺时针，dir=-1为逆时针
+        // 返回：实际旋转角度 = getFaceSign(face) * dir * π/2
+        function getFaceSign(face) {
+            // R: +X轴正方向看CW → 绕X轴+π/2
+            // L: -X轴正方向看CW → 绕X轴-π/2
+            // U: +Y轴正方向看CW → 绕Y轴-π/2
+            // D: -Y轴正方向看CW → 绕Y轴+π/2
+            // F: +Z轴正方向看CW → 绕Z轴-π/2
+            // B: -Z轴正方向看CW → 绕Z轴+π/2
+            switch (face) {
+                case 'R': return 1;
+                case 'L': return -1;
+                case 'U': return -1;
+                case 'D': return 1;
+                case 'F': return -1;
+                case 'B': return 1;
+            }
+            return 1;
+        }
+
+        // ============================================================
+        // 魔方数据结构
+        // ============================================================
+        var cubies = [];
+
+        // 初始化魔方（还原状态）
+        function initCube() {
+            cubies = [];
+            for (var x = -1; x <= 1; x++) {
+                for (var y = -1; y <= 1; y++) {
+                    for (var z = -1; z <= 1; z++) {
+                        if (x === 0 && y === 0 && z === 0) continue; // 跳过中心
+                        cubies.push({
+                            x: x, y: y, z: z,
+                            colors: {
+                                px: (x === 1)  ? COLORS.px : INNER,
+                                nx: (x === -1) ? COLORS.nx : INNER,
+                                py: (y === 1)  ? COLORS.py : INNER,
+                                ny: (y === -1) ? COLORS.ny : INNER,
+                                pz: (z === 1)  ? COLORS.pz : INNER,
+                                nz: (z === -1) ? COLORS.nz : INNER
+                            }
+                        });
+                    }
+                }
+            }
+        }
+
+        // ============================================================
+        // 面旋转操作
+        // ============================================================
+        var FACE_NAMES = ['R', 'L', 'U', 'D', 'F', 'B'];
+
+        // 判断cubie是否在指定面上
+        function isOnFace(cubie, face) {
+            switch (face) {
+                case 'R': return cubie.x === 1;
+                case 'L': return cubie.x === -1;
+                case 'U': return cubie.y === 1;
+                case 'D': return cubie.y === -1;
+                case 'F': return cubie.z === 1;
+                case 'B': return cubie.z === -1;
+            }
+            return false;
+        }
+
+        // 对cubie执行90度旋转（更新位置和颜色）
+        function rotateCubie(cubie, face, dir) {
+            var sign = getFaceSign(face) * dir; // 正=正向旋转，负=反向
+            var ox = cubie.x, oy = cubie.y, oz = cubie.z;
+            var c = cubie.colors;
+            var tmp;
+
+            switch (face) {
+                case 'R':
+                case 'L':
+                    // 绕X轴旋转
+                    if (sign > 0) {
+                        // +π/2: y'=-z, z'=y
+                        cubie.y = -oz; cubie.z = oy;
+                        // 颜色循环: py→pz→ny→nz→py
+                        tmp = c.py; c.py = c.nz; c.nz = c.ny; c.ny = c.pz; c.pz = tmp;
+                    } else {
+                        // -π/2: y'=z, z'=-y
+                        cubie.y = oz; cubie.z = -oy;
+                        // 颜色循环: py→nz→ny→pz→py (反向)
+                        tmp = c.py; c.py = c.pz; c.pz = c.ny; c.ny = c.nz; c.nz = tmp;
+                    }
+                    break;
+                case 'U':
+                case 'D':
+                    // 绕Y轴旋转
+                    if (sign > 0) {
+                        // +π/2: x'=z, z'=-x
+                        cubie.x = oz; cubie.z = -ox;
+                        // 颜色循环: px→nz→nx→pz→px
+                        tmp = c.px; c.px = c.pz; c.pz = c.nx; c.nx = c.nz; c.nz = tmp;
+                    } else {
+                        // -π/2: x'=-z, z'=x
+                        cubie.x = -oz; cubie.z = ox;
+                        // 颜色循环反向: px→pz→nx→nz→px
+                        tmp = c.px; c.px = c.nz; c.nz = c.nx; c.nx = c.pz; c.pz = tmp;
+                    }
+                    break;
+                case 'F':
+                case 'B':
+                    // 绕Z轴旋转
+                    if (sign > 0) {
+                        // +π/2: x'=-y, y'=x
+                        cubie.x = -oy; cubie.y = ox;
+                        // 颜色循环: px→py→nx→ny→px
+                        tmp = c.px; c.px = c.ny; c.ny = c.nx; c.nx = c.py; c.py = tmp;
+                    } else {
+                        // -π/2: x'=y, y'=-x
+                        cubie.x = oy; cubie.y = -ox;
+                        // 反向: px→ny→nx→py→px
+                        tmp = c.px; c.px = c.py; c.py = c.nx; c.nx = c.ny; c.ny = tmp;
+                    }
+                    break;
+            }
+        }
+
+        // 执行一次面旋转（立即应用，无动画）
+        function applyMove(face, dir) {
+            for (var i = 0; i < cubies.length; i++) {
+                if (isOnFace(cubies[i], face)) {
+                    rotateCubie(cubies[i], face, dir);
+                }
+            }
+        }
+
+        // ============================================================
+        // 3D投影系统
+        // ============================================================
+        var viewAngleX = -0.55;   // 俯视角度（负值=从上方看）
+        var viewAngleY = 0.65;    // 水平旋转角度
+        var autoRotateY = 0;      // 自动旋转累积量
+
+        // 将3D点投影到2D屏幕坐标
+        function project3D(x, y, z) {
+            var totalY = viewAngleY + autoRotateY;
+
+            // 先绕Y轴旋转
+            var r1 = rotY(x, y, z, totalY);
+            // 再绕X轴旋转
+            var r2 = rotX(r1.x, r1.y, r1.z, viewAngleX);
+
+            // 透视投影
+            var perspective = 360 / (r2.z + 6);
+            return {
+                x: r2.x * perspective + cx,
+                y: -r2.y * perspective + cy, // 取反Y（Canvas坐标系Y轴朝下）
+                depth: r2.z
+            };
+        }
+
+        // ============================================================
+        // 面定义：每个cubie面的4个角点（相对于cubie中心）
+        // 角点顺序：从面外侧看为逆时针（CCW），用于法线判断
+        // ============================================================
+        var STICKER_HALF = 0.43;  // 贴纸半尺寸（留出间隙）
+        var BODY_HALF = 0.50;    // 方块半尺寸
+
+        // 六个面定义
+        var FACE_DEFS = [
+            { key: 'px', normal: [1, 0, 0],
+              corners: function(h) { return [[h,  -h, -h], [h,  -h,  h], [h,   h,  h], [h,   h, -h]]; } },
+            { key: 'nx', normal: [-1, 0, 0],
+              corners: function(h) { return [[-h, -h,  h], [-h, -h, -h], [-h,  h, -h], [-h,  h,  h]]; } },
+            { key: 'py', normal: [0, 1, 0],
+              corners: function(h) { return [[-h,  h, -h], [ h,  h, -h], [ h,  h,  h], [-h,  h,  h]]; } },
+            { key: 'ny', normal: [0, -1, 0],
+              corners: function(h) { return [[-h, -h,  h], [ h, -h,  h], [ h, -h, -h], [-h, -h, -h]]; } },
+            { key: 'pz', normal: [0, 0, 1],
+              corners: function(h) { return [[-h, -h,  h], [-h,  h,  h], [ h,  h,  h], [ h, -h,  h]]; } },
+            { key: 'nz', normal: [0, 0, -1],
+              corners: function(h) { return [[ h, -h, -h], [ h,  h, -h], [-h,  h, -h], [-h, -h, -h]]; } }
+        ];
+
+        // ============================================================
+        // 收集并渲染所有可见面
+        // ============================================================
+        function collectAllFaces(animFace, animAngle) {
+            var faceList = [];
+
+            for (var ci = 0; ci < cubies.length; ci++) {
+                var cubie = cubies[ci];
+                var onAnimFace = animFace && isOnFace(cubie, animFace);
+
+                for (var fi = 0; fi < FACE_DEFS.length; fi++) {
+                    var fd = FACE_DEFS[fi];
+                    var stickerColor = cubie.colors[fd.key];
+
+                    // 只绘制外露面（有贴纸颜色的面）
+                    if (stickerColor === INNER) continue;
+
+                    // 计算边框角点和贴纸角点
+                    var bodyCorners = fd.corners(BODY_HALF);
+                    var stickerCorners = fd.corners(STICKER_HALF);
+
+                    var bodyPts = [];
+                    var stickerPts = [];
+                    var depthSum = 0;
+
+                    for (var pi = 0; pi < 4; pi++) {
+                        // 边框角点世界坐标
+                        var bx = cubie.x + bodyCorners[pi][0];
+                        var by = cubie.y + bodyCorners[pi][1];
+                        var bz = cubie.z + bodyCorners[pi][2];
+
+                        // 贴纸角点世界坐标
+                        var sx = cubie.x + stickerCorners[pi][0];
+                        var sy = cubie.y + stickerCorners[pi][1];
+                        var sz = cubie.z + stickerCorners[pi][2];
+
+                        // 如果该cubie在动画面上，施加额外旋转
+                        if (onAnimFace) {
+                            var rb = rotateByFace(bx, by, bz, animFace, animAngle);
+                            bx = rb.x; by = rb.y; bz = rb.z;
+
+                            var rs = rotateByFace(sx, sy, sz, animFace, animAngle);
+                            sx = rs.x; sy = rs.y; sz = rs.z;
+                        }
+
+                        bodyPts.push(project3D(bx, by, bz));
+                        stickerPts.push(project3D(sx, sy, sz));
+                        depthSum += bodyPts[pi].depth;
+                    }
+
+                    // 计算旋转后的法线（用于光照）
+                    var nx = fd.normal[0], ny = fd.normal[1], nz = fd.normal[2];
+                    if (onAnimFace) {
+                        var rn = rotateByFace(nx, ny, nz, animFace, animAngle);
+                        nx = rn.x; ny = rn.y; nz = rn.z;
+                    }
+
+                    faceList.push({
+                        bodyPts: bodyPts,
+                        stickerPts: stickerPts,
+                        depth: depthSum / 4,
+                        color: stickerColor,
+                        normal: [nx, ny, nz]
+                    });
+                }
+            }
+
+            return faceList;
+        }
+
+        // ============================================================
+        // 光照系统
+        // ============================================================
+        var lightDir = (function() {
+            // 光源方向：从左上前方照射
+            var lx = -0.4, ly = 0.7, lz = 0.5;
+            var len = Math.sqrt(lx * lx + ly * ly + lz * lz);
+            return [lx / len, ly / len, lz / len];
+        })();
+
+        // 根据面法线计算光照亮度
+        function calcBrightness(normal) {
+            // 将法线变换到视角空间
+            var totalY = viewAngleY + autoRotateY;
+            var r1 = rotY(normal[0], normal[1], normal[2], totalY);
+            var r2 = rotX(r1.x, r1.y, r1.z, viewAngleX);
+
+            // 归一化
+            var len = Math.sqrt(r2.x * r2.x + r2.y * r2.y + r2.z * r2.z);
+            if (len < 0.001) return 0.7;
+            var nnx = r2.x / len, nny = r2.y / len, nnz = r2.z / len;
+
+            // 漫反射光照
+            var dot = nnx * lightDir[0] + nny * lightDir[1] + nnz * lightDir[2];
+            return 0.55 + Math.max(0, dot) * 0.45;
+        }
+
+        // 对颜色应用亮度
+        function shadeColor(hex, brightness) {
+            var r = parseInt(hex.substr(1, 2), 16);
+            var g = parseInt(hex.substr(3, 2), 16);
+            var b = parseInt(hex.substr(5, 2), 16);
+            r = Math.min(255, Math.floor(r * brightness));
+            g = Math.min(255, Math.floor(g * brightness));
+            b = Math.min(255, Math.floor(b * brightness));
+            return 'rgb(' + r + ',' + g + ',' + b + ')';
+        }
+
+        // ============================================================
+        // 动画状态管理
+        // ============================================================
+        var CYCLE_DURATION = 18000; // 完整周期18秒
+        var cycleStart = 0;
+
+        var scrambleMoves = [];     // 打乱序列
+        var scrambleApplied = [];   // 已应用的打乱步骤
+        var currentMoveIndex = 0;   // 打乱阶段当前步索引
+        var solveIndex = 0;         // 还原阶段当前步索引
+        var totalMovesDone = 0;     // 已完成的总步数
+
+        var isAnimatingMove = false;
+        var currentAnimFace = null;
+        var currentAnimDir = 0;
+        var moveAnimProgress = 0;
+        var moveStartTime = 0;
+        var moveDuration = 400;
+
+        var currentPhase = 'solved';
+        var moveNotation = '';
+        var moveNotationAlpha = 0;
+        var celebrationGlow = 0;
+        var hasEmittedParticles = false;
+        var needNewCycle = true;
+        var progress = 0;
+
+        // 粒子系统
+        var particles = [];
+
+        // ============================================================
+        // 打乱序列生成
+        // ============================================================
+        function generateScramble() {
+            var moves = [];
+            var count = 8 + Math.floor(Math.random() * 3); // 8~10步
+            var lastFace = '';
+            for (var i = 0; i < count; i++) {
+                var face;
+                do {
+                    face = FACE_NAMES[Math.floor(Math.random() * 6)];
+                } while (face === lastFace);
+                lastFace = face;
+                var dir = Math.random() < 0.5 ? 1 : -1;
+                moves.push({ face: face, dir: dir });
+            }
+            return moves;
+        }
+
+        // 招式符号
+        function getMoveNotation(face, dir) {
+            return face + (dir === -1 ? '\u2032' : '');
+        }
+
+        // 缓动函数
+        function easeInOut(t) {
+            return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+        }
+
+        // ============================================================
+        // 粒子效果
+        // ============================================================
+        function emitParticles() {
+            for (var i = 0; i < 30; i++) {
+                var angle = Math.random() * Math.PI * 2;
+                var speed = 1.2 + Math.random() * 3;
+                particles.push({
+                    x: cx,
+                    y: cy,
+                    vx: Math.cos(angle) * speed * (0.5 + Math.random()),
+                    vy: -Math.random() * speed * 1.5 - 0.5,
+                    life: 1.0,
+                    decay: 0.006 + Math.random() * 0.012,
+                    size: 2 + Math.random() * 4,
+                    color: ALL_COLORS[Math.floor(Math.random() * ALL_COLORS.length)]
+                });
+            }
+        }
+
+        function updateParticles() {
+            for (var i = particles.length - 1; i >= 0; i--) {
+                var p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.06; // 重力
+                p.vx *= 0.99; // 阻力
+                p.life -= p.decay;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+        }
+
+        function drawParticles() {
+            for (var i = 0; i < particles.length; i++) {
+                var p = particles[i];
+                ctx.globalAlpha = p.life * 0.85;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+                ctx.fill();
+                // 光晕
+                ctx.globalAlpha = p.life * 0.25;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size * p.life * 2.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+        }
+
+        // ============================================================
+        // 进度条
+        // ============================================================
+        function updateProgress(cycleTime) {
+            progress = (cycleTime / CYCLE_DURATION) * 100;
+            if (progress > 100) progress = 100;
+            progressBar.style.width = progress.toFixed(1) + '%';
+            progressPercent.textContent = Math.floor(progress) + '%';
+        }
+
+        // ============================================================
+        // 周期管理与状态更新
+        // ============================================================
+        function startNewCycle(now) {
+            initCube();
+            scrambleMoves = generateScramble();
+            scrambleApplied = [];
+            currentMoveIndex = 0;
+            solveIndex = 0;
+            totalMovesDone = 0;
+            currentPhase = 'solved';
+            cycleStart = now;
+            needNewCycle = false;
+            isAnimatingMove = false;
+            currentAnimFace = null;
+            moveNotation = '';
+            moveNotationAlpha = 0;
+            celebrationGlow = 0;
+            hasEmittedParticles = false;
+        }
+
+        function update(now) {
+            if (needNewCycle) startNewCycle(now);
+
+            var elapsed = now - cycleStart;
+            if (elapsed >= CYCLE_DURATION) {
+                needNewCycle = true;
+                return;
+            }
+
+            // 进度与时间
+            updateProgress(elapsed);
+            timeTextEl.textContent = (elapsed / 1000).toFixed(1) + 's';
+
+            // 自动旋转（庆祝阶段更快）
+            autoRotateY += (currentPhase === 'celebration') ? 0.0012 : 0.0003;
+
+            // ====== 阶段逻辑 ======
+
+            if (elapsed < 2000) {
+                // --- Phase 1: 展示还原状态 ---
+                currentPhase = 'solved';
+                phaseTextEl.textContent = 'Solved';
+            }
+            else if (elapsed < 7000) {
+                // --- Phase 2: 打乱 ---
+                currentPhase = 'scrambling';
+                phaseTextEl.textContent = 'Scrambling';
+                moveDuration = 400;
+
+                if (!isAnimatingMove && currentMoveIndex < scrambleMoves.length) {
+                    var move = scrambleMoves[currentMoveIndex];
+                    currentAnimFace = move.face;
+                    currentAnimDir = move.dir;
+                    moveStartTime = now;
+                    isAnimatingMove = true;
+                    moveNotation = getMoveNotation(move.face, move.dir);
+                    moveNotationAlpha = 1;
+                }
+
+                if (isAnimatingMove) {
+                    moveAnimProgress = Math.min(1, (now - moveStartTime) / moveDuration);
+                    if (moveAnimProgress >= 1) {
+                        applyMove(currentAnimFace, currentAnimDir);
+                        scrambleApplied.push({ face: currentAnimFace, dir: currentAnimDir });
+                        currentMoveIndex++;
+                        totalMovesDone++;
+                        isAnimatingMove = false;
+                        currentAnimFace = null;
+                    }
+                }
+            }
+            else if (elapsed < 8000) {
+                // --- Phase 3: 暂停展示打乱状态 ---
+                currentPhase = 'paused';
+                phaseTextEl.textContent = 'Analyzing...';
+                isAnimatingMove = false;
+                currentAnimFace = null;
+
+                // 确保所有打乱都已应用
+                while (currentMoveIndex < scrambleMoves.length) {
+                    var m = scrambleMoves[currentMoveIndex];
+                    applyMove(m.face, m.dir);
+                    scrambleApplied.push({ face: m.face, dir: m.dir });
+                    currentMoveIndex++;
+                    totalMovesDone++;
+                }
+            }
+            else if (elapsed < 16000) {
+                // --- Phase 4: 还原（反向操作） ---
+                currentPhase = 'solving';
+                phaseTextEl.textContent = 'Solving';
+                moveDuration = 500;
+
+                if (!isAnimatingMove && solveIndex < scrambleApplied.length) {
+                    var si = scrambleApplied.length - 1 - solveIndex;
+                    var sm = scrambleApplied[si];
+                    currentAnimFace = sm.face;
+                    currentAnimDir = -sm.dir; // 反方向
+                    moveStartTime = now;
+                    isAnimatingMove = true;
+                    moveNotation = getMoveNotation(sm.face, -sm.dir);
+                    moveNotationAlpha = 1;
+                }
+
+                if (isAnimatingMove) {
+                    moveAnimProgress = Math.min(1, (now - moveStartTime) / moveDuration);
+                    if (moveAnimProgress >= 1) {
+                        applyMove(currentAnimFace, currentAnimDir);
+                        solveIndex++;
+                        totalMovesDone++;
+                        isAnimatingMove = false;
+                        currentAnimFace = null;
+                    }
+                }
+            }
+            else {
+                // --- Phase 5: 庆祝 ---
+                currentPhase = 'celebration';
+                phaseTextEl.textContent = 'Solved!';
+                isAnimatingMove = false;
+                currentAnimFace = null;
+
+                // 确保完全还原
+                while (solveIndex < scrambleApplied.length) {
+                    var ri = scrambleApplied.length - 1 - solveIndex;
+                    var rm = scrambleApplied[ri];
+                    applyMove(rm.face, -rm.dir);
+                    solveIndex++;
+                    totalMovesDone++;
+                }
+
+                if (!hasEmittedParticles) {
+                    emitParticles();
+                    hasEmittedParticles = true;
+                    celebrationGlow = 1;
+                }
+                celebrationGlow = Math.max(0, celebrationGlow - 0.012);
+            }
+
+            // 招式文字淡出
+            if (moveNotationAlpha > 0 && !isAnimatingMove) {
+                moveNotationAlpha = Math.max(0, moveNotationAlpha - 0.035);
+            }
+
+            moveCountEl.textContent = totalMovesDone;
+            updateParticles();
+        }
+
+        // ============================================================
+        // 绘制函数
+        // ============================================================
+
+        // 绘制一个四边形（Canvas路径）
+        function fillQuad(pts, color) {
+            ctx.beginPath();
+            ctx.moveTo(pts[0].x, pts[0].y);
+            ctx.lineTo(pts[1].x, pts[1].y);
+            ctx.lineTo(pts[2].x, pts[2].y);
+            ctx.lineTo(pts[3].x, pts[3].y);
+            ctx.closePath();
+            ctx.fillStyle = color;
+            ctx.fill();
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, W, H);
+
+            // 背景
+            var bg = ctx.createRadialGradient(cx, cy, 30, cx, cy, 380);
+            bg.addColorStop(0, '#141428');
+            bg.addColorStop(1, '#0a0a14');
+            ctx.fillStyle = bg;
+            ctx.fillRect(0, 0, W, H);
+
+            // 阴影（魔方下方）
+            ctx.save();
+            ctx.globalAlpha = 0.2;
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.ellipse(cx, cy + 155, 110, 18, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            // ---- 计算动画旋转角度 ----
+            var animAngle = 0;
+            var animFace = null;
+            if (isAnimatingMove && currentAnimFace) {
+                animFace = currentAnimFace;
+                var easedT = easeInOut(moveAnimProgress);
+                // 角度 = 缓动进度 × 面符号 × 方向 × π/2
+                animAngle = easedT * getFaceSign(currentAnimFace) * currentAnimDir * (Math.PI / 2);
+            }
+
+            // ---- 收集所有面 ----
+            var allFaces = collectAllFaces(animFace, animAngle);
+
+            // 画家算法排序：深度大(远)的先画
+            allFaces.sort(function(a, b) { return b.depth - a.depth; });
+
+            // ---- 绘制倒影（简化版） ----
+            ctx.save();
+            ctx.globalAlpha = 0.06;
+            // 将绘制区域翻转到魔方下方
+            ctx.translate(0, (cy + 155) * 2);
+            ctx.scale(1, -1);
+            // 裁剪倒影区域
+            ctx.beginPath();
+            ctx.rect(0, 0, W, cy + 155);
+            ctx.clip();
+
+            for (var ri = 0; ri < allFaces.length; ri++) {
+                var rf = allFaces[ri];
+                fillQuad(rf.bodyPts, '#0a0a0a');
+                fillQuad(rf.stickerPts, rf.color);
+            }
+            ctx.restore();
+
+            // 倒影渐变遮罩
+            ctx.save();
+            var fadeGrad = ctx.createLinearGradient(0, cy + 125, 0, cy + 200);
+            fadeGrad.addColorStop(0, 'rgba(10,10,20,0)');
+            fadeGrad.addColorStop(1, 'rgba(10,10,20,1)');
+            ctx.fillStyle = fadeGrad;
+            ctx.fillRect(0, cy + 125, W, 80);
+            ctx.restore();
+
+            // ---- 绘制主魔方 ----
+            for (var i = 0; i < allFaces.length; i++) {
+                var face = allFaces[i];
+
+                // 先画边框（黑色方块体）
+                fillQuad(face.bodyPts, '#1a1a1a');
+
+                // 再画贴纸（带光照）
+                var brightness = calcBrightness(face.normal);
+                fillQuad(face.stickerPts, shadeColor(face.color, brightness));
+
+                // 贴纸微妙高光描边
+                ctx.beginPath();
+                ctx.moveTo(face.stickerPts[0].x, face.stickerPts[0].y);
+                for (var j = 1; j < 4; j++) {
+                    ctx.lineTo(face.stickerPts[j].x, face.stickerPts[j].y);
+                }
+                ctx.closePath();
+                ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+                ctx.lineWidth = 0.5;
+                ctx.stroke();
+            }
+
+            // ---- 庆祝光晕 ----
+            if (celebrationGlow > 0) {
+                ctx.save();
+                ctx.globalAlpha = celebrationGlow * 0.35;
+                var glow = ctx.createRadialGradient(cx, cy, 10, cx, cy, 220);
+                glow.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+                glow.addColorStop(0.3, 'rgba(180, 200, 255, 0.4)');
+                glow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                ctx.fillStyle = glow;
+                ctx.fillRect(0, 0, W, H);
+                ctx.restore();
+            }
+
+            // ---- 粒子 ----
+            drawParticles();
+
+            // ---- 招式文字 ----
+            if (moveNotationAlpha > 0 && moveNotation) {
+                ctx.save();
+                ctx.globalAlpha = moveNotationAlpha * 0.9;
+                ctx.font = 'bold 24px "Segoe UI", "Consolas", monospace';
+                ctx.fillStyle = '#e0e8ff';
+                ctx.textAlign = 'right';
+                ctx.textBaseline = 'top';
+                ctx.shadowColor = 'rgba(80, 130, 255, 0.6)';
+                ctx.shadowBlur = 12;
+                ctx.fillText(moveNotation, W - 36, 28);
+                ctx.restore();
+            }
+
+            // ---- 完成闪烁 ----
+            if (progress >= 99 && currentPhase === 'celebration') {
+                ctx.save();
+                var flash = Math.sin(Date.now() * 0.006) * 0.08 + 0.08;
+                ctx.globalAlpha = flash;
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(0, 0, W, H);
+                ctx.restore();
+            }
+        }
+
+        // ============================================================
+        // 主循环
+        // ============================================================
+        function animate(timestamp) {
+            update(timestamp);
+            draw();
+            requestAnimationFrame(animate);
+        }
+
+        // 启动
+        initCube();
+        requestAnimationFrame(animate);
+
+    })();
+    </script>
+</body>
+</html>
