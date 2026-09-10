@@ -1,0 +1,903 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>曲线滑块验证</title>
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      :root {
+        color-scheme: light;
+        --ink: #242938;
+        --muted: #8d919b;
+        --panel: #ffffff;
+        --page: #9b9b98;
+        --track: #edf0f6;
+        --fill: #a7bef8;
+        --handle: #4d7cff;
+        --handle-dark: #3665ef;
+        --ok: #22b889;
+        --bad: #f05d5e;
+      }
+
+      html,
+      body {
+        min-height: 100%;
+      }
+
+      body {
+        margin: 0;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        color: var(--ink);
+        font-family:
+          "Avenir Next",
+          "PingFang SC",
+          "Hiragino Sans GB",
+          "Microsoft YaHei",
+          sans-serif;
+        background:
+          linear-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+          var(--page);
+        background-size: 42px 42px;
+      }
+
+      button {
+        font: inherit;
+      }
+
+      .captcha-card {
+        width: min(720px, calc(100vw - 32px));
+        padding: 38px 32px 30px;
+        border-radius: 28px;
+        background: var(--panel);
+        box-shadow: 0 28px 70px rgba(0, 0, 0, 0.2);
+      }
+
+      .title {
+        margin: 0 0 34px;
+        text-align: center;
+        font-size: 30px;
+        line-height: 1.15;
+        font-weight: 900;
+        letter-spacing: 0;
+      }
+
+      .scene {
+        position: relative;
+        aspect-ratio: 656 / 436;
+        overflow: hidden;
+        border-radius: 26px;
+        background:
+          linear-gradient(180deg, rgba(6, 18, 28, 0.08), rgba(6, 18, 28, 0.2)),
+          url("../images/20230327231735_a195d.jpg") center / cover;
+        user-select: none;
+      }
+
+      .scene::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(rgba(142, 224, 222, 0.38) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(142, 224, 222, 0.34) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(0, 208, 212, 0.08), rgba(255, 92, 124, 0.1));
+        background-size:
+          100% 25%,
+          25% 100%,
+          auto;
+        mix-blend-mode: screen;
+        pointer-events: none;
+      }
+
+      .scene::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(90deg, rgba(255, 71, 108, 0.18), transparent 38%, rgba(0, 220, 210, 0.12));
+        pointer-events: none;
+      }
+
+      .curve-board {
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+        width: 100%;
+        height: 100%;
+        overflow: visible;
+        pointer-events: none;
+      }
+
+      .target-curve {
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .distractor-curve {
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        opacity: 0.72;
+      }
+
+      .distractor-curve.is-wide {
+        stroke: rgba(8, 14, 20, 0.24);
+        stroke-width: 20;
+        filter: drop-shadow(0 6px 7px rgba(0, 0, 0, 0.2));
+      }
+
+      .distractor-curve.is-warm {
+        stroke: rgba(229, 161, 55, 0.34);
+        stroke-width: 8;
+      }
+
+      .distractor-curve.is-cool {
+        stroke: rgba(106, 229, 224, 0.4);
+        stroke-width: 7;
+      }
+
+      .target-curve.is-gold {
+        stroke: rgba(218, 158, 48, 0.5);
+        stroke-width: 15;
+      }
+
+      .target-curve.is-cyan {
+        stroke: rgba(115, 238, 231, 0.7);
+        stroke-width: 8;
+      }
+
+      .target-curve.is-dark {
+        stroke: rgba(13, 20, 27, 0.44);
+        stroke-width: 24;
+        filter: drop-shadow(0 8px 8px rgba(0, 0, 0, 0.26));
+      }
+
+      .main-shadow,
+      .main-curve,
+      .main-shine {
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .main-shadow {
+        stroke: rgba(0, 0, 0, 0.25);
+        stroke-width: 15;
+        transform: translateY(4px);
+      }
+
+      .main-curve {
+        stroke: rgba(227, 234, 231, 0.92);
+        stroke-width: 9;
+        filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.24));
+        transition: stroke 0.18s ease;
+      }
+
+      .main-shine {
+        stroke: rgba(255, 255, 255, 0.86);
+        stroke-width: 2;
+        transform: translateY(-2px);
+      }
+
+      .pin {
+        fill: #ffffff;
+        stroke: rgba(0, 0, 0, 0.08);
+        stroke-width: 2;
+        filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.22));
+      }
+
+      .target-pin {
+        fill: rgba(255, 255, 255, 0.24);
+        stroke: rgba(255, 255, 255, 0.42);
+        stroke-width: 2;
+      }
+
+      .scene-result {
+        position: absolute;
+        inset: 0;
+        z-index: 5;
+        display: grid;
+        place-items: center;
+        color: #ffffff;
+        text-align: center;
+        visibility: hidden;
+        opacity: 0;
+        transform: scale(0.96);
+        transition:
+          visibility 0s linear 0.2s,
+          opacity 0.2s ease,
+          transform 0.2s ease;
+        pointer-events: none;
+      }
+
+      .scene-result::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: rgba(8, 18, 28, 0.28);
+      }
+
+      .scene-result-content {
+        position: relative;
+        display: grid;
+        justify-items: center;
+        gap: 10px;
+        text-shadow: 0 3px 12px rgba(0, 0, 0, 0.34);
+      }
+
+      .scene-result-icon {
+        display: grid;
+        place-items: center;
+        width: 72px;
+        height: 72px;
+        border-radius: 50%;
+        color: #ffffff;
+        background: linear-gradient(135deg, #56e3af, #16af7e);
+        box-shadow:
+          0 16px 34px rgba(24, 175, 126, 0.34),
+          inset 0 1px 0 rgba(255, 255, 255, 0.32);
+        font-size: 42px;
+        font-weight: 900;
+        line-height: 1;
+      }
+
+      .scene-result-title {
+        margin: 0;
+        font-size: 26px;
+        font-weight: 900;
+        line-height: 1.2;
+      }
+
+      .scene-result-copy {
+        margin: 0;
+        font-size: 15px;
+        font-weight: 800;
+        color: rgba(255, 255, 255, 0.82);
+      }
+
+      .captcha-card.is-success .main-curve {
+        stroke: rgba(91, 239, 187, 0.96);
+      }
+
+      .captcha-card.is-success .scene-result {
+        visibility: visible;
+        opacity: 1;
+        transform: scale(1);
+        transition-delay: 0s;
+      }
+
+      .captcha-card.is-fail .scene {
+        animation: shake 0.34s ease;
+      }
+
+      .slider-wrap {
+        position: relative;
+        margin-top: 32px;
+      }
+
+      .slider {
+        position: relative;
+        height: 80px;
+        border-radius: 999px;
+        background: var(--track);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.9),
+          0 5px 18px rgba(36, 41, 56, 0.08);
+        cursor: grab;
+        touch-action: none;
+        overflow: hidden;
+      }
+
+      .slider:active {
+        cursor: grabbing;
+      }
+
+      .slider-fill {
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: var(--thumb-x, 51px);
+        border-radius: inherit;
+        background: var(--fill);
+      }
+
+      .slider-text {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        padding: 0 116px;
+        color: #cbd0d8;
+        font-size: 24px;
+        font-weight: 800;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        pointer-events: none;
+        transition: color 0.18s ease;
+      }
+
+      .slider-thumb {
+        position: absolute;
+        left: var(--thumb-x, 51px);
+        top: 50%;
+        z-index: 2;
+        display: grid;
+        place-items: center;
+        width: 102px;
+        height: 80px;
+        border: 0;
+        border-radius: 28px;
+        background: linear-gradient(180deg, #5c88ff, var(--handle));
+        box-shadow:
+          0 14px 30px rgba(77, 124, 255, 0.38),
+          inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        transform: translate(-50%, -50%);
+        cursor: grab;
+        outline: none;
+        touch-action: none;
+        transition:
+          box-shadow 0.18s ease,
+          background 0.18s ease,
+          transform 0.18s ease;
+      }
+
+      .slider-thumb::before {
+        content: "";
+        width: 32px;
+        height: 34px;
+        background:
+          linear-gradient(90deg, #ffffff 0 4px, transparent 4px 13px, #ffffff 13px 17px, transparent 17px 26px, #ffffff 26px 30px);
+        border-radius: 4px;
+        opacity: 0.9;
+      }
+
+      .slider-thumb:focus-visible {
+        box-shadow:
+          0 0 0 5px rgba(77, 124, 255, 0.2),
+          0 14px 30px rgba(77, 124, 255, 0.38),
+          inset 0 1px 0 rgba(255, 255, 255, 0.3);
+      }
+
+      .slider.is-dragging .slider-thumb {
+        transform: translate(-50%, -50%) scale(1.04);
+        background: linear-gradient(180deg, #6a93ff, var(--handle-dark));
+      }
+
+      .captcha-card.is-success .slider-fill {
+        background: rgba(94, 224, 180, 0.55);
+      }
+
+      .captcha-card.is-success .slider-thumb {
+        background: linear-gradient(180deg, #48d99f, #18ad7d);
+        box-shadow:
+          0 14px 30px rgba(34, 184, 137, 0.32),
+          inset 0 1px 0 rgba(255, 255, 255, 0.3);
+      }
+
+      .captcha-card.is-success .slider-thumb::before {
+        content: "✓";
+        width: auto;
+        height: auto;
+        color: #fff;
+        background: none;
+        font-size: 34px;
+        font-weight: 900;
+        line-height: 1;
+      }
+
+      .captcha-card.is-success .slider-text {
+        color: rgba(34, 184, 137, 0.34);
+      }
+
+      .captcha-card.is-fail .slider {
+        animation: shake 0.34s ease;
+      }
+
+      .footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-top: 28px;
+        color: #8f939b;
+      }
+
+      .action-list {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+      }
+
+      .action {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 34px;
+        padding: 0;
+        border: 0;
+        color: #8f939b;
+        background: transparent;
+        font-size: 24px;
+        font-weight: 800;
+        line-height: 1;
+        cursor: pointer;
+      }
+
+      .action span:first-child {
+        font-size: 30px;
+        font-weight: 500;
+        line-height: 1;
+      }
+
+      .action:hover,
+      .action:focus-visible {
+        color: #606673;
+        outline: none;
+      }
+
+      .status {
+        min-width: 11em;
+        margin: 0;
+        text-align: right;
+        font-size: 15px;
+        font-weight: 800;
+        color: #969aa3;
+      }
+
+      .captcha-card.is-success .status {
+        color: var(--ok);
+      }
+
+      .captcha-card.is-fail .status {
+        color: var(--bad);
+      }
+
+      @keyframes shake {
+        0%,
+        100% {
+          transform: translateX(0);
+        }
+        25% {
+          transform: translateX(-7px);
+        }
+        50% {
+          transform: translateX(5px);
+        }
+        75% {
+          transform: translateX(-3px);
+        }
+      }
+
+      @media (max-width: 560px) {
+        body {
+          padding: 14px;
+        }
+
+        .captcha-card {
+          width: 100%;
+          padding: 28px 18px 22px;
+          border-radius: 22px;
+        }
+
+        .title {
+          margin-bottom: 22px;
+          font-size: 24px;
+        }
+
+        .scene {
+          border-radius: 18px;
+        }
+
+        .scene-result-icon {
+          width: 58px;
+          height: 58px;
+          font-size: 34px;
+        }
+
+        .scene-result-title {
+          font-size: 21px;
+        }
+
+        .scene-result-copy {
+          font-size: 13px;
+        }
+
+        .slider-wrap {
+          margin-top: 24px;
+        }
+
+        .slider {
+          height: 64px;
+        }
+
+        .slider-thumb {
+          width: 78px;
+          height: 64px;
+          border-radius: 22px;
+        }
+
+        .slider-text {
+          padding: 0 84px;
+          font-size: 16px;
+        }
+
+        .footer {
+          margin-top: 20px;
+          align-items: flex-start;
+          flex-direction: column-reverse;
+        }
+
+        .action {
+          font-size: 20px;
+        }
+
+        .action span:first-child {
+          font-size: 25px;
+        }
+
+        .status {
+          width: 100%;
+          min-width: 0;
+          text-align: left;
+          font-size: 13px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          transition-duration: 0.001ms !important;
+          animation-duration: 0.001ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="captcha-card" id="captcha">
+      <h1 class="title">曲线滑块验证</h1>
+
+      <section class="scene" aria-label="曲线匹配验证区域">
+        <svg class="curve-board" viewBox="0 0 656 436" preserveAspectRatio="none" aria-hidden="true">
+          <g class="distractor-slot" id="distractorA">
+            <path class="distractor-curve is-wide"></path>
+            <path class="distractor-curve is-warm"></path>
+            <path class="distractor-curve is-cool"></path>
+          </g>
+          <g class="distractor-slot" id="distractorB">
+            <path class="distractor-curve is-wide"></path>
+            <path class="distractor-curve is-warm"></path>
+            <path class="distractor-curve is-cool"></path>
+          </g>
+          <path class="target-curve is-dark" id="targetDark"></path>
+          <path class="target-curve is-gold" id="targetGold"></path>
+          <path class="target-curve is-cyan" id="targetCyan"></path>
+          <circle class="target-pin" id="targetLeftPin" r="14"></circle>
+          <circle class="target-pin" id="targetRightPin" r="14"></circle>
+          <path class="main-shadow" id="mainShadow"></path>
+          <path class="main-curve" id="mainCurve"></path>
+          <path class="main-shine" id="mainShine"></path>
+          <circle class="pin" id="leftPin" r="16"></circle>
+          <circle class="pin" id="rightPin" r="16"></circle>
+        </svg>
+        <div class="scene-result" aria-live="polite">
+          <div class="scene-result-content">
+            <div class="scene-result-icon" aria-hidden="true">✓</div>
+            <p class="scene-result-title">验证通过</p>
+            <p class="scene-result-copy">曲线已完成匹配</p>
+          </div>
+        </div>
+      </section>
+
+      <div class="slider-wrap">
+        <div class="slider" id="slider">
+          <div class="slider-fill"></div>
+          <div class="slider-text" id="sliderText">滑动完成曲线与背景匹配</div>
+          <div
+            class="slider-thumb"
+            id="sliderThumb"
+            role="slider"
+            tabindex="0"
+            aria-label="曲线匹配滑块"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+          ></div>
+        </div>
+      </div>
+
+      <footer class="footer">
+        <div class="action-list">
+          <button class="action" id="refreshBtn" type="button" aria-label="刷新验证">
+            <span aria-hidden="true">↻</span>
+            刷新
+          </button>
+        </div>
+        <p class="status" id="statusText">请拖动滑块调整白色曲线</p>
+      </footer>
+    </main>
+
+    <script>
+      const captcha = document.getElementById("captcha");
+      const slider = document.getElementById("slider");
+      const sliderThumb = document.getElementById("sliderThumb");
+      const sliderText = document.getElementById("sliderText");
+      const refreshBtn = document.getElementById("refreshBtn");
+      const statusText = document.getElementById("statusText");
+      const targetDark = document.getElementById("targetDark");
+      const targetGold = document.getElementById("targetGold");
+      const targetCyan = document.getElementById("targetCyan");
+      const distractorSlots = [...document.querySelectorAll(".distractor-slot")].map((slot) => [...slot.querySelectorAll("path")]);
+      const targetLeftPin = document.getElementById("targetLeftPin");
+      const targetRightPin = document.getElementById("targetRightPin");
+      const mainShadow = document.getElementById("mainShadow");
+      const mainCurve = document.getElementById("mainCurve");
+      const mainShine = document.getElementById("mainShine");
+      const leftPin = document.getElementById("leftPin");
+      const rightPin = document.getElementById("rightPin");
+
+      const state = {
+        progress: 0,
+        target: 0.54,
+        distractors: [0.22, 0.82],
+        dragging: false,
+        verified: false,
+        startedAt: 0,
+        samples: [],
+        animationFrame: 0,
+      };
+
+      const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+      const left = { x: 62, y: 66 };
+      const right = { x: 596, y: 30 };
+
+      function makeCurve(value) {
+        const bottomY = 215 + value * 156;
+        const centerX = 325 + (value - 0.5) * 48;
+        const leftDrop = 118 + value * 92;
+        const rightDrop = 118 + value * 120;
+        const leftPull = 120 + value * 44;
+        const rightPull = 126 + value * 42;
+
+        return [
+          `M ${left.x} ${left.y}`,
+          `C ${left.x + 24} ${left.y + leftDrop}, ${centerX - leftPull} ${bottomY}, ${centerX} ${bottomY}`,
+          `C ${centerX + rightPull} ${bottomY}, ${right.x - 45} ${right.y + rightDrop}, ${right.x} ${right.y}`,
+        ].join(" ");
+      }
+
+      function makeDistractors(target) {
+        return [
+          clamp(target - (0.16 + Math.random() * 0.12), 0.08, 0.9),
+          clamp(target + (0.16 + Math.random() * 0.12), 0.08, 0.9),
+        ];
+      }
+
+      function makeDistractorCurve(value, index) {
+        const isUpper = index === 0;
+        const startX = left.x + (isUpper ? -18 : 28);
+        const startY = left.y + (isUpper ? 34 : 12);
+        const endX = right.x + (isUpper ? -36 : -12);
+        const endY = right.y + (isUpper ? 14 : 44);
+        const bendX = 302 + (value - 0.5) * 92 + (isUpper ? -58 : 46);
+        const lowY = 208 + value * 132 + (isUpper ? -12 : 28);
+        const exitY = lowY + (isUpper ? 34 : -22);
+
+        return [
+          `M ${startX} ${startY}`,
+          `C ${startX + 70} ${startY + 124}, ${bendX - 148} ${lowY - 22}, ${bendX} ${lowY}`,
+          `C ${bendX + 124} ${exitY + 24}, ${endX - 70} ${endY + 132}, ${endX} ${endY}`,
+        ].join(" ");
+      }
+
+      function scoreHumanDrag() {
+        if (state.samples.length < 8) return 0;
+
+        const duration = performance.now() - state.startedAt;
+        const distance = Math.abs(state.progress - state.samples[0].progress);
+        let directionChanges = 0;
+        let lastVelocity = 0;
+
+        for (let index = 1; index < state.samples.length; index += 1) {
+          const previous = state.samples[index - 1];
+          const current = state.samples[index];
+          const velocity = (current.progress - previous.progress) / Math.max(1, current.time - previous.time);
+
+          if (index > 1 && Math.abs(velocity - lastVelocity) > 0.00035) {
+            directionChanges += 1;
+          }
+
+          lastVelocity = velocity;
+        }
+
+        const durationScore = clamp(duration / 520, 0, 1);
+        const distanceScore = clamp(distance / 0.32, 0, 1);
+        const motionScore = clamp(directionChanges / 4, 0, 1);
+
+        return durationScore * 0.45 + distanceScore * 0.35 + motionScore * 0.2;
+      }
+
+      function draw() {
+        const targetPath = makeCurve(state.target);
+        const progressPath = makeCurve(state.progress);
+        const progressPercent = Math.round(state.progress * 100);
+        const handleOffset = sliderThumb.offsetWidth / 2;
+        const usableWidth = Math.max(1, slider.clientWidth - sliderThumb.offsetWidth);
+        const thumbX = handleOffset + state.progress * usableWidth;
+
+        targetDark.setAttribute("d", targetPath);
+        targetGold.setAttribute("d", targetPath);
+        targetCyan.setAttribute("d", targetPath);
+        distractorSlots.forEach((slotPaths, index) => {
+          const slotPath = makeDistractorCurve(state.distractors[index], index);
+          slotPaths.forEach((path) => path.setAttribute("d", slotPath));
+        });
+        mainShadow.setAttribute("d", progressPath);
+        mainCurve.setAttribute("d", progressPath);
+        mainShine.setAttribute("d", progressPath);
+
+        targetLeftPin.setAttribute("cx", left.x);
+        targetLeftPin.setAttribute("cy", left.y);
+        targetRightPin.setAttribute("cx", right.x);
+        targetRightPin.setAttribute("cy", right.y);
+        leftPin.setAttribute("cx", left.x);
+        leftPin.setAttribute("cy", left.y);
+        rightPin.setAttribute("cx", right.x);
+        rightPin.setAttribute("cy", right.y);
+
+        slider.style.setProperty("--progress", progressPercent);
+        slider.style.setProperty("--thumb-x", `${thumbX}px`);
+        sliderThumb.setAttribute("aria-valuenow", String(progressPercent));
+      }
+
+      function setProgress(value) {
+        state.progress = clamp(value, 0, 1);
+        draw();
+      }
+
+      function setProgressFromPointer(event) {
+        const rect = slider.getBoundingClientRect();
+        const handleOffset = sliderThumb.offsetWidth / 2;
+        const usableWidth = Math.max(1, rect.width - sliderThumb.offsetWidth);
+        const raw = (event.clientX - rect.left - handleOffset) / usableWidth;
+        setProgress(raw);
+      }
+
+      function reset(message) {
+        cancelAnimationFrame(state.animationFrame);
+        state.progress = 0;
+        state.target = 0.28 + Math.random() * 0.5;
+        state.distractors = makeDistractors(state.target);
+        state.dragging = false;
+        state.verified = false;
+        state.samples = [];
+        captcha.classList.remove("is-success", "is-fail");
+        slider.classList.remove("is-dragging");
+        sliderText.textContent = "滑动完成曲线与背景匹配";
+        statusText.textContent = message || "请拖动滑块调整白色曲线";
+        draw();
+      }
+
+      function springBack() {
+        const start = state.progress;
+        const started = performance.now();
+        const duration = 420;
+
+        function step(now) {
+          const t = clamp((now - started) / duration, 0, 1);
+          const eased = 1 - Math.pow(1 - t, 3);
+          setProgress(start * (1 - eased));
+
+          if (t < 1) {
+            state.animationFrame = requestAnimationFrame(step);
+          }
+        }
+
+        state.animationFrame = requestAnimationFrame(step);
+      }
+
+      function verify() {
+        if (state.verified) return;
+
+        state.dragging = false;
+        slider.classList.remove("is-dragging");
+
+        const diff = Math.abs(state.progress - state.target);
+        const humanScore = scoreHumanDrag();
+
+        if (diff <= 0.026 && humanScore >= 0.42) {
+          state.verified = true;
+          setProgress(state.target);
+          captcha.classList.add("is-success");
+          captcha.classList.remove("is-fail");
+          sliderText.textContent = "验证通过";
+          statusText.textContent = "曲线已匹配，验证通过";
+          return;
+        }
+
+        captcha.classList.add("is-fail");
+        captcha.classList.remove("is-success");
+        statusText.textContent = diff <= 0.026 ? "拖动轨迹过短，请重新验证" : `偏差 ${Math.round(diff * 100)}%，请重试`;
+        window.setTimeout(() => captcha.classList.remove("is-fail"), 360);
+        window.setTimeout(() => {
+          statusText.textContent = "请拖动滑块调整白色曲线";
+          springBack();
+        }, 420);
+      }
+
+      function startDrag(event) {
+        if (state.verified) return;
+
+        cancelAnimationFrame(state.animationFrame);
+        state.dragging = true;
+        state.startedAt = performance.now();
+        state.samples = [{ progress: state.progress, time: state.startedAt }];
+        captcha.classList.remove("is-fail");
+        slider.classList.add("is-dragging");
+        slider.setPointerCapture(event.pointerId);
+        setProgressFromPointer(event);
+        statusText.textContent = "松手时让白色曲线覆盖背景曲线";
+      }
+
+      function moveDrag(event) {
+        if (!state.dragging || state.verified) return;
+
+        setProgressFromPointer(event);
+        state.samples.push({ progress: state.progress, time: performance.now() });
+        if (state.samples.length > 54) state.samples.shift();
+      }
+
+      function endDrag(event) {
+        if (!state.dragging) return;
+
+        try {
+          slider.releasePointerCapture(event.pointerId);
+        } catch {
+          // The pointer can be released by the browser before pointerup.
+        }
+
+        verify();
+      }
+
+      slider.addEventListener("pointerdown", startDrag);
+      slider.addEventListener("pointermove", moveDrag);
+      slider.addEventListener("pointerup", endDrag);
+      slider.addEventListener("pointercancel", endDrag);
+
+      sliderThumb.addEventListener("keydown", (event) => {
+        if (state.verified) return;
+
+        const keys = ["ArrowLeft", "ArrowDown", "ArrowRight", "ArrowUp", "Home", "End", "Enter", " "];
+        if (!keys.includes(event.key)) return;
+
+        event.preventDefault();
+        cancelAnimationFrame(state.animationFrame);
+        state.startedAt ||= performance.now() - 800;
+
+        if (event.key === "ArrowLeft" || event.key === "ArrowDown") setProgress(state.progress - 0.012);
+        if (event.key === "ArrowRight" || event.key === "ArrowUp") setProgress(state.progress + 0.012);
+        if (event.key === "Home") setProgress(0);
+        if (event.key === "End") setProgress(1);
+        if (event.key === "Enter" || event.key === " ") {
+          state.samples.push({ progress: state.progress, time: performance.now() });
+          verify();
+        }
+      });
+
+      refreshBtn.addEventListener("click", () => {
+        reset("已刷新曲线，请重新匹配");
+      });
+
+      window.addEventListener("resize", draw);
+      reset();
+    </script>
+  </body>
+</html>
