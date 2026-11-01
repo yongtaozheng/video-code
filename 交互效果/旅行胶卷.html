@@ -1,0 +1,1391 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#141512" />
+    <title>旅行胶卷 · 山河拾光</title>
+    <style>
+      :root {
+        --bg: #141512;
+        --paper: #e8e6d9;
+        --dim: #898b7f;
+        --line: #34362f;
+        --accent: #d5a762;
+        --frame: 510px;
+        --gap: 26px;
+        --photo-h: 300px;
+        --rail-h: 390px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--paper);
+        font-family: "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
+        -webkit-font-smoothing: antialiased;
+        overflow-x: hidden;
+      }
+      button {
+        font: inherit;
+        color: inherit;
+        cursor: pointer;
+      }
+      button:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 6px;
+      }
+      button:disabled {
+        opacity: 0.22;
+        cursor: default;
+      }
+      ::selection {
+        background: #b78a49;
+        color: #131410;
+      }
+      body:before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        pointer-events: none;
+        opacity: 0.045;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Cpath fill='%23fff' filter='url(%23n)' opacity='.7' d='M0 0h180v180H0z'/%3E%3C/svg%3E");
+      }
+      header {
+        height: 91px;
+        margin: 0 5%;
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .brand {
+        display: flex;
+        gap: 14px;
+        align-items: center;
+        font-family: Georgia, serif;
+        font-size: 21px;
+        letter-spacing: 2px;
+      }
+      .brand svg {
+        width: 28px;
+        height: 28px;
+      }
+      .brand span {
+        color: var(--accent);
+      }
+      .mono {
+        font-family: "Courier New", monospace;
+      }
+      .header-meta {
+        font-size: 10px;
+        letter-spacing: 2px;
+        color: var(--dim);
+        display: flex;
+        gap: 30px;
+        align-items: center;
+      }
+      .status {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+      }
+      .status:before {
+        content: "";
+        width: 5px;
+        height: 5px;
+        background: var(--accent);
+        border-radius: 50%;
+        box-shadow: 0 0 12px #d5a76266;
+      }
+      .intro {
+        margin: 44px 8% 28px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+      }
+      .eyebrow {
+        font-size: 10px;
+        letter-spacing: 3px;
+        color: var(--accent);
+        margin: 0 0 15px;
+      }
+      .title {
+        font-size: clamp(37px, 4.5vw, 66px);
+        font-weight: 400;
+        letter-spacing: 6px;
+        line-height: 1.2;
+        margin: 0;
+      }
+      .title em {
+        font-family: Georgia, serif;
+        font-style: italic;
+        font-size: 0.84em;
+        letter-spacing: -2px;
+        color: #92988a;
+        margin-left: 16px;
+      }
+      .intro-right {
+        text-align: right;
+        line-height: 1.9;
+        color: var(--dim);
+        font-size: 11px;
+        letter-spacing: 2px;
+      }
+      .intro-right b {
+        font-weight: 400;
+        color: var(--paper);
+        display: block;
+        font-size: 13px;
+        letter-spacing: 3px;
+      }
+      .stage {
+        position: relative;
+        height: calc(var(--rail-h) + 62px);
+        outline: none;
+        touch-action: pan-y;
+        cursor: grab;
+        user-select: none;
+        overflow: hidden;
+        perspective: 1000px;
+      }
+      .stage.dragging {
+        cursor: grabbing;
+      }
+      .stage:after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: linear-gradient(90deg, var(--bg), transparent 12%, transparent 88%, var(--bg));
+        z-index: 3;
+      }
+      .track {
+        position: absolute;
+        left: 50%;
+        top: 26px;
+        display: flex;
+        gap: var(--gap);
+        will-change: transform;
+        transform-style: preserve-3d;
+      }
+      .film {
+        width: var(--frame);
+        height: var(--rail-h);
+        flex-shrink: 0;
+        background: #22241d;
+        position: relative;
+        padding: 44px 13px 46px;
+        will-change: transform;
+        transform-origin: 50% 50%;
+        box-shadow: 0 20px 30px #0005;
+      }
+      .film:before,
+      .film:after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        height: 17px;
+        background: radial-gradient(ellipse at center, #10110e 0 60%, transparent 64%) 0 0/32px 17px
+          repeat-x;
+      }
+      .film:before {
+        top: 9px;
+      }
+      .film:after {
+        bottom: 9px;
+      }
+      .film-label {
+        position: absolute;
+        left: 15px;
+        right: 15px;
+        top: 30px;
+        display: flex;
+        justify-content: space-between;
+        color: #b3a170;
+        font:
+          8px "Courier New",
+          monospace;
+        letter-spacing: 2px;
+      }
+      .film-bottom {
+        top: auto;
+        bottom: 30px;
+      }
+      .picture {
+        position: relative;
+        display: block;
+        border: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background: #353a31;
+        overflow: hidden;
+        text-align: left;
+      }
+      .picture:after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        box-shadow: inset 0 0 55px #0005;
+        background: linear-gradient(0deg, #1c1c101f, transparent 40%, #a3842f0a);
+        pointer-events: none;
+      }
+      .photo {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        filter: brightness(var(--brightness, 0.6)) saturate(0.75) blur(var(--blur, 1px));
+        transform: scale(1.025);
+        pointer-events: none;
+      }
+      .ghost {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        opacity: var(--ghost, 0);
+        transform: translateX(var(--trail, 0px));
+        filter: sepia(0.3);
+        mix-blend-mode: screen;
+        pointer-events: none;
+      }
+      .ghost.second {
+        transform: translateX(calc(var(--trail, 0px) * -1.6));
+        opacity: calc(var(--ghost, 0) * 0.45);
+      }
+      .stamp {
+        position: absolute;
+        bottom: 17px;
+        right: 20px;
+        font:
+          13px "Courier New",
+          monospace;
+        letter-spacing: 2px;
+        color: #f6c278;
+        text-shadow: 0 0 8px #b2662680;
+        z-index: 2;
+      }
+      .expand-mark {
+        position: absolute;
+        right: 16px;
+        top: 15px;
+        z-index: 2;
+        color: #fff9;
+        opacity: 0;
+        transition: opacity 0.3s;
+        width: 26px;
+        height: 26px;
+      }
+      .film.active .expand-mark {
+        opacity: 1;
+      }
+      .expand-mark svg {
+        width: 100%;
+        height: 100%;
+      }
+      .center-mark {
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        width: 1px;
+        height: 19px;
+        background: var(--accent);
+      }
+      .center-mark:before {
+        content: "";
+        position: absolute;
+        top: -3px;
+        left: -2px;
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: var(--accent);
+      }
+      .details {
+        margin: 16px auto 0;
+        width: min(84%, 1020px);
+        display: grid;
+        grid-template-columns: 1fr 2fr 1fr;
+        gap: 24px;
+        align-items: center;
+        min-height: 112px;
+      }
+      .frame-index {
+        display: flex;
+        gap: 13px;
+        align-items: baseline;
+        color: var(--dim);
+        font-size: 12px;
+      }
+      .frame-index strong {
+        font-family: Georgia, serif;
+        font-weight: 400;
+        font-size: 48px;
+        color: var(--paper);
+      }
+      .frame-index span {
+        letter-spacing: 2px;
+      }
+      .memory {
+        text-align: center;
+        transition:
+          opacity 0.25s,
+          transform 0.25s;
+      }
+      .moving .memory {
+        opacity: 0.15;
+        transform: translateY(7px);
+      }
+      .location {
+        font-weight: 400;
+        font-size: 23px;
+        letter-spacing: 4px;
+        margin: 0 0 12px;
+      }
+      .location span {
+        font:
+          10px "Courier New",
+          monospace;
+        color: var(--dim);
+        letter-spacing: 1px;
+        margin-left: 13px;
+      }
+      .note {
+        font-family: Georgia, "Songti SC", serif;
+        font-size: 13px;
+        color: #a8ad9b;
+        margin: 0;
+        letter-spacing: 1.4px;
+        line-height: 1.8;
+      }
+      .controls {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+      }
+      .round {
+        width: 44px;
+        height: 44px;
+        border: 1px solid #4c5043;
+        border-radius: 50%;
+        background: transparent;
+        display: grid;
+        place-items: center;
+        transition:
+          background 0.2s,
+          border-color 0.2s;
+      }
+      .round:hover:enabled {
+        background: #30342b;
+        border-color: var(--accent);
+      }
+      .round svg {
+        width: 19px;
+        height: 19px;
+      }
+      .timeline {
+        width: 84%;
+        margin: 30px auto 0;
+        display: flex;
+        align-items: center;
+        gap: 28px;
+      }
+      .timeline-label {
+        font-size: 9px;
+        letter-spacing: 1.5px;
+        color: var(--dim);
+        white-space: nowrap;
+      }
+      .stops {
+        display: flex;
+        position: relative;
+        justify-content: space-between;
+        flex: 1;
+        align-items: center;
+        height: 32px;
+      }
+      .stops:before {
+        content: "";
+        position: absolute;
+        height: 1px;
+        background: var(--line);
+        left: 8px;
+        right: 8px;
+        top: 15px;
+      }
+      .stop {
+        flex: 1;
+        min-width: 0;
+        position: relative;
+        border: 0;
+        background: transparent;
+        padding: 8px 0;
+        display: grid;
+        place-items: center;
+        isolation: isolate;
+      }
+      .stop:after {
+        content: "";
+        display: block;
+        width: 5px;
+        height: 5px;
+        border: 1px solid #696f5d;
+        border-radius: 50%;
+        background: var(--bg);
+        transition: all 0.25s;
+      }
+      .stop.active:after {
+        border-color: var(--accent);
+        background: var(--accent);
+        box-shadow: 0 0 0 5px #d5a76218;
+      }
+      .stop span {
+        position: absolute;
+        top: 34px;
+        font-size: 8px;
+        letter-spacing: 1px;
+        color: var(--accent);
+        opacity: 0;
+        white-space: nowrap;
+      }
+      .stop.active span {
+        opacity: 1;
+      }
+      .footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin: 53px 5% 0;
+        padding: 22px 0;
+        border-top: 1px solid var(--line);
+        font-size: 9px;
+        letter-spacing: 1.5px;
+        color: #7e8574;
+      }
+      .hint {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+      .hint svg {
+        width: 25px;
+        height: 13px;
+      }
+      .footer em {
+        font-family: Georgia, serif;
+        font-size: 13px;
+        letter-spacing: 0.4px;
+        color: #a2a793;
+      }
+      .kbd {
+        border: 1px solid var(--line);
+        padding: 3px 5px;
+        border-radius: 3px;
+        font-size: 9px;
+      }
+      .viewer {
+        border: 0;
+        margin: 0;
+        padding: 0;
+        width: 100vw;
+        height: 100dvh;
+        max-width: none;
+        max-height: none;
+        background: #10120f;
+        color: var(--paper);
+        overflow: hidden;
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+      .viewer::backdrop {
+        background: #10120f;
+      }
+      .viewer.open {
+        opacity: 1;
+      }
+      .full-image {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        transform: scale(1.04);
+        transition: transform 0.8s;
+      }
+      .viewer.open .full-image {
+        transform: scale(1);
+      }
+      .viewer:after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(0deg, #10120fee, transparent 35%, transparent 80%, #10120f80);
+        pointer-events: none;
+      }
+      .viewer-top {
+        position: absolute;
+        top: 30px;
+        left: 4%;
+        right: 4%;
+        z-index: 2;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .viewer-label {
+        font:
+          11px "Courier New",
+          monospace;
+        letter-spacing: 3px;
+        text-shadow: 0 2px 6px #000;
+      }
+      .close {
+        border: 1px solid #ffffff55;
+        background: #1116;
+        width: 43px;
+        height: 43px;
+        border-radius: 50%;
+        font-size: 25px;
+      }
+      .viewer-caption {
+        position: absolute;
+        bottom: 7%;
+        left: 8%;
+        z-index: 2;
+      }
+      .viewer-caption .location {
+        font-size: 32px;
+      }
+      .viewer-date {
+        font:
+          11px "Courier New",
+          monospace;
+        color: var(--accent);
+        margin-bottom: 15px;
+        letter-spacing: 2px;
+      }
+      .viewer-nav {
+        position: absolute;
+        right: 6%;
+        bottom: 8%;
+        z-index: 2;
+        display: flex;
+        gap: 12px;
+      }
+      .shutter {
+        position: fixed;
+        inset: 0;
+        background: #050605;
+        z-index: 50;
+        pointer-events: none;
+        clip-path: polygon(
+          0 0,
+          100% 0,
+          100% 100%,
+          0 100%,
+          0 0,
+          50% 50%,
+          50% 50%,
+          50% 50%,
+          50% 50%,
+          50% 50%
+        );
+        opacity: 0;
+      }
+      .shutter.fire {
+        animation: shutter 0.65s cubic-bezier(0.65, 0, 0.3, 1);
+      }
+      @keyframes shutter {
+        0% {
+          opacity: 1;
+          clip-path: polygon(
+            0 0,
+            100% 0,
+            100% 100%,
+            0 100%,
+            0 0,
+            35% 20%,
+            20% 65%,
+            65% 80%,
+            80% 35%,
+            35% 20%
+          );
+        }
+        40% {
+          opacity: 1;
+          clip-path: polygon(
+            0 0,
+            100% 0,
+            100% 100%,
+            0 100%,
+            0 0,
+            50% 50%,
+            50% 50%,
+            50% 50%,
+            50% 50%,
+            50% 50%
+          );
+        }
+        100% {
+          opacity: 1;
+          clip-path: polygon(
+            0 0,
+            100% 0,
+            100% 100%,
+            0 100%,
+            0 0,
+            -100% -100%,
+            -100% 200%,
+            200% 200%,
+            200% -100%,
+            -100% -100%
+          );
+        }
+      }
+      @media (min-width: 701px) and (max-height: 850px) {
+        :root {
+          --frame: 460px;
+          --rail-h: 300px;
+        }
+        header {
+          height: 72px;
+        }
+        .intro {
+          margin-top: 26px;
+          margin-bottom: 18px;
+        }
+        .title {
+          font-size: 52px;
+        }
+        .eyebrow {
+          margin-bottom: 10px;
+        }
+        .details {
+          margin-top: 0;
+          min-height: 85px;
+        }
+        .location {
+          font-size: 21px;
+        }
+        .frame-index strong {
+          font-size: 40px;
+        }
+        .timeline {
+          margin-top: 12px;
+        }
+        .footer {
+          margin-top: 24px;
+          padding: 16px 0;
+        }
+      }
+      @media (min-height: 950px) {
+        .intro {
+          margin-top: 65px;
+          margin-bottom: 40px;
+        }
+        :root {
+          --photo-h: 360px;
+          --rail-h: 450px;
+          --frame: 590px;
+        }
+        .timeline {
+          margin-top: 42px;
+        }
+        .footer {
+          margin-top: 65px;
+        }
+      }
+      @media (max-width: 700px) {
+        :root {
+          --frame: 80vw;
+          --gap: 16px;
+          --rail-h: 330px;
+        }
+        .header-meta .roll {
+          display: none;
+        }
+        header {
+          height: 74px;
+        }
+        .brand {
+          font-size: 19px;
+        }
+        .intro {
+          margin: 35px 7% 27px;
+        }
+        .title {
+          font-size: 37px;
+          letter-spacing: 4px;
+        }
+        .title em {
+          display: block;
+          font-size: 32px;
+          margin: 8px 0 0;
+          letter-spacing: -1px;
+        }
+        .eyebrow {
+          font-size: 8px;
+          letter-spacing: 2px;
+        }
+        .intro-right {
+          font-size: 8px;
+          letter-spacing: 1px;
+          padding-bottom: 5px;
+        }
+        .intro-right b {
+          font-size: 11px;
+          letter-spacing: 1px;
+        }
+        .details {
+          width: 86%;
+          grid-template-columns: 1fr 1fr;
+          gap: 7px;
+          margin-top: 12px;
+        }
+        .memory {
+          grid-column: 1/-1;
+          grid-row: 1;
+          min-height: 80px;
+          padding: 8px 0;
+        }
+        .location {
+          font-size: 21px;
+        }
+        .location span {
+          font-size: 9px;
+        }
+        .note {
+          font-size: 12px;
+        }
+        .frame-index strong {
+          font-size: 36px;
+        }
+        .round {
+          width: 39px;
+          height: 39px;
+        }
+        .timeline {
+          margin-top: 20px;
+          width: 86%;
+          gap: 14px;
+        }
+        .timeline-label {
+          font-size: 8px;
+        }
+        .footer {
+          margin-top: 39px;
+          padding: 18px 0;
+        }
+        .footer em {
+          display: none;
+        }
+        .keyboard-hint {
+          display: none;
+        }
+        .viewer-caption {
+          bottom: 16%;
+          left: 7%;
+          right: 7%;
+        }
+        .viewer-caption .location {
+          font-size: 25px;
+        }
+        .viewer-caption .location span {
+          display: block;
+          margin: 12px 0;
+        }
+        .viewer-nav {
+          bottom: 5%;
+        }
+        .film {
+          padding: 43px 10px 45px;
+        }
+        .stamp {
+          font-size: 11px;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *:before,
+        *:after {
+          animation: none !important;
+          transition: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="brand">
+        <svg viewBox="0 0 28 28" fill="none" stroke="currentColor">
+          <rect x="2" y="5" width="24" height="18" rx="3" />
+          <path d="M7 5v18M21 5v18M2 10h5m-5 8h5m14-8h5m-5 8h5" />
+          <circle cx="14" cy="14" r="4" />
+        </svg>
+        山河<span>拾光</span>
+      </div>
+      <div class="header-meta mono">
+        <span class="roll">第一卷 / 中国</span><span class="status">旅途已显影</span>
+      </div>
+    </header>
+    <main>
+      <section class="intro">
+        <div>
+          <p class="eyebrow mono">把沿途，留在胶卷里</p>
+          <h1 class="title">旅行胶卷</h1>
+        </div>
+        <div class="intro-right">
+          <b>沿途拾光，慢一点。</b>新疆 · 西藏 · 西安 · 沿途山河<br /><span
+            class="mono"
+            id="tripDates"
+          ></span>
+        </div>
+      </section>
+      <section
+        class="stage"
+        id="stage"
+        tabindex="0"
+        aria-label="旅行胶卷，左右拖动或使用方向键浏览，回车打开照片"
+        aria-roledescription="轮播图"
+      >
+        <div class="track" id="track"></div>
+        <div class="center-mark" aria-hidden="true"></div>
+      </section>
+      <section class="details" id="details">
+        <div class="frame-index mono"><strong id="current">01</strong><span id="total"></span></div>
+        <div class="memory" aria-live="polite" aria-atomic="true">
+          <h2 class="location" id="location"></h2>
+          <p class="note" id="note"></p>
+        </div>
+        <div class="controls">
+          <button class="round" id="prev" aria-label="上一张">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path d="M19 12H5m6-6-6 6 6 6" />
+            </svg></button
+          ><button class="round" id="next" aria-label="下一张">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path d="M5 12h14m-6-6 6 6-6 6" />
+            </svg>
+          </button>
+        </div>
+      </section>
+      <nav class="timeline" aria-label="按日期选择照片">
+        <span class="timeline-label mono">5月12日</span>
+        <div class="stops" id="stops"></div>
+        <span class="timeline-label mono">5月25日</span>
+      </nav>
+    </main>
+    <footer class="footer">
+      <div class="hint">
+        <svg viewBox="0 0 32 14" fill="none" stroke="currentColor">
+          <path d="M1 7h30M6 2 1 7l5 5M26 2l5 5-5 5" /></svg
+        >左右拖动，重温沿途
+      </div>
+      <em>用旅行，记住心动的瞬间。</em
+      ><span class="keyboard-hint"
+        ><span class="kbd">←</span> <span class="kbd">→</span> 切换 · 点击照片展开</span
+      ><span class="mono">35 毫米 / 感光度 400</span>
+    </footer>
+    <dialog class="viewer" id="viewer" aria-label="照片全屏预览">
+      <img class="full-image" id="fullImage" alt="" />
+      <div class="viewer-top">
+        <span class="viewer-label" id="fullLabel"></span
+        ><button class="close" id="close" aria-label="关闭全屏预览">×</button>
+      </div>
+      <div class="viewer-caption">
+        <p class="viewer-date" id="fullDate"></p>
+        <h2 class="location" id="fullLocation"></h2>
+        <p class="note" id="fullNote"></p>
+      </div>
+      <div class="viewer-nav">
+        <button class="round" id="fullPrev" aria-label="预览上一张">←</button
+        ><button class="round" id="fullNext" aria-label="预览下一张">→</button>
+      </div>
+    </dialog>
+    <div class="shutter" id="shutter" aria-hidden="true"></div>
+    <script>
+      // 每项包含在线图片地址、地点、时间和备注；更换 src 和文字即可自定义旅程。
+      const photos = [
+        {
+          src: "https://images.unsplash.com/photo-1508804185872-d7badad00f7d?fm=jpg&fit=crop&w=1400&q=82",
+          place: "北京 · 万里长城",
+          date: "2026.05.12",
+          time: "16:42",
+          note: "沿着山脊走，风把远方一层层展开。",
+          pos: "50% 50%",
+          source: "https://unsplash.com/photos/great-wall-of-china-china-_8EFj6ISA08",
+        },
+        {
+          src: "https://images.unsplash.com/photo-1547981609-4b6bfe67ca0b?fm=jpg&fit=crop&w=1400&q=82",
+          place: "北京 · 故宫",
+          date: "2026.05.13",
+          time: "08:16",
+          note: "红墙映着天光，走过的每一步都有回响。",
+          pos: "50% 50%",
+          source:
+            "https://unsplash.com/photos/people-at-forbidden-city-in-china-during-daytime-yBroAF1cN3I",
+        },
+        {
+          src: "https://images.unsplash.com/photo-1768137580619-76d7adbd8663?fm=jpg&fit=crop&w=1400&q=82",
+          place: "北京 · 天坛",
+          date: "2026.05.14",
+          time: "07:30",
+          note: "在蓝色琉璃瓦下，留住一个安静的清晨。",
+          pos: "50% 45%",
+          source:
+            "https://unsplash.com/photos/people-gather-at-the-temple-of-heaven-in-beijing-442Ih9W-xNI",
+        },
+        {
+          src: "https://images.unsplash.com/photo-1538428494232-9c0d8a3ab403?fm=jpg&fit=crop&w=1400&q=82",
+          place: "上海 · 黄浦江畔",
+          date: "2026.05.15",
+          time: "15:05",
+          note: "江风穿过城市，把新旧时光吹到一起。",
+          pos: "50% 50%",
+          source:
+            "https://unsplash.com/photos/orient-pearl-shanghai-china-taken-during-daytime-uKyzXEc2k_s",
+        },
+        {
+          src: "https://images.unsplash.com/photo-1517309230475-6736d926b979?fm=jpg&fit=crop&w=1400&q=82",
+          place: "上海 · 雨中老街",
+          date: "2026.05.16",
+          time: "10:28",
+          note: "雨落在屋檐上，脚步也跟着慢了下来。",
+          pos: "50% 50%",
+          source: "https://unsplash.com/photos/people-on-rainy-street-in-shanghai-MykFFC5zolE",
+        },
+        {
+          src: "https://images.unsplash.com/photo-1771345207864-2f0016374a0a?fm=jpg&fit=crop&w=1400&q=82",
+          place: "桂林 · 青山如黛",
+          date: "2026.05.17",
+          time: "14:50",
+          note: "山峰一座挨着一座，像走进未干的水墨。",
+          pos: "50% 50%",
+          source:
+            "https://unsplash.com/photos/lush-green-conical-mountains-under-a-hazy-sky-hBEIZOrIpRs",
+        },
+        {
+          src: "https://images.unsplash.com/photo-1743092440249-226bc9168916?fm=jpg&fit=crop&w=1400&q=82",
+          place: "张家界 · 云山之间",
+          date: "2026.05.18",
+          time: "09:12",
+          note: "云雾从山谷升起，眼前的山有了仙气。",
+          pos: "50% 50%",
+          source: "https://unsplash.com/photos/jagged-mountains-rise-into-a-misty-sky-71vSiX-h10s",
+        },
+        {
+          src: "https://images.unsplash.com/photo-1754624048337-d87271d76701?fm=jpg&fit=crop&w=1400&q=82",
+          place: "丽江 · 古城巷陌",
+          date: "2026.05.19",
+          time: "17:36",
+          note: "在古城的街巷里，把匆忙留给远方。",
+          pos: "50% 50%",
+          source:
+            "https://unsplash.com/photos/a-traditional-chinese-archway-adorns-a-street--qPjPOWVah0",
+        },
+        {
+          src: "https://images.unsplash.com/photo-1569660003459-6c30601dc19c?fm=jpg&fit=crop&w=1400&q=82",
+          place: "新疆 · 伊犁草原",
+          date: "2026.05.20",
+          time: "16:18",
+          note: "马群走过雪山脚下，风吹出了草原的形状。",
+          pos: "50% 50%",
+          source: "https://unsplash.com/photos/group-of-horses-on-field-Y2mR1WEroPs",
+        },
+        {
+          src: "https://images.unsplash.com/photo-1766823282156-7e2de7f9f922?fm=jpg&fit=crop&w=1400&q=82",
+          place: "新疆 · 高山湖泊",
+          date: "2026.05.21",
+          time: "11:26",
+          note: "在湖边停一会儿，让满眼的蓝替心情留白。",
+          pos: "50% 50%",
+          source:
+            "https://unsplash.com/photos/cars-parked-along-a-serene-lake-with-distant-mountains-YkJCDOopVTs",
+        },
+        {
+          src: "https://images.unsplash.com/photo-1781927387350-289c1fc914aa?fm=jpg&fit=crop&w=1400&q=82",
+          place: "西藏 · 布达拉宫",
+          date: "2026.05.22",
+          time: "09:40",
+          note: "红白宫墙映着高原的蓝天，远望也觉得庄严。",
+          pos: "50% 48%",
+          source:
+            "https://unsplash.com/photos/the-majestic-potala-palace-stands-under-a-clear-blue-sky-F4w8z9VNgvE",
+        },
+        {
+          src: "https://images.unsplash.com/photo-1637320116287-afb702acb49f?fm=jpg&fit=crop&w=1400&q=82",
+          place: "西藏 · 雪山冰湖",
+          date: "2026.05.23",
+          time: "14:12",
+          note: "雪山把倒影留在湖中，四周只剩下风的声音。",
+          pos: "50% 50%",
+          source: "https://unsplash.com/photos/a-mountain-with-a-lake-in-front-of-it-JOs5HAbYHLA",
+        },
+        {
+          src: "https://images.unsplash.com/photo-1563867800922-e2ff6367aae1?fm=jpg&fit=crop&w=1400&q=82",
+          place: "西安 · 钟楼夜色",
+          date: "2026.05.24",
+          time: "20:16",
+          note: "灯火亮起的那一刻，长安从夜色里醒来。",
+          pos: "50% 50%",
+          source: "https://unsplash.com/photos/red-and-brown-temple-at-nighttime-jSP9j71eSig",
+        },
+        {
+          src: "https://images.unsplash.com/photo-1527922751658-fdc12370761e?fm=jpg&fit=crop&w=1400&q=82",
+          place: "西安 · 秦兵马俑",
+          date: "2026.05.25",
+          time: "10:08",
+          note: "隔着两千年的时光，仍能感到沉默的力量。",
+          pos: "50% 46%",
+          source: "https://unsplash.com/photos/terracotta-army-statue-ZZV1FOGaQ8s",
+        },
+      ];
+      const $ = (s) => document.querySelector(s),
+        pad = (n) => String(n).padStart(2, "0");
+      const stage = $("#stage"),
+        track = $("#track"),
+        viewer = $("#viewer");
+      $("#total").textContent = "/ " + pad(photos.length) + " 张";
+      $("#tripDates").textContent = photos[0].date + " — " + photos.at(-1).date.slice(5);
+      document.querySelectorAll(".timeline-label").forEach((el, i) => {
+        const date = (i === 0 ? photos[0] : photos.at(-1)).date.split(".");
+        el.textContent = Number(date[1]) + "月" + Number(date[2]) + "日";
+      });
+      const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      let index = 0,
+        position = 0,
+        velocity = 0,
+        target = 0,
+        step = 536,
+        down = false,
+        lastX = 0,
+        lastT = 0,
+        startX = 0,
+        moved = false,
+        lastFrame = 0,
+        settled = true,
+        wheelTimer,
+        frameRequest = 0,
+        transitioning = false,
+        pendingTransition = null;
+      photos.forEach((p, i) => {
+        const film = document.createElement("article");
+        film.className = "film";
+        film.innerHTML = `<div class="film-label"><span>柯达 彩色负片 400</span><span>${pad(i + 1)} ▸</span></div><button class="picture" aria-label="查看${p.place}照片" tabindex="-1"><img class="photo" src="${p.src}" alt="${p.place}的旅行照片" draggable="false" style="object-position:${p.pos}"><img class="ghost" src="${p.src}" alt="" draggable="false" style="object-position:${p.pos}"><img class="ghost second" src="${p.src}" alt="" draggable="false" style="object-position:${p.pos}"><span class="stamp">'${p.date.slice(2).replaceAll(".", " ")} ${p.time}</span><span class="expand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg></span></button><div class="film-label film-bottom"><span>${pad(i + 1)}格</span><span>◁ 中国 · 2026年5月 ▷</span><span>${pad(i + 2)}</span></div>`;
+        film.querySelector(".picture").addEventListener("click", () => {
+          if (!moved) {
+            if (index === i) openViewer();
+            else go(i);
+          }
+        });
+        film.querySelector(".photo").addEventListener("error", (e) => {
+          e.target.style.visibility = "hidden";
+          film.querySelector(".picture").style.background =
+            "linear-gradient(145deg,#666b55,#253e3b)";
+        });
+        track.appendChild(film);
+        const dot = document.createElement("button");
+        dot.className = "stop";
+        dot.setAttribute("aria-label", `${p.date} ${p.place}`);
+        dot.innerHTML = `<span class="mono">${p.date.slice(5).replace(".", " / ")}</span>`;
+        dot.onclick = () => go(i);
+        $("#stops").appendChild(dot);
+      });
+      const films = [...track.children],
+        stops = [...$("#stops").children];
+      function measure() {
+        const s = getComputedStyle(document.documentElement);
+        step =
+          parseFloat(
+            s.getPropertyValue("--frame").includes("vw")
+              ? innerWidth * 0.8
+              : s.getPropertyValue("--frame"),
+          ) + parseFloat(s.getPropertyValue("--gap"));
+        position = target = index * step;
+        velocity = 0;
+        render();
+      }
+      function update() {
+        const p = photos[index];
+        $("#current").textContent = pad(index + 1);
+        $("#location").textContent = p.place;
+        $("#note").textContent = p.note;
+        films.forEach((f, i) => {
+          f.classList.toggle("active", i === index);
+          f.querySelector("button").tabIndex = i === index ? 0 : -1;
+        });
+        stops.forEach((s, i) => {
+          s.classList.toggle("active", i === index);
+          s.setAttribute("aria-current", i === index ? "true" : "false");
+        });
+        $("#prev").disabled = $("#fullPrev").disabled = index === 0;
+        $("#next").disabled = $("#fullNext").disabled = index === photos.length - 1;
+        if (viewer.open) fillViewer();
+      }
+      function render() {
+        track.style.transform = `translate3d(${-position - (step - parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--gap"))) / 2}px,0,0)`;
+        films.forEach((f, i) => {
+          const d = (i * step - position) / step,
+            dist = Math.abs(d),
+            focus = Math.max(0, 1 - dist),
+            speed = reduced ? 0 : Math.min(Math.abs(velocity) / 30, 1),
+            bend = reduced
+              ? 0
+              : Math.min(Math.abs(d), 2.5) * Math.min(Math.abs(velocity) * 0.25, 9);
+          f.style.transform = `translateY(${bend}px) rotate(${reduced ? 0 : Math.max(-4, Math.min(4, d * velocity * 0.045))}deg) scale(${0.9 + focus * 0.1})`;
+          f.style.setProperty("--brightness", 0.5 + focus * 0.5);
+          f.style.setProperty("--blur", `${reduced ? 0 : Math.min(dist * 1.4, 2.5)}px`);
+          f.style.setProperty("--ghost", speed > 0.25 ? speed * 0.3 : 0);
+          f.style.setProperty("--trail", `${velocity * -1.8}px`);
+        });
+        const next = Math.max(0, Math.min(photos.length - 1, Math.round(position / step)));
+        if (next !== index) {
+          index = next;
+          update();
+        }
+        if (!reduced && Math.abs(velocity) > 8) {
+          const stamp = films[index].querySelector(".stamp");
+          stamp.style.transform = `translateY(${Math.sin(performance.now() * 0.13) * 2}px)`;
+          stamp.style.opacity = 0.5 + Math.random() * 0.5;
+        } else {
+          films.forEach((f) => {
+            const s = f.querySelector(".stamp");
+            s.style.transform = "";
+            s.style.opacity = "";
+          });
+        }
+      }
+      function moving() {
+        settled = false;
+        $("#details").classList.add("moving");
+        wake();
+      }
+      function wake() {
+        if (!frameRequest) {
+          lastFrame = performance.now();
+          frameRequest = requestAnimationFrame(tick);
+        }
+      }
+      function tick(t) {
+        frameRequest = 0;
+        const dt = Math.min((t - lastFrame) / 16.667, 2);
+        lastFrame = t;
+        if (!down) {
+          if (target === null) {
+            position += velocity * dt;
+            velocity *= Math.pow(0.94, dt);
+            if (position < 0 || position > (photos.length - 1) * step) {
+              const edge = position < 0 ? 0 : (photos.length - 1) * step;
+              velocity += (edge - position) * 0.025 * dt;
+              velocity *= Math.pow(0.8, dt);
+            }
+            if (Math.abs(velocity) < 1.6) {
+              target = Math.max(0, Math.min(photos.length - 1, Math.round(position / step))) * step;
+            }
+          } else {
+            const delta = target - position;
+            velocity = (velocity + delta * 0.035 * dt) * Math.pow(0.73, dt);
+            position += velocity * dt;
+            if (Math.abs(delta) < 0.35 && Math.abs(velocity) < 0.15) {
+              position = target;
+              velocity = 0;
+              settled = true;
+              $("#details").classList.remove("moving");
+            }
+          }
+        }
+        render();
+        if (down || !settled) wake();
+      }
+      function go(i) {
+        i = Math.max(0, Math.min(photos.length - 1, i));
+        target = i * step;
+        if (reduced) {
+          position = target;
+          velocity = 0;
+          render();
+          $("#details").classList.remove("moving");
+          return;
+        }
+        moving();
+      }
+      stage.addEventListener("pointerdown", (e) => {
+        if (e.button !== 0 || transitioning) return;
+        down = true;
+        moved = false;
+        startX = lastX = e.clientX;
+        lastT = performance.now();
+        velocity = 0;
+        target = null;
+        stage.classList.add("dragging");
+        moving();
+      });
+      window.addEventListener(
+        "pointermove",
+        (e) => {
+          if (!down) return;
+          const now = performance.now(),
+            delta = e.clientX - lastX;
+          if (Math.abs(e.clientX - startX) > 5) {
+            moved = true;
+            if (!stage.hasPointerCapture(e.pointerId)) stage.setPointerCapture(e.pointerId);
+          }
+          let factor = position < 0 || position > (photos.length - 1) * step ? 0.3 : 1;
+          position -= delta * factor;
+          velocity = velocity * 0.35 + (-delta / Math.max(now - lastT, 4)) * 16.667 * 0.65;
+          velocity = Math.max(-65, Math.min(65, velocity));
+          lastX = e.clientX;
+          lastT = now;
+          if (e.cancelable && moved) e.preventDefault();
+        },
+        { passive: false },
+      );
+      function release() {
+        if (!down) return;
+        down = false;
+        stage.classList.remove("dragging");
+        if (performance.now() - lastT > 100) velocity = 0;
+        if (reduced) {
+          target = Math.max(0, Math.min(photos.length - 1, Math.round(position / step))) * step;
+          position = target;
+          velocity = 0;
+        }
+        wake();
+      }
+      window.addEventListener("pointerup", release);
+      window.addEventListener("pointercancel", () => {
+        release();
+        go(Math.round(position / step));
+      });
+      window.addEventListener("blur", release);
+      stage.addEventListener(
+        "wheel",
+        (e) => {
+          e.preventDefault();
+          target = null;
+          position += Math.max(
+            -110,
+            Math.min(110, Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY),
+          );
+          position = Math.max(
+            -step * 0.15,
+            Math.min((photos.length - 1.0) * step + step * 0.15, position),
+          );
+          velocity = 0;
+          moving();
+          down = true;
+          clearTimeout(wheelTimer);
+          wheelTimer = setTimeout(() => {
+            down = false;
+            go(Math.round(position / step));
+          }, 110);
+        },
+        { passive: false },
+      );
+      $("#prev").onclick = () => go(index - 1);
+      $("#next").onclick = () => go(index + 1);
+      stops.forEach((s) =>
+        s.addEventListener("keydown", () => {
+          moved = false;
+        }),
+      );
+      function fillViewer() {
+        const p = photos[index];
+        $("#fullImage").src = p.src;
+        $("#fullImage").alt = `${p.place}的旅行照片`;
+        $("#fullLabel").textContent = `第 ${pad(index + 1)} / ${pad(photos.length)} 张 · 中国`;
+        $("#fullDate").textContent = `${p.date} / ${p.time}`;
+        $("#fullLocation").textContent = p.place;
+        $("#fullNote").textContent = p.note;
+      }
+      function shutter(action) {
+        if (transitioning) {
+          pendingTransition = action;
+          return;
+        }
+        transitioning = true;
+        if (reduced) {
+          action();
+          transitioning = false;
+          return;
+        }
+        const s = $("#shutter");
+        s.classList.remove("fire");
+        void s.offsetWidth;
+        s.classList.add("fire");
+        setTimeout(action, 250);
+        setTimeout(() => {
+          s.classList.remove("fire");
+          transitioning = false;
+          if (pendingTransition) {
+            const next = pendingTransition;
+            pendingTransition = null;
+            shutter(next);
+          }
+        }, 680);
+      }
+      function openViewer() {
+        shutter(() => {
+          go(index);
+          fillViewer();
+          viewer.showModal();
+          requestAnimationFrame(() => viewer.classList.add("open"));
+          document.body.style.overflow = "hidden";
+          $("#close").focus();
+        });
+      }
+      function closeViewer() {
+        shutter(() => {
+          viewer.classList.remove("open");
+          viewer.close();
+          document.body.style.overflow = "";
+          films[index].querySelector("button").focus({ preventScroll: true });
+        });
+      }
+      $("#close").onclick = closeViewer;
+      viewer.addEventListener("cancel", (e) => {
+        e.preventDefault();
+        closeViewer();
+      });
+      function fullGo(n) {
+        index = Math.max(0, Math.min(photos.length - 1, n));
+        position = target = index * step;
+        velocity = 0;
+        settled = true;
+        render();
+        update();
+      }
+      $("#fullPrev").onclick = () => fullGo(index - 1);
+      $("#fullNext").onclick = () => fullGo(index + 1);
+      document.addEventListener("keydown", (e) => {
+        if (e.altKey || e.ctrlKey || e.metaKey) return;
+        if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+          e.preventDefault();
+          const n = Math.max(
+            0,
+            Math.min(photos.length - 1, index + (e.key === "ArrowRight" ? 1 : -1)),
+          );
+          if (viewer.open) fullGo(n);
+          else go(n);
+        }
+        if (e.key === "Enter" && e.target === stage) openViewer();
+        if (e.key === "Home" && e.target === stage) {
+          e.preventDefault();
+          go(0);
+        }
+        if (e.key === "End" && e.target === stage) {
+          e.preventDefault();
+          go(photos.length - 1);
+        }
+      });
+      window.addEventListener("resize", measure);
+      measure();
+      update();
+    </script>
+  </body>
+</html>
