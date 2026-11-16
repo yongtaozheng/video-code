@@ -1,0 +1,1466 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="在暖光小院里挂上陶铃、玻璃铃和贝壳，拖动布置，用一阵风轻轻奏响。"
+    />
+    <title>风铃小院</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      :root {
+        font-family:
+          "Avenir Next", "PingFang SC", "Microsoft YaHei", sans-serif;
+        color: #536052;
+        background: #e8e9db;
+      }
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+      button,
+      input,
+      select {
+        font: inherit;
+        color: inherit;
+      }
+      button {
+        cursor: pointer;
+      }
+      button:focus-visible,
+      input:focus-visible,
+      select:focus-visible,
+      canvas:focus-visible {
+        outline: 2px solid #a88c59;
+        outline-offset: 5px;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100svh;
+        touch-action: none;
+        cursor: grab;
+      }
+      canvas.dragging {
+        cursor: grabbing;
+      }
+      .heading {
+        position: fixed;
+        left: 4.5%;
+        top: 33px;
+        pointer-events: none;
+      }
+      .heading small {
+        font-size: 9px;
+        letter-spacing: 4px;
+        color: #9a9c80;
+      }
+      h1 {
+        font:
+          500 clamp(32px, 3.7vw, 51px) / 1.3 "Songti SC",
+          "STSong",
+          serif;
+        letter-spacing: 7px;
+        margin: 13px 0 10px;
+      }
+      .heading p {
+        color: #8d967c;
+        font-size: 10px;
+        letter-spacing: 1px;
+        line-height: 2;
+        margin: 0;
+      }
+      .top-actions {
+        position: fixed;
+        top: 23px;
+        right: 26px;
+        display: flex;
+        gap: 8px;
+      }
+      .pill {
+        border: 1px solid #86927642;
+        border-radius: 24px;
+        padding: 8px 13px;
+        background: #faf6e86e;
+        backdrop-filter: blur(14px);
+        font-size: 10px;
+        letter-spacing: 1px;
+      }
+      .dock {
+        position: fixed;
+        left: 50%;
+        bottom: 24px;
+        transform: translateX(-50%);
+        width: min(850px, calc(100% - 40px));
+        border: 1px solid #a5ae8a42;
+        border-radius: 15px;
+        padding: 17px 21px 14px;
+        background: #f9f6e7e8;
+        backdrop-filter: blur(18px);
+        box-shadow: 0 12px 40px #4a5d3d0a;
+      }
+      .dock-main {
+        display: flex;
+        align-items: center;
+        gap: 19px;
+        justify-content: space-between;
+      }
+      .materials {
+        display: flex;
+        gap: 7px;
+      }
+      .material {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid #8d9c7b35;
+        border-radius: 8px;
+        background: #fffbee6e;
+        padding: 10px 12px;
+        font-size: 11px;
+        letter-spacing: 1px;
+      }
+      .material i {
+        display: block;
+        width: 12px;
+        height: 13px;
+        border-radius: 7px 7px 4px 4px;
+        background: #99b4a6;
+        border: 1px solid #809a8b;
+      }
+      .material[data-material="glass"] i {
+        background: #bbd6d15c;
+        border-color: #9db9ad;
+      }
+      .material[data-material="shell"] i {
+        background: #edd6bb;
+        border-color: #bfad91;
+        border-radius: 8px 8px 2px 2px;
+      }
+      .wind-setting {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 10px;
+        color: #899478;
+        flex: 1;
+        max-width: 190px;
+        white-space: nowrap;
+      }
+      input[type="range"] {
+        min-width: 0;
+        accent-color: #92a47e;
+        cursor: pointer;
+        height: 3px;
+      }
+      #breeze {
+        width: 100%;
+      }
+      .dock-buttons {
+        display: flex;
+        gap: 7px;
+      }
+      .button {
+        border: 1px solid #8c9c7442;
+        border-radius: 7px;
+        background: #e6ebd65e;
+        padding: 10px 13px;
+        font-size: 10px;
+        white-space: nowrap;
+      }
+      .button:hover,
+      .material:hover {
+        background: #d8e1c375;
+      }
+      #sound[aria-pressed="true"] {
+        background: #829873;
+        color: #fffbee;
+        border-color: #829873;
+      }
+      .status {
+        margin: 13px 0 0;
+        text-align: center;
+        color: #a1a18a;
+        font-size: 9px;
+        letter-spacing: 1.5px;
+        min-height: 15px;
+      }
+      .inspector {
+        position: fixed;
+        right: 27px;
+        top: 115px;
+        width: 194px;
+        padding: 17px;
+        background: #faf8ebce;
+        border: 1px solid #97a78236;
+        border-radius: 10px;
+        backdrop-filter: blur(15px);
+      }
+      .inspector[hidden] {
+        display: none;
+      }
+      .inspector header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 9px;
+        font-size: 11px;
+        letter-spacing: 1px;
+      }
+      .close {
+        border: 0;
+        padding: 2px 4px;
+        background: transparent;
+        color: #9ba288;
+        font-size: 17px;
+      }
+      .inspector label {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        margin: 20px 0;
+        font-size: 10px;
+        color: #8b987c;
+      }
+      .inspector input {
+        width: 100%;
+      }
+      .inspector .actions {
+        display: flex;
+        gap: 8px;
+      }
+      .inspector .button {
+        flex: 1;
+        padding: 8px 9px;
+      }
+      .hint {
+        position: fixed;
+        left: 32px;
+        bottom: 27px;
+        color: #a7aa8d;
+        font-size: 9px;
+        letter-spacing: 2px;
+        writing-mode: vertical-rl;
+        pointer-events: none;
+      }
+      .restore {
+        position: fixed;
+        right: 16px;
+        top: 16px;
+        padding: 8px;
+        opacity: 0;
+        display: none;
+        border: 1px solid #80926c38;
+        border-radius: 50%;
+        background: #f9f6e850;
+      }
+      body.clean .heading,
+      body.clean .top-actions,
+      body.clean .dock,
+      body.clean .inspector,
+      body.clean .hint {
+        display: none !important;
+      }
+      body.clean .restore {
+        display: block;
+      }
+      .restore:hover,
+      .restore:focus-visible {
+        opacity: 1;
+      }
+      @media (max-width: 700px) {
+        .heading {
+          left: 24px;
+          top: 27px;
+        }
+        .heading small {
+          font-size: 8px;
+          letter-spacing: 2px;
+        }
+        h1 {
+          font-size: 33px;
+          letter-spacing: 5px;
+          margin: 10px 0;
+        }
+        .heading p {
+          font-size: 9px;
+        }
+        .top-actions {
+          right: 16px;
+          top: 20px;
+          flex-direction: column;
+          gap: 7px;
+        }
+        .pill {
+          font-size: 9px;
+          padding: 7px 11px;
+        }
+        .dock {
+          width: calc(100% - 28px);
+          bottom: 15px;
+          padding: 15px;
+        }
+        .dock-main {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 17px 13px;
+        }
+        .materials {
+          grid-column: 1 / -1;
+          justify-content: center;
+          gap: 8px;
+        }
+        .material {
+          padding: 9px 13px;
+          font-size: 10px;
+        }
+        .wind-setting {
+          max-width: none;
+          gap: 6px;
+          font-size: 9px;
+        }
+        .dock-buttons {
+          justify-content: end;
+          gap: 6px;
+        }
+        .dock-buttons .button {
+          font-size: 9px;
+          padding: 9px 10px;
+        }
+        .status {
+          font-size: 8px;
+          letter-spacing: 0.5px;
+          margin-top: 12px;
+        }
+        .inspector {
+          right: 16px;
+          top: 142px;
+          width: 170px;
+          padding: 13px;
+        }
+        .inspector label {
+          margin: 16px 0;
+        }
+        .hint {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <canvas
+      id="courtyard"
+      tabindex="0"
+      aria-label="拖动风铃调整位置和高度，轻点敲响，在空白处划动带来风"
+    ></canvas>
+    <header class="heading">
+      <small>把一阵风，挂在窗前</small>
+      <h1>风铃小院</h1>
+      <p>轻轻划过，送来一阵风。<br />拖动风铃，摆成喜欢的样子。</p>
+    </header>
+    <div class="top-actions">
+      <button class="pill" id="reset">重新布置</button
+      ><button class="pill" id="clean">纯画面</button>
+    </div>
+    <aside class="inspector" id="inspector" hidden aria-label="调整选中的风铃">
+      <header>
+        <span id="selected-name">陶铃</span
+        ><button class="close" id="close-inspector" aria-label="关闭风铃设置">
+          ×
+        </button>
+      </header>
+      <label for="length"
+        >高低
+        <input
+          id="length"
+          type="range"
+          min="125"
+          max="245"
+          value="180"
+          aria-label="悬挂绳长"
+      /></label>
+      <div class="actions">
+        <button class="button" id="strike">轻敲一下</button
+        ><button class="button" id="remove">取下</button>
+      </div>
+    </aside>
+    <section class="dock" aria-label="布置小院和声音设置">
+      <div class="dock-main">
+        <div class="materials">
+          <button class="material" data-material="ceramic">
+            <i></i>陶铃 ＋</button
+          ><button class="material" data-material="glass"><i></i>玻璃 ＋</button
+          ><button class="material" data-material="shell">
+            <i></i>贝壳 ＋
+          </button>
+        </div>
+        <label class="wind-setting" for="breeze"
+          >院里的风
+          <input id="breeze" type="range" min="0" max="100" value="24"
+        /></label>
+        <div class="dock-buttons">
+          <button class="button" id="gust">招一阵风</button
+          ><button class="button" id="sound" aria-pressed="false">
+            开启声音
+          </button>
+        </div>
+      </div>
+      <p class="status" id="status" aria-live="polite">
+        先点“开启声音”，再轻敲或拨动风铃。最多可挂六串。
+      </p>
+    </section>
+    <span class="hint">日光很慢，风也很轻。</span>
+    <button class="restore" id="restore" aria-label="显示操作界面">☷</button>
+    <script>
+      "use strict";
+      const canvas = document.querySelector("#courtyard");
+      const context = canvas.getContext("2d");
+      const backdrop = document.createElement("canvas");
+      const backdropContext = backdrop.getContext("2d");
+      const worldHeight = 760;
+      const beamY = 180;
+      const materialNames = {
+        ceramic: "陶铃",
+        glass: "玻璃铃",
+        shell: "贝壳风铃",
+      };
+      const materialSpecs = {
+        ceramic: {
+          centerY: 41,
+          radius: 59,
+          damping: 0.63,
+          notes: [523.25, 659.25, 783.99],
+          ratios: [1, 2.71, 4.13],
+          decay: 1.25,
+        },
+        glass: {
+          centerY: 47,
+          radius: 66,
+          damping: 0.43,
+          notes: [783.99, 1046.5, 1174.66],
+          ratios: [1, 2.01, 2.76, 4.1],
+          decay: 2.45,
+        },
+        shell: {
+          centerY: 91,
+          radius: 72,
+          damping: 0.87,
+          notes: [987.77, 1174.66, 1318.51],
+          ratios: [1, 1.52, 2.34],
+          decay: 0.65,
+        },
+      };
+      let worldWidth = 1200;
+      let width = 1;
+      let height = 1;
+      let sceneScale = 1;
+      let offsetX = 0;
+      let offsetY = 0;
+      let chimes = [];
+      let selected = null;
+      let serial = 0;
+      let simulationTime = 0;
+      let breeze = 0.24;
+      let pointerWind = 0;
+      let gust = 0;
+      let gesture = null;
+      let lastPointer = null;
+      let accumulator = 0;
+      let previousTime = null;
+      let reducedMotion = matchMedia(
+        "(prefers-reduced-motion: reduce)",
+      ).matches;
+      let audio = null;
+      let master = null;
+      let reverb = null;
+      let soundEnabled = false;
+      let activeVoices = 0;
+      let noteCount = 0;
+
+      function clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+      }
+      function random(index) {
+        let x = Math.imul(index + 7149, 374761393);
+        x = Math.imul(x ^ (x >>> 13), 1274126177);
+        return ((x ^ (x >>> 16)) >>> 0) / 4294967295;
+      }
+      function message(text) {
+        document.querySelector("#status").textContent = text;
+      }
+      function line(target, x1, y1, x2, y2, color, thickness = 1) {
+        target.beginPath();
+        target.moveTo(x1, y1);
+        target.lineTo(x2, y2);
+        target.strokeStyle = color;
+        target.lineWidth = thickness;
+        target.lineCap = "round";
+        target.stroke();
+      }
+      function rounded(target, x, y, w, h, radius, fill, stroke = null) {
+        target.beginPath();
+        target.roundRect(x, y, w, h, radius);
+        if (fill) {
+          target.fillStyle = fill;
+          target.fill();
+        }
+        if (stroke) {
+          target.strokeStyle = stroke;
+          target.lineWidth = 1;
+          target.stroke();
+        }
+      }
+      function circle(target, x, y, radius, color) {
+        target.beginPath();
+        target.arc(x, y, radius, 0, Math.PI * 2);
+        target.fillStyle = color;
+        target.fill();
+      }
+      function gardenBranch(target, x, y, size, alpha = 1) {
+        target.save();
+        target.translate(x, y);
+        target.scale(size, size);
+        target.globalAlpha *= alpha;
+        target.beginPath();
+        target.moveTo(0, 100);
+        target.bezierCurveTo(31, 35, -9, -33, 21, -116);
+        target.strokeStyle = "#687c57";
+        target.lineWidth = 3;
+        target.stroke();
+        for (let i = 0; i < 11; i++) {
+          const leafY = 61 - i * 15;
+          const side = i % 2 ? 1 : -1;
+          const leafX = 11 + Math.sin(i * 0.9) * 8;
+          line(
+            target,
+            leafX,
+            leafY,
+            leafX + side * 24,
+            leafY - 20,
+            "#7d8e62",
+            1,
+          );
+          target.save();
+          target.translate(leafX + side * 25, leafY - 21);
+          target.rotate(side * 0.8);
+          const gradient = target.createLinearGradient(-13, 0, 13, 0);
+          gradient.addColorStop(0, "#9cae79");
+          gradient.addColorStop(1, "#677e59");
+          target.beginPath();
+          target.ellipse(0, 0, 13, 29, 0, 0, Math.PI * 2);
+          target.fillStyle = gradient;
+          target.fill();
+          line(target, 0, -24, 0, 22, "#d9ddb145", 0.8);
+          target.restore();
+        }
+        target.restore();
+      }
+      function paintBackdrop() {
+        const target = backdropContext;
+        const wall = target.createLinearGradient(0, 0, worldWidth, worldHeight);
+        wall.addColorStop(0, "#f0e9d3");
+        wall.addColorStop(0.5, "#e2e5d1");
+        wall.addColorStop(1, "#d5dfc7");
+        target.fillStyle = wall;
+        target.fillRect(0, 0, worldWidth, worldHeight);
+        const glow = target.createRadialGradient(
+          worldWidth * 0.38,
+          170,
+          10,
+          worldWidth * 0.38,
+          170,
+          550,
+        );
+        glow.addColorStop(0, "#fffbe775");
+        glow.addColorStop(1, "#fffbe700");
+        target.fillStyle = glow;
+        target.fillRect(0, 0, worldWidth, worldHeight);
+        target.save();
+        target.globalAlpha = 0.25;
+        target.fillStyle = "#fffbee";
+        target.beginPath();
+        target.moveTo(worldWidth * 0.12, 0);
+        target.lineTo(worldWidth * 0.41, 0);
+        target.lineTo(worldWidth * 0.83, 650);
+        target.lineTo(worldWidth * 0.44, 650);
+        target.closePath();
+        target.fill();
+        target.restore();
+        target.fillStyle = "#afb99a0c";
+        for (let i = 0; i < 18000; i++) {
+          const x = random(i * 19) * worldWidth;
+          const y = random(i * 31) * worldHeight;
+          target.fillRect(x, y, 0.8 + random(i) * 1.3, 0.8);
+        }
+        target.save();
+        target.filter = "blur(6px)";
+        gardenBranch(target, worldWidth + 15, 150, 2.1, 0.12);
+        gardenBranch(target, worldWidth - 42, 70, -1.6, 0.08);
+        target.restore();
+        target.save();
+        target.globalAlpha = 0.22;
+        line(
+          target,
+          worldWidth * 0.04,
+          610,
+          worldWidth * 0.95,
+          610,
+          "#aeb89c",
+          1,
+        );
+        for (let row = 0; row < 3; row++)
+          line(
+            target,
+            0,
+            652 + row * 52,
+            worldWidth,
+            652 + row * 52,
+            "#a6b493",
+            0.7,
+          );
+        for (let x = -100; x < worldWidth + 200; x += 210)
+          line(
+            target,
+            worldWidth / 2 + (x - worldWidth / 2) * 0.6,
+            611,
+            x,
+            760,
+            "#a6b493",
+            0.6,
+          );
+        target.restore();
+        target.save();
+        target.globalAlpha = 0.55;
+        gardenBranch(target, 48, 502, 0.85);
+        gardenBranch(target, 81, 514, -0.71);
+        target.restore();
+        const pot = target.createLinearGradient(0, 0, 100, 0);
+        pot.addColorStop(0, "#bfa58b");
+        pot.addColorStop(1, "#a58f78");
+        rounded(target, 12, 583, 106, 88, 11, pot);
+        rounded(target, 6, 578, 119, 14, 5, "#c7b397");
+        target.save();
+        target.globalAlpha = 0.64;
+        gardenBranch(target, worldWidth - 46, 489, 1.08);
+        gardenBranch(target, worldWidth - 84, 505, -0.8);
+        target.restore();
+        rounded(target, worldWidth - 129, 596, 114, 82, 8, "#aaa98a");
+        rounded(target, worldWidth - 137, 592, 129, 11, 3, "#bdbaa0");
+        const beam = target.createLinearGradient(0, beamY - 20, 0, beamY + 5);
+        beam.addColorStop(0, "#c3ac80");
+        beam.addColorStop(0.55, "#ad956c");
+        beam.addColorStop(1, "#957d59");
+        target.save();
+        target.shadowColor = "#7877572a";
+        target.shadowBlur = 13;
+        target.shadowOffsetY = 9;
+        rounded(target, 75, beamY - 19, worldWidth - 150, 23, 6, beam);
+        target.restore();
+        for (let i = 0; i < 6; i++) {
+          target.beginPath();
+          target.moveTo(84, beamY - 14 + i * 2.6);
+          target.bezierCurveTo(
+            worldWidth * 0.28,
+            beamY - 18 + i * 3,
+            worldWidth * 0.65,
+            beamY - 10 + i * 2.1,
+            worldWidth - 85,
+            beamY - 15 + i * 2.8,
+          );
+          target.strokeStyle = "#e1c99b25";
+          target.lineWidth = 0.7;
+          target.stroke();
+        }
+        circle(target, 87, beamY - 8, 2.2, "#826f52");
+        circle(target, worldWidth - 87, beamY - 8, 2.2, "#826f52");
+      }
+
+      function position(chime) {
+        const end = {
+          x: chime.anchor + Math.sin(chime.angle) * chime.length,
+          y: beamY + Math.cos(chime.angle) * chime.length,
+        };
+        return {
+          ...end,
+          centerX:
+            end.x + Math.sin(chime.angle) * materialSpecs[chime.type].centerY,
+          centerY:
+            end.y + Math.cos(chime.angle) * materialSpecs[chime.type].centerY,
+        };
+      }
+      function select(chime) {
+        selected = chime;
+        document.querySelector("#inspector").hidden = !chime;
+        if (!chime) return;
+        document.querySelector("#selected-name").textContent =
+          materialNames[chime.type];
+        document.querySelector("#length").value = chime.length;
+      }
+      function addChime(type, initial = false) {
+        if (chimes.length >= 6) {
+          message("小院已经挂得很满了，先取下一串再添吧。");
+          return;
+        }
+        const locations = [
+          worldWidth * 0.23,
+          worldWidth * 0.5,
+          worldWidth * 0.77,
+        ];
+        let anchor = locations[chimes.length];
+        if (anchor === undefined || !initial) {
+          const sorted = [
+            85,
+            ...chimes.map((chime) => chime.anchor).sort((a, b) => a - b),
+            worldWidth - 85,
+          ];
+          let widest = -1;
+          for (let i = 0; i < sorted.length - 1; i++) {
+            if (sorted[i + 1] - sorted[i] > widest) {
+              widest = sorted[i + 1] - sorted[i];
+              anchor = (sorted[i + 1] + sorted[i]) / 2;
+            }
+          }
+        }
+        const chime = {
+          id: ++serial,
+          type,
+          anchor,
+          length: type === "glass" ? 211 : type === "shell" ? 171 : 183,
+          angle: 0,
+          velocity: 0,
+          clapper: 0,
+          clapperVelocity: 0,
+          lastRing: -2,
+          glow: 0,
+          variant: serial % 3,
+        };
+        chimes.push(chime);
+        if (!initial) {
+          placeChime(chime, {
+            x: anchor,
+            y: beamY + chime.length + materialSpecs[type].centerY,
+          });
+          select(chime);
+          strike(chime, 0.35);
+          message(
+            "挂好了一串" + materialNames[type] + "，拖动它调整位置和高低。",
+          );
+        }
+      }
+      function resetGarden() {
+        gesture = null;
+        lastPointer = null;
+        selected = null;
+        chimes = [];
+        serial = 0;
+        gust = 0;
+        pointerWind = 0;
+        simulationTime = 0;
+        accumulator = 0;
+        addChime("ceramic", true);
+        addChime("glass", true);
+        addChime("shell", true);
+        document.querySelector("#inspector").hidden = true;
+        canvas.classList.remove("dragging");
+        message(
+          soundEnabled
+            ? "轻轻拨动，听它们把风留住。"
+            : "先点“开启声音”，再轻敲或拨动风铃。最多可挂六串。",
+        );
+      }
+
+      async function enableAudio() {
+        try {
+          if (!audio) {
+            const AudioEngine =
+              window.AudioContext || window.webkitAudioContext;
+            if (!AudioEngine) throw new Error("当前浏览器没有声音接口");
+            audio = new AudioEngine();
+            master = audio.createGain();
+            master.gain.value = 0.54;
+            const compressor = audio.createDynamicsCompressor();
+            compressor.threshold.value = -20;
+            compressor.ratio.value = 4;
+            compressor.connect(audio.destination);
+            master.connect(compressor);
+            reverb = audio.createConvolver();
+            const impulse = audio.createBuffer(
+              2,
+              Math.floor(audio.sampleRate * 1.1),
+              audio.sampleRate,
+            );
+            for (let channel = 0; channel < 2; channel++) {
+              const samples = impulse.getChannelData(channel);
+              for (let i = 0; i < samples.length; i++)
+                samples[i] =
+                  (random(i + channel * 99991) * 2 - 1) *
+                  Math.exp((-i / samples.length) * 7) *
+                  0.32;
+            }
+            reverb.buffer = impulse;
+            const wet = audio.createGain();
+            wet.gain.value = 0.19;
+            reverb.connect(wet);
+            wet.connect(master);
+          }
+          await audio.resume();
+          if (audio.state !== "running") throw new Error("声音尚未启动");
+          soundEnabled = true;
+          master.gain.setTargetAtTime(0.54, audio.currentTime, 0.04);
+          document.querySelector("#sound").textContent = "声音已开";
+          document.querySelector("#sound").setAttribute("aria-pressed", "true");
+          message("声音已开启。轻敲、拨动，或者招来一阵风。");
+          if (chimes[0]) strike(chimes[0], 0.38);
+        } catch {
+          soundEnabled = false;
+          document.querySelector("#sound").textContent = "再点开启声音";
+          message("声音未启动，可以再点一次“开启声音”。");
+        }
+      }
+      function ring(chime, strength) {
+        chime.glow = Math.max(chime.glow, strength);
+        const spec = materialSpecs[chime.type];
+        if (
+          !soundEnabled ||
+          !audio ||
+          audio.state !== "running" ||
+          document.hidden ||
+          activeVoices + spec.ratios.length > 36
+        )
+          return;
+        const now = audio.currentTime;
+        const frequency = spec.notes[chime.variant];
+        const pan = audio.createStereoPanner();
+        pan.pan.value = clamp(
+          (chime.anchor / worldWidth) * 1.4 - 0.7,
+          -0.7,
+          0.7,
+        );
+        pan.connect(master);
+        pan.connect(reverb);
+        const life = spec.decay;
+        let remaining = spec.ratios.length;
+        for (let i = 0; i < spec.ratios.length; i++) {
+          const oscillator = audio.createOscillator();
+          const envelope = audio.createGain();
+          oscillator.type = "sine";
+          oscillator.frequency.value = frequency * spec.ratios[i];
+          const amplitude = (0.042 * clamp(strength, 0.08, 1)) / (1 + i * 2.8);
+          envelope.gain.setValueAtTime(0.00001, now);
+          envelope.gain.exponentialRampToValueAtTime(amplitude, now + 0.006);
+          envelope.gain.exponentialRampToValueAtTime(
+            0.00001,
+            now + life / (1 + i * 0.65),
+          );
+          oscillator.connect(envelope);
+          envelope.connect(pan);
+          oscillator.start(now);
+          oscillator.stop(now + life + 0.07);
+          activeVoices++;
+          oscillator.onended = () => {
+            activeVoices--;
+            oscillator.disconnect();
+            envelope.disconnect();
+            if (--remaining === 0) pan.disconnect();
+          };
+        }
+        noteCount++;
+      }
+      function strike(chime, strength = 0.5) {
+        chime.velocity += 0.18 * (chime.id % 2 ? 1 : -1);
+        chime.clapperVelocity += 0.9 * (chime.id % 2 ? -1 : 1);
+        chime.lastRing = simulationTime;
+        ring(chime, strength);
+      }
+
+      function updatePhysics(dt) {
+        simulationTime += dt;
+        pointerWind *= Math.exp(-dt * 1.4);
+        gust *= Math.exp(-dt * 0.85);
+        const air =
+          (Math.sin(simulationTime * 0.71) * 0.35 +
+            Math.sin(simulationTime * 1.17 + 1) * 0.2) *
+            breeze +
+          pointerWind +
+          gust;
+        for (const chime of chimes) {
+          chime.glow *= Math.exp(-dt * 2.5);
+          if (gesture?.chime === chime && gesture.dragged) continue;
+          const spec = materialSpecs[chime.type];
+          const torque =
+            air *
+            (1.2 + Math.sin(chime.id + simulationTime * 0.3) * 0.12) *
+            (reducedMotion ? 0.3 : 1);
+          chime.velocity +=
+            (torque -
+              (1500 / chime.length) * Math.sin(chime.angle) -
+              spec.damping * chime.velocity) *
+            dt;
+          chime.velocity = clamp(chime.velocity, -1.2, 1.2);
+          chime.angle = clamp(chime.angle + chime.velocity * dt, -0.65, 0.65);
+          chime.clapperVelocity +=
+            (-48 * chime.clapper -
+              chime.velocity * 13 -
+              chime.clapperVelocity * 3.1) *
+            dt;
+          chime.clapper = clamp(
+            chime.clapper + chime.clapperVelocity * dt,
+            -0.42,
+            0.42,
+          );
+          if (
+            Math.abs(chime.clapper) > 0.052 &&
+            simulationTime - chime.lastRing > 0.48
+          ) {
+            ring(
+              chime,
+              clamp(
+                Math.abs(chime.clapperVelocity) * 0.5 +
+                  Math.abs(chime.velocity) * 0.3,
+                0.12,
+                0.68,
+              ),
+            );
+            chime.lastRing = simulationTime;
+            chime.clapperVelocity *= -0.5;
+          }
+        }
+        // 接触时只交换角动量，悬点仍留在木梁上。
+        for (let i = 0; i < chimes.length; i++)
+          for (let j = i + 1; j < chimes.length; j++) {
+            const a = chimes[i];
+            const b = chimes[j];
+            const pa = position(a);
+            const pb = position(b);
+            const dx = pb.centerX - pa.centerX;
+            const dy = pb.centerY - pa.centerY;
+            const separation = Math.hypot(dx, dy) || 1;
+            const minimum =
+              (materialSpecs[a.type].radius + materialSpecs[b.type].radius) *
+              0.97;
+            if (separation >= minimum) continue;
+            const normal = dx / separation;
+            const correction = Math.min(8, (minimum - separation) * 0.25);
+            if (gesture?.chime !== a) {
+              a.angle -= (correction * normal) / a.length;
+              a.velocity -= normal * 0.025;
+            }
+            if (gesture?.chime !== b) {
+              b.angle += (correction * normal) / b.length;
+              b.velocity += normal * 0.025;
+            }
+            if (simulationTime - Math.max(a.lastRing, b.lastRing) > 0.4) {
+              ring(a, 0.27);
+              ring(b, 0.22);
+              a.lastRing = b.lastRing = simulationTime;
+            }
+          }
+      }
+
+      function drawPaper(chime, shadow) {
+        const flutter =
+          (Math.sin(simulationTime * 2.6 + chime.id) * breeze * 5 +
+            chime.velocity * 10) *
+          (reducedMotion ? 0.3 : 1);
+        const bottom = chime.type === "glass" ? 231 : 221;
+        context.beginPath();
+        context.moveTo(-16, 126);
+        context.bezierCurveTo(
+          -16 + flutter,
+          161,
+          -12 - flutter,
+          196,
+          -15 + flutter,
+          bottom,
+        );
+        context.lineTo(15 + flutter, bottom - 3);
+        context.bezierCurveTo(12 - flutter, 191, 16 + flutter, 157, 16, 126);
+        context.closePath();
+        const paper = context.createLinearGradient(-15, 0, 15, 0);
+        paper.addColorStop(0, "#f6edd5");
+        paper.addColorStop(0.55, "#fff7e1");
+        paper.addColorStop(1, "#e0d6bc");
+        context.fillStyle = shadow ? "#4c624c" : paper;
+        context.fill();
+        if (!shadow) {
+          line(
+            context,
+            flutter * 0.1,
+            127,
+            flutter * 0.2,
+            bottom - 6,
+            "#c7bda22b",
+            0.8,
+          );
+          context.fillStyle = "#8e9d85";
+          context.textAlign = "center";
+          context.font = '17px "Songti SC",serif';
+          context.fillText(
+            chime.type === "glass" ? "清" : "微",
+            flutter * 0.25,
+            161,
+          );
+          context.fillText(
+            chime.type === "glass" ? "风" : "风",
+            flutter * 0.35,
+            184,
+          );
+          circle(context, 0, 132, 1.4, "#aa9477");
+        }
+      }
+      function drawShell(x, y, angle, shadow) {
+        context.save();
+        context.translate(x, y);
+        context.rotate(angle);
+        context.beginPath();
+        context.moveTo(0, 23);
+        context.bezierCurveTo(-6, 13, -27, -1, -25, -12);
+        context.bezierCurveTo(-23, -29, 18, -33, 25, -13);
+        context.bezierCurveTo(28, 0, 7, 14, 0, 23);
+        context.closePath();
+        const shell = context.createLinearGradient(-24, -15, 22, 14);
+        shell.addColorStop(0, "#fff5df");
+        shell.addColorStop(0.5, "#ecd5bb");
+        shell.addColorStop(1, "#ccb59d");
+        context.fillStyle = shadow ? "#4c624c" : shell;
+        context.fill();
+        if (!shadow)
+          for (let i = -3; i <= 3; i++) {
+            context.beginPath();
+            context.moveTo(0, 21);
+            context.quadraticCurveTo(i * 5, 1, i * 6.4, -19 + Math.abs(i) * 2);
+            context.strokeStyle = "#bdaa925b";
+            context.lineWidth = 0.7;
+            context.stroke();
+          }
+        context.restore();
+      }
+      function drawChime(chime, shadow = false) {
+        const p = position(chime);
+        context.save();
+        if (shadow) {
+          context.translate(27 + Math.sin(simulationTime * 0.14) * 3, 28);
+          context.globalAlpha = 0.065;
+          context.filter = "blur(3px)";
+        }
+        line(
+          context,
+          chime.anchor,
+          beamY,
+          p.x,
+          p.y,
+          shadow ? "#4c624c" : "#a79e7b",
+          0.9,
+        );
+        if (!shadow) {
+          context.strokeStyle = "#ad976e";
+          context.lineWidth = 1;
+          context.beginPath();
+          context.arc(chime.anchor, beamY - 4, 5, -0.4, Math.PI * 1.5);
+          context.stroke();
+        }
+        context.translate(p.x, p.y);
+        context.rotate(-chime.angle);
+        const base = shadow ? "#4c624c" : "#b3ab8e";
+        if (chime.type === "shell") {
+          context.beginPath();
+          context.moveTo(-68, 25);
+          context.quadraticCurveTo(0, -2, 68, 25);
+          context.strokeStyle = shadow ? base : "#ab9870";
+          context.lineWidth = 4;
+          context.stroke();
+          line(context, 0, -3, -68, 25, base, 0.8);
+          line(context, 0, -3, 68, 25, base, 0.8);
+          for (let i = 0; i < 3; i++) {
+            const x = (i - 1) * 45;
+            const y = i === 1 ? 139 : 95;
+            const swing =
+              chime.clapper * (i % 2 ? -1 : 1) +
+              Math.sin(simulationTime * 1.7 + i) * 0.02 * breeze;
+            const endX = x + Math.sin(swing) * 46;
+            line(context, x, i === 1 ? 11 : 20, endX, y - 25, base, 0.8);
+            drawShell(endX, y, swing * 0.7, shadow);
+            if (!shadow) circle(context, x, i === 1 ? 34 : 38, 3, "#b4bba0");
+          }
+        } else {
+          const glass = chime.type === "glass";
+          const gradient = context.createLinearGradient(-65, 0, 62, 75);
+          if (glass) {
+            gradient.addColorStop(0, "#effaf44a");
+            gradient.addColorStop(0.5, "#b5d4c72d");
+            gradient.addColorStop(1, "#91afa264");
+          } else {
+            gradient.addColorStop(0, "#b5c5ad");
+            gradient.addColorStop(0.45, "#92ad9b");
+            gradient.addColorStop(1, "#6e8c7f");
+          }
+          context.beginPath();
+          if (glass) {
+            context.moveTo(-62, 70);
+            context.bezierCurveTo(-67, 38, -45, 0, 0, 0);
+            context.bezierCurveTo(45, 0, 67, 38, 62, 70);
+            context.quadraticCurveTo(0, 90, -62, 70);
+          } else {
+            context.moveTo(-52, 64);
+            context.bezierCurveTo(-59, 30, -31, 0, 0, 0);
+            context.bezierCurveTo(31, 0, 59, 30, 52, 64);
+            context.quadraticCurveTo(0, 83, -52, 64);
+          }
+          context.fillStyle = shadow ? base : gradient;
+          context.fill();
+          if (!shadow) {
+            context.strokeStyle = glass ? "#86a89882" : "#6f897d85";
+            context.lineWidth = 1;
+            context.stroke();
+          }
+          if (!shadow && glass) {
+            context.beginPath();
+            context.moveTo(-43, 24);
+            context.quadraticCurveTo(-56, 43, -49, 61);
+            context.strokeStyle = "#fbfff4a1";
+            context.lineWidth = 3;
+            context.stroke();
+            context.beginPath();
+            context.ellipse(0, 70, 61, 10, 0, 0, Math.PI * 2);
+            context.strokeStyle = "#cde2ce9a";
+            context.lineWidth = 1.3;
+            context.stroke();
+          } else if (!shadow) {
+            line(context, -6, 58, 0, 25, "#5d7d6e87", 1);
+            for (let i = 0; i < 4; i++) {
+              context.save();
+              context.translate(-3 + i, 50 - i * 7);
+              context.rotate(i % 2 ? 0.8 : -0.8);
+              context.fillStyle = "#dae4c786";
+              context.beginPath();
+              context.ellipse(0, 0, 3.4, 8.5, 0, 0, Math.PI * 2);
+              context.fill();
+              context.restore();
+            }
+            context.beginPath();
+            context.ellipse(0, 66, 51, 8, 0, 0, Math.PI * 2);
+            context.fillStyle = "#4c716457";
+            context.fill();
+          }
+          circle(context, 0, -3, 3.7, shadow ? base : "#b69e75");
+          context.save();
+          context.rotate(chime.clapper);
+          line(context, 0, 32, 0, 122, shadow ? base : "#9e9270", 0.8);
+          circle(context, 0, 77, 7, shadow ? base : "#b69b6d");
+          drawPaper(chime, shadow);
+          context.restore();
+        }
+        if (!shadow && chime.glow > 0.02) {
+          context.strokeStyle = `rgba(199,174,112,${chime.glow * 0.42})`;
+          context.lineWidth = 1;
+          context.beginPath();
+          context.ellipse(
+            0,
+            65,
+            65 + (1 - chime.glow) * 23,
+            18 + (1 - chime.glow) * 10,
+            0,
+            0,
+            Math.PI * 2,
+          );
+          context.stroke();
+        }
+        context.restore();
+      }
+      function render() {
+        context.clearRect(0, 0, width, height);
+        context.fillStyle = "#e6e9d9";
+        context.fillRect(0, 0, width, height);
+        context.save();
+        context.translate(offsetX, offsetY);
+        context.scale(sceneScale, sceneScale);
+        context.drawImage(backdrop, 0, 0, worldWidth, worldHeight);
+        for (const chime of chimes) drawChime(chime, true);
+        for (const chime of chimes)
+          if (chime !== gesture?.chime) drawChime(chime);
+        if (gesture?.chime) drawChime(gesture.chime);
+        if (selected && gesture) {
+          const p = position(selected);
+          context.strokeStyle = "#9ca77d77";
+          context.lineWidth = 0.8;
+          context.setLineDash([3, 5]);
+          context.beginPath();
+          context.arc(
+            p.centerX,
+            p.centerY,
+            materialSpecs[selected.type].radius + 9,
+            0,
+            Math.PI * 2,
+          );
+          context.stroke();
+          context.setLineDash([]);
+        }
+        context.restore();
+      }
+
+      function resize() {
+        const oldWorldWidth = worldWidth;
+        width = innerWidth;
+        height = innerHeight;
+        worldWidth = width < 700 ? 900 : 1200;
+        if (oldWorldWidth !== worldWidth)
+          chimes.forEach((chime) => {
+            chime.anchor *= worldWidth / oldWorldWidth;
+          });
+        const density = Math.min(devicePixelRatio || 1, 1.75);
+        canvas.width = Math.round(width * density);
+        canvas.height = Math.round(height * density);
+        context.setTransform(density, 0, 0, density, 0, 0);
+        backdrop.width = Math.round(worldWidth * 1.5);
+        backdrop.height = Math.round(worldHeight * 1.5);
+        backdropContext.setTransform(1.5, 0, 0, 1.5, 0, 0);
+        sceneScale = Math.min(width / worldWidth, height / worldHeight);
+        offsetX = (width - worldWidth * sceneScale) / 2;
+        offsetY = (height - worldHeight * sceneScale) / 2;
+        paintBackdrop();
+        render();
+      }
+      function point(event) {
+        return {
+          x: (event.clientX - offsetX) / sceneScale,
+          y: (event.clientY - offsetY) / sceneScale,
+        };
+      }
+      function hitChime(p) {
+        return [...chimes].reverse().find((chime) => {
+          const body = position(chime);
+          const dx = p.x - body.x;
+          const dy = p.y - body.y;
+          const localX =
+            dx * Math.cos(chime.angle) - dy * Math.sin(chime.angle);
+          const localY =
+            dx * Math.sin(chime.angle) + dy * Math.cos(chime.angle);
+          if (chime.type === "shell")
+            return Math.abs(localX) < 83 && localY > -12 && localY < 176;
+          const inBell = Math.abs(localX) < 71 && localY > -12 && localY < 90;
+          const inPaper = Math.abs(localX) < 29 && localY >= 90 && localY < 236;
+          return inBell || inPaper;
+        });
+      }
+      function placeChime(chime, p) {
+        const spec = materialSpecs[chime.type];
+        const candidate = {
+          x: clamp(p.x, 83, worldWidth - 83),
+          y: clamp(p.y, beamY + 125 + spec.centerY, beamY + 245 + spec.centerY),
+        };
+        for (let pass = 0; pass < 4; pass++)
+          for (const other of chimes) {
+            if (other === chime) continue;
+            const body = position(other);
+            let dx = candidate.x - body.centerX;
+            let dy = candidate.y - body.centerY;
+            let distance = Math.hypot(dx, dy);
+            const minimum =
+              (spec.radius + materialSpecs[other.type].radius) * 1.01;
+            if (distance >= minimum) continue;
+            if (distance < 0.1) {
+              dx = chime.id % 2 ? 1 : -1;
+              dy = 0.2;
+              distance = Math.hypot(dx, dy);
+            }
+            candidate.x += (dx / distance) * (minimum - distance);
+            candidate.y += (dy / distance) * (minimum - distance);
+          }
+        chime.anchor = clamp(candidate.x, 83, worldWidth - 83);
+        chime.length = clamp(candidate.y - beamY - spec.centerY, 125, 245);
+        chime.angle = chime.velocity = 0;
+        document.querySelector("#length").value = chime.length;
+      }
+      canvas.onpointerdown = (event) => {
+        if (event.button !== 0 || gesture) return;
+        const p = point(event);
+        const chime = hitChime(p);
+        const body = chime ? position(chime) : null;
+        gesture = {
+          pointerId: event.pointerId,
+          chime,
+          start: p,
+          dragged: false,
+          grabOffset: body
+            ? { x: body.centerX - p.x, y: body.centerY - p.y }
+            : null,
+        };
+        canvas.setPointerCapture(event.pointerId);
+        if (chime) select(chime);
+        else select(null);
+      };
+      canvas.onpointermove = (event) => {
+        const p = point(event);
+        const now = performance.now();
+        if (lastPointer) {
+          const delta = clamp((now - lastPointer.time) / 1000, 0.016, 0.2);
+          const velocity = clamp((p.x - lastPointer.x) / delta, -1800, 1800);
+          if (!gesture?.chime)
+            pointerWind = clamp(pointerWind + velocity * 0.00012, -1.25, 1.25);
+        }
+        lastPointer = { x: p.x, time: now };
+        if (gesture?.pointerId === event.pointerId && gesture.chime) {
+          if (Math.hypot(p.x - gesture.start.x, p.y - gesture.start.y) > 7)
+            gesture.dragged = true;
+          if (gesture.dragged) {
+            canvas.classList.add("dragging");
+            placeChime(gesture.chime, {
+              x: p.x + gesture.grabOffset.x,
+              y: p.y + gesture.grabOffset.y,
+            });
+          }
+        }
+        canvas.style.cursor = gesture?.dragged
+          ? "grabbing"
+          : hitChime(p)
+            ? "grab"
+            : "default";
+      };
+      function endGesture(event) {
+        if (!gesture || event.pointerId !== gesture.pointerId) return;
+        if (gesture.chime) {
+          if (!gesture.dragged) strike(gesture.chime, 0.55);
+          else {
+            gesture.chime.velocity = 0.08;
+            message("挂在这里，等下一阵风。");
+          }
+        }
+        const pointerId = gesture.pointerId;
+        gesture = null;
+        canvas.classList.remove("dragging");
+        if (canvas.hasPointerCapture(pointerId))
+          canvas.releasePointerCapture(pointerId);
+      }
+      canvas.onpointerup = endGesture;
+      canvas.onpointercancel = endGesture;
+      canvas.onlostpointercapture = endGesture;
+      canvas.onpointerleave = () => {
+        lastPointer = null;
+      };
+      document
+        .querySelectorAll("[data-material]")
+        .forEach(
+          (button) =>
+            (button.onclick = () => addChime(button.dataset.material)),
+        );
+      document.querySelector("#sound").onclick = () => {
+        if (!soundEnabled) enableAudio();
+        else {
+          soundEnabled = false;
+          master.gain.setTargetAtTime(0, audio.currentTime, 0.05);
+          document.querySelector("#sound").textContent = "开启声音";
+          document
+            .querySelector("#sound")
+            .setAttribute("aria-pressed", "false");
+          message("静静看风吹过，也很好。");
+        }
+      };
+      document.querySelector("#gust").onclick = () => {
+        gust = 1.7;
+        message(
+          soundEnabled
+            ? "风来了，听它轻轻经过。"
+            : "风来了。开启声音，就能听见风铃。",
+        );
+      };
+      document.querySelector("#breeze").oninput = (event) => {
+        breeze = Number(event.target.value) / 100;
+      };
+      document.querySelector("#length").oninput = (event) => {
+        if (selected) {
+          const p = position(selected);
+          placeChime(selected, {
+            x: p.centerX,
+            y:
+              beamY +
+              Number(event.target.value) +
+              materialSpecs[selected.type].centerY,
+          });
+        }
+      };
+      document.querySelector("#strike").onclick = () => {
+        if (selected) strike(selected);
+      };
+      document.querySelector("#remove").onclick = () => {
+        if (selected) {
+          chimes = chimes.filter((chime) => chime !== selected);
+          select(null);
+          message("留一点空位，也给风留一点空间。");
+        }
+      };
+      document.querySelector("#close-inspector").onclick = () => select(null);
+      document.querySelector("#reset").onclick = resetGarden;
+      function toggleClean() {
+        document.body.classList.toggle("clean");
+      }
+      document.querySelector("#clean").onclick = toggleClean;
+      document.querySelector("#restore").onclick = toggleClean;
+      canvas.ondblclick = (event) => {
+        if (!hitChime(point(event))) toggleClean();
+      };
+      document.addEventListener("keydown", (event) => {
+        if (event.target.matches("input,select,textarea")) return;
+        if (event.key === "Escape") {
+          document.body.classList.remove("clean");
+          select(null);
+        }
+        if (
+          event.key === "Enter" &&
+          selected &&
+          (event.target === canvas || event.target === document.body)
+        ) {
+          event.preventDefault();
+          strike(selected);
+        }
+      });
+      document.addEventListener("visibilitychange", () => {
+        previousTime = null;
+        accumulator = 0;
+        if (audio && master)
+          master.gain.setTargetAtTime(
+            document.hidden || !soundEnabled ? 0 : 0.54,
+            audio.currentTime,
+            0.05,
+          );
+      });
+      addEventListener("resize", resize);
+      Object.defineProperty(window, "courtyardState", {
+        get() {
+          return Object.freeze({
+            time: simulationTime,
+            bells: chimes.length,
+            wind: pointerWind + gust,
+            soundEnabled,
+            audioState: audio?.state || "未开启",
+            notes: noteCount,
+            voices: activeVoices,
+            selected: selected?.id || null,
+          });
+        },
+      });
+      resize();
+      resetGarden();
+      function animate(now) {
+        const dt =
+          previousTime === null
+            ? 0
+            : Math.min(0.05, (now - previousTime) / 1000);
+        previousTime = now;
+        if (!document.hidden) {
+          accumulator += dt;
+          while (accumulator >= 1 / 120) {
+            updatePhysics(1 / 120);
+            accumulator -= 1 / 120;
+          }
+        }
+        render();
+        requestAnimationFrame(animate);
+      }
+      requestAnimationFrame(animate);
+    </script>
+  </body>
+</html>
