@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#eee1c6" />
+    <title>花溪小院</title>
+    <style>
+      :root {
+        --ink: #655f49;
+        --glass: #fff6e2c9;
+        --edge: #85745136;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        overflow: hidden;
+        background: #eee1c6;
+        color: var(--ink);
+        font-family: "Songti SC", "STSong", serif;
+      }
+      button,
+      input {
+        font: inherit;
+      }
+      button {
+        cursor: pointer;
+        color: inherit;
+        background: none;
+        border: 0;
+      }
+      button:focus-visible,
+      input:focus-visible {
+        outline: 2px solid #aa8050;
+        outline-offset: 4px;
+      }
+      #garden {
+        position: fixed;
+        inset: 0;
+        touch-action: none;
+        cursor: grab;
+      }
+      #garden:active {
+        cursor: grabbing;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      .masthead {
+        position: fixed;
+        left: 3.4%;
+        top: 4.2%;
+        pointer-events: none;
+        padding: 10px 18px 12px;
+        background: #fff8e3c9;
+        border: 1px solid #f8ebcfa0;
+        border-radius: 4px;
+        box-shadow: 0 4px 25px #5f542210;
+        backdrop-filter: blur(8px);
+      }
+      h1 {
+        font-size: clamp(20px, 2vw, 28px);
+        letter-spacing: 0.26em;
+        font-weight: 400;
+        margin: 0;
+        line-height: 1.4;
+      }
+      .top-tools {
+        position: fixed;
+        right: 3.4%;
+        top: 4.2%;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 5px 7px 5px 15px;
+        border-radius: 30px;
+        background: var(--glass);
+        border: 1px solid #fff4de90;
+        backdrop-filter: blur(10px);
+      }
+      .phase {
+        font-size: 11px;
+        letter-spacing: 3px;
+        margin-right: 4px;
+      }
+      .icon {
+        display: grid;
+        place-items: center;
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        font: 17px Georgia;
+        transition:
+          background 0.3s,
+          transform 0.3s;
+      }
+      .icon:hover {
+        transform: translateY(-2px);
+        background: #c9b98b30;
+      }
+      .icon[aria-pressed="true"] {
+        background: #c5cf9e66;
+      }
+      .icon svg {
+        width: 16px;
+        height: 16px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.35;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .controls {
+        position: fixed;
+        left: 50%;
+        bottom: 37px;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        padding: 7px 13px;
+        border: 1px solid #fff4dea0;
+        border-radius: 50px;
+        background: var(--glass);
+        backdrop-filter: blur(12px);
+        box-shadow: 0 4px 25px #5f542217;
+      }
+      .hint {
+        position: fixed;
+        left: 50%;
+        bottom: 101px;
+        transform: translateX(-50%);
+        font:
+          10px "PingFang SC",
+          sans-serif;
+        letter-spacing: 2px;
+        white-space: nowrap;
+        color: #675b42;
+        background: #fff7e1a8;
+        border-radius: 20px;
+        padding: 7px 13px;
+        transition: opacity 1.2s;
+        pointer-events: none;
+      }
+      .time-track {
+        position: fixed;
+        left: 3.5%;
+        bottom: 13px;
+        width: 93%;
+        height: 13px;
+        margin: 0;
+        appearance: none;
+        -webkit-appearance: none;
+        background: transparent;
+        cursor: pointer;
+      }
+      .time-track::-webkit-slider-runnable-track {
+        height: 2px;
+        border-radius: 3px;
+        background: linear-gradient(
+          90deg,
+          #b08b58 var(--progress, 0%),
+          #fff4d99c var(--progress, 0%)
+        );
+        box-shadow: 0 1px 1px #61502b33;
+      }
+      .time-track::-webkit-slider-thumb {
+        appearance: none;
+        -webkit-appearance: none;
+        width: 7px;
+        height: 7px;
+        background: #a87c4b;
+        border: 1px solid #f8ecd0;
+        border-radius: 50%;
+        margin-top: -2.5px;
+      }
+      .time-track::-moz-range-track {
+        height: 2px;
+        background: #fff4d99c;
+      }
+      .time-track::-moz-range-progress {
+        height: 2px;
+        background: #b08b58;
+      }
+      .time-track::-moz-range-thumb {
+        height: 7px;
+        width: 7px;
+        background: #a87c4b;
+        border: 1px solid #f8ecd0;
+        border-radius: 50%;
+      }
+      .note {
+        position: fixed;
+        left: 50%;
+        bottom: 113px;
+        transform: translateX(-50%);
+        font:
+          11px "PingFang SC",
+          sans-serif;
+        letter-spacing: 1px;
+        opacity: 0;
+        transition: opacity 0.5s;
+        background: #fff6e2e8;
+        padding: 9px 16px;
+        border-radius: 20px;
+        pointer-events: none;
+      }
+      .note.visible {
+        opacity: 1;
+      }
+      #loading {
+        position: fixed;
+        z-index: 20;
+        inset: 0;
+        background: #eee1c6;
+        display: grid;
+        place-content: center;
+        text-align: center;
+        gap: 16px;
+        font-size: 13px;
+        letter-spacing: 4px;
+        transition: opacity 0.6s;
+      }
+      #loading small {
+        max-width: 300px;
+        font:
+          12px "PingFang SC",
+          sans-serif;
+        letter-spacing: 0;
+        line-height: 1.8;
+      }
+      .loader {
+        margin: auto;
+        width: 36px;
+        height: 36px;
+        border: 1px dashed #aa9467;
+        border-radius: 50%;
+        animation: turn 14s linear infinite;
+      }
+      @keyframes turn {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @media (max-width: 700px) {
+        .masthead {
+          left: 5%;
+          top: 4%;
+          padding: 8px 11px 10px;
+        }
+        .masthead h1 {
+          font-size: 22px;
+          letter-spacing: 0.15em;
+        }
+        .top-tools {
+          top: 4%;
+          right: 5%;
+          gap: 4px;
+          padding: 4px 5px 4px 11px;
+        }
+        .phase {
+          font-size: 10px;
+          letter-spacing: 1px;
+        }
+        .top-tools .icon {
+          width: 29px;
+          height: 29px;
+        }
+        .controls {
+          bottom: 39px;
+          padding: 7px 12px;
+          gap: 10px;
+        }
+        .hint {
+          font-size: 9px;
+          letter-spacing: 1px;
+          bottom: 101px;
+        }
+        .time-track {
+          bottom: 13px;
+        }
+        .note {
+          bottom: 108px;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .loader {
+          animation: none;
+        }
+        .icon,
+        .hint {
+          transition: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="garden" aria-label="可轻触溪流、种花与起风的手绘花园"></div>
+    <header class="masthead"><h1>花溪小院</h1></header>
+    <div class="top-tools">
+      <span id="phase" class="phase">晨露</span
+      ><button
+        class="icon"
+        id="sound"
+        title="开启溪流与风铃"
+        aria-label="开启溪流与风铃"
+        aria-pressed="false"
+      >
+        <svg viewBox="0 0 24 24">
+          <path
+            d="M9 18h6M12 3v2M8 10a4 4 0 0 1 8 0c0 5 2 5 2 6H6c0-1 2-1 2-6ZM12 18v3"
+          />
+        </svg></button
+      ><button class="icon" id="reset" title="回到清晨" aria-label="回到清晨">
+        ↺
+      </button>
+    </div>
+    <div class="hint" id="hint">轻点开花 · 轻触水面 · 按住起风</div>
+    <div class="controls">
+      <button class="icon" id="pause" aria-label="暂停" title="暂停">Ⅱ</button
+      ><button
+        class="icon"
+        id="breeze"
+        title="持续微风"
+        aria-label="持续微风"
+        aria-pressed="false"
+      >
+        <svg viewBox="0 0 24 24">
+          <path
+            d="M3 8h12a3 3 0 1 0-3-3M3 12h16a2 2 0 1 1-2 2M3 16h7a3 3 0 1 1-3 3"
+          />
+        </svg></button
+      ><button class="icon" id="seed" title="开一朵花" aria-label="开一朵花">
+        <svg viewBox="0 0 24 24">
+          <path
+            d="M12 21V11M12 15C4 15 4 8 4 8s8-1 8 7ZM12 11c0-8 8-8 8-8s1 8-8 8Z"
+          />
+        </svg></button
+      ><button
+        class="icon"
+        id="roam"
+        title="缓缓漫游"
+        aria-label="缓缓漫游"
+        aria-pressed="true"
+      >
+        <svg viewBox="0 0 24 24">
+          <ellipse
+            cx="12"
+            cy="12"
+            rx="10"
+            ry="5"
+            transform="rotate(-30 12 12)"
+          />
+          <circle cx="12" cy="12" r="2" />
+        </svg>
+      </button>
+    </div>
+    <input
+      class="time-track"
+      id="daytime"
+      type="range"
+      min="0"
+      max="180"
+      step="0.1"
+      value="0"
+      aria-label="花园的时光"
+    />
+    <div id="note" class="note" role="status" aria-live="polite"></div>
+    <div id="loading">
+      <div class="loader"></div>
+      <span id="load-text">花园正在醒来</span
+      ><small id="load-error">正在展开手绘画卷…</small>
+    </div>
+    <script
+      src="assets/three.min.js"
+      onerror="document.getElementById('load-text').textContent='未能打开花园';document.getElementById('load-error').textContent='请保留 assets 文件夹与页面的相对位置。'"
+    ></script>
+    <script src="assets/illustrations.js"></script>
+    <script src="assets/painted-garden.js"></script>
+  </body>
+</html>

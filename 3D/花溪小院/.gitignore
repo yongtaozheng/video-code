@@ -1,0 +1,14 @@
+# Local teaching demos, narration, captions, video exports and review drafts.
+/*白板演示*
+/assets/narration-*/
+/design/
+/preview.png
+
+# Superseded prototypes and unused artwork.
+/assets/garden.js
+/assets/art/garden-plate-v1.png
+/assets/art/mechanisms-v1.png
+
+# Python build cache.
+__pycache__/
+*.pyc
