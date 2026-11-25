@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#a77b4d" />
+    <title>山间慢行列车</title>
+    <link rel="stylesheet" href="assets/style.css" />
+  </head>
+  <body>
+    <main id="journey" aria-label="手绘山间列车，窗外风景缓缓经过">
+      <div id="carriage">
+        <img id="interior" alt="温暖的木质车厢，桌上放着旅行本、热茶与野花" />
+        <div
+          id="view"
+          role="button"
+          tabindex="0"
+          aria-label="轻点窗外，邀请小鸟伴飞"
+        >
+          <div id="landscape-fallback"></div>
+          <canvas id="world" aria-label="持续流动的山湖风景"></canvas>
+          <div id="glass">
+            <div class="reflection"></div>
+            <div class="sash"></div>
+          </div>
+          <div id="window-shade"></div>
+        </div>
+        <div id="valance" aria-hidden="true">
+          <img id="valance-art" alt="" />
+        </div>
+        <img id="flowers-front" alt="" aria-hidden="true" />
+        <svg id="steam" viewBox="0 0 240 250" aria-hidden="true">
+          <g fill="none" stroke="#fff5dd" stroke-linecap="round">
+            <path />
+            <path />
+            <path />
+          </g>
+        </svg>
+        <svg id="tea-rings" viewBox="0 0 180 60" aria-hidden="true">
+          <ellipse
+            cx="90"
+            cy="30"
+            rx="25"
+            ry="5"
+            fill="none"
+            stroke="#fff3bc"
+          />
+        </svg>
+        <canvas id="paper" aria-hidden="true"></canvas>
+        <button
+          id="window-hotspot"
+          class="hotspot"
+          aria-label="开关车窗"
+          title="开关车窗"
+        ></button>
+        <button
+          id="book-hotspot"
+          class="hotspot"
+          aria-label="翻一页旅行本"
+          title="翻一页"
+        ></button>
+        <button
+          id="tea-hotspot"
+          class="hotspot"
+          aria-label="轻触茶杯，让热气升起"
+          title="喝杯热茶"
+        ></button>
+        <div id="sunwash"></div>
+        <div id="dust" aria-hidden="true"></div>
+      </div>
+    </main>
+    <header>
+      <span class="eyebrow">慢 慢 走 · 不 赶 路</span>
+      <h1>山间慢行列车</h1>
+    </header>
+    <div class="journey-note" aria-live="polite">
+      <span id="place">风过麦田</span><span class="note-line"></span
+      ><span id="moment">午后</span>
+    </div>
+    <nav class="controls" aria-label="旅途控制">
+      <button id="window" aria-pressed="false">
+        <svg viewBox="0 0 24 24">
+          <rect x="5" y="3" width="14" height="18" rx="3" />
+          <path d="M5 13h14M9 16h6" /></svg
+        ><span>开窗</span>
+      </button>
+      <button id="book">
+        <svg viewBox="0 0 24 24">
+          <path
+            d="M12 6C8 3 4 4 2 5v15c3-2 7-2 10 0 3-2 7-2 10 0V5c-3-2-7-2-10 1Zm0 0v14"
+          /></svg
+        ><span>翻页</span>
+      </button>
+      <button id="bird">
+        <svg viewBox="0 0 24 24">
+          <path
+            d="M3 7c6-2 7 3 9 5 2-6 7-8 10-7-1 4-4 8-8 10l-4 4-1-4C5 14 3 11 3 7Z"
+          /></svg
+        ><span>伴飞</span>
+      </button>
+      <span class="divider"></span>
+      <button
+        id="sound"
+        class="icon-only"
+        aria-label="开启列车环境音"
+        aria-pressed="false"
+      >
+        <svg viewBox="0 0 24 24">
+          <path d="m11 5-5 4H3v6h3l5 4ZM15 8q5 4 0 8M18 5q8 7 0 14" />
+        </svg>
+      </button>
+      <button
+        id="pause"
+        class="icon-only"
+        aria-label="暂停旅途"
+        aria-pressed="false"
+      >
+        <svg viewBox="0 0 24 24">
+          <path id="pause-icon" d="M8 5v14M16 5v14" />
+        </svg>
+      </button>
+    </nav>
+    <div id="hint">推开窗，听一会儿风。</div>
+    <div class="route" aria-hidden="true">
+      <span></span>
+      <div><i id="route-dot"></i></div>
+      <span></span>
+    </div>
+    <div id="loading">正在经过一片温柔的山色<span></span></div>
+    <div id="announcement" class="sr-only" aria-live="polite"></div>
+    <script src="assets/three.min.js"></script>
+    <script src="assets/art.js"></script>
+    <script src="assets/journal.js"></script>
+    <script src="assets/journey.js"></script>
+  </body>
+</html>
